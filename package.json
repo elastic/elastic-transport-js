@@ -1,0 +1,60 @@
+{
+  "name": "@elastic/transport",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "npm run lint && tap test/{unit,acceptance}/{*,**/*}.test.js && npm run test:types",
+    "test:unit": "tap test/unit/{*,**/*}.test.js",
+    "test:acceptance": "tap test/acceptance/*.test.js",
+    "test:types": "tsd",
+    "test:coverage-100": "tap test/{unit,acceptance}/{*,**/*}.test.js --coverage --100",
+    "test:coverage-report": "tap test/{unit,acceptance}/{*,**/*}.test.js --coverage && nyc report --reporter=text-lcov > coverage.lcov",
+    "test:coverage-ui": "tap test/{unit,acceptance}/{*,**/*}.test.js --coverage --coverage-report=html",
+    "lint": "standard",
+    "lint:fix": "standard --fix",
+    "license-checker": "license-checker --production --onlyAllow='MIT;Apache-2.0;Apache1.1;ISC;BSD-3-Clause;BSD-2-Clause'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/elastic/elastic-transport-js.git"
+  },
+  "keywords": [],
+  "author": {
+    "name": "Tomas Della Vedova",
+    "company": "Elastic BV"
+  },
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/elastic/elastic-transport-js/issues"
+  },
+  "homepage": "https://github.com/elastic/elastic-transport-js#readme",
+  "engines": {
+    "node": ">=10"
+  },
+  "tsd": {
+    "directory": "test/types"
+  },
+  "devDependencies": {
+    "@sinonjs/fake-timers": "github:sinonjs/fake-timers#0bfffc1",
+    "@types/node": "^12.6.2",
+    "into-stream": "^5.1.1",
+    "license-checker": "^25.0.1",
+    "proxy": "^1.0.2",
+    "standard": "^13.0.2",
+    "stoppable": "^1.1.0",
+    "tap": "^14.4.1",
+    "tsd": "^0.13.1",
+    "workq": "^2.1.0"
+  },
+  "dependencies": {
+    "debug": "^4.1.1",
+    "hpagent": "^0.1.1",
+    "ms": "^2.1.1",
+    "pump": "^3.0.0",
+    "secure-json-parse": "^2.1.0"
+  }
+}
