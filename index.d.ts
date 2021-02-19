@@ -33,7 +33,7 @@ import Transport, {
   Context
 } from './lib/Transport';
 import Connection from './lib/Connection'
-import { ConnectionPool, CloudConnectionPool, BaseConnectionPool } from './lib/pool'
+import { ClusterConnectionPool, CloudConnectionPool, BaseConnectionPool } from './lib/pool'
 import Serializer from './lib/Serializer'
 import * as errors from './lib/errors'
 
@@ -48,7 +48,7 @@ declare const events: {
 
 export {
   Transport,
-  ConnectionPool,
+  ClusterConnectionPool,
   BaseConnectionPool,
   CloudConnectionPool,
   Connection,

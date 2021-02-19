@@ -23,8 +23,8 @@ const { EventEmitter } = require('events')
 const {
   Transport,
   Connection,
-  ConnectionPool,
-  CloudConnectionPool,
+  ClusterConnectionPool,
+  CloudClusterConnectionPool,
   Serializer
 } = require('../../index')
 
@@ -77,7 +77,7 @@ class TestClient {
       Connection,
       Transport: SniffingTransport,
       Serializer,
-      ConnectionPool: opts.cloud ? CloudConnectionPool : ConnectionPool,
+      ConnectionPool: opts.cloud ? CloudClusterConnectionPool : ClusterConnectionPool,
       maxRetries: 3,
       requestTimeout: 30000,
       pingTimeout: 3000,

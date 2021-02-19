@@ -22,7 +22,7 @@ import { expectType, expectAssignable, expectError } from 'tsd'
 import {
   Transport,
   Connection,
-  ConnectionPool,
+  ClusterConnectionPool,
   Serializer
 } from '../..'
 import {
@@ -103,7 +103,7 @@ expectAssignable<RequestNDBody>(new ReadableStream())
 const transport = new Transport({
   emit: (event, ...args) => true,
   serializer: new Serializer(),
-  connectionPool: new ConnectionPool(),
+  connectionPool: new ClusterConnectionPool(),
   maxRetries: 5,
   requestTimeout: 1000,
   suggestCompression: true,

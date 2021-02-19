@@ -21,7 +21,7 @@ import { expectType, expectAssignable } from 'tsd'
 import { URL } from 'url'
 import {
   BaseConnectionPool,
-  ConnectionPool,
+  ClusterConnectionPool,
   CloudConnectionPool,
   Connection
 } from '../../'
@@ -57,7 +57,7 @@ import {
 }
 
 {
-  const pool = new ConnectionPool({
+  const pool = new ClusterConnectionPool({
     Connection: Connection,
     ssl: { ca: 'stirng' },
     emit: (event, ...args) => true,
@@ -68,13 +68,13 @@ import {
     sniffEnabled: true
   })
 
-  expectAssignable<ConnectionPool>(pool)
+  expectAssignable<ClusterConnectionPool>(pool)
   expectType<Connection[]>(pool.connections)
   expectType<number>(pool.size)
   expectType<string[]>(pool.dead)
 
-  expectAssignable<ConnectionPool>(pool.markAlive(new Connection()))
-  expectAssignable<ConnectionPool>(pool.markDead(new Connection()))
+  expectAssignable<ClusterConnectionPool>(pool.markAlive(new Connection()))
+  expectAssignable<ClusterConnectionPool>(pool.markDead(new Connection()))
   expectType<Connection | null>(pool.getConnection({
     filter (node) { return true },
     selector (connections) { return connections[0] },
@@ -83,9 +83,9 @@ import {
     now: Date.now()
   }))
   expectType<Connection>(pool.addConnection({}))
-  expectAssignable<ConnectionPool>(pool.removeConnection(new Connection()))
-  expectAssignable<ConnectionPool>(pool.empty())
-  expectAssignable<ConnectionPool>(pool.update([]))
+  expectAssignable<ClusterConnectionPool>(pool.removeConnection(new Connection()))
+  expectAssignable<ClusterConnectionPool>(pool.empty())
+  expectAssignable<ClusterConnectionPool>(pool.update([]))
   expectType<any[]>(pool.nodesToHost([], 'https'))
   expectType<{ url: URL }>(pool.urlToHost('url'))
   expectType<void>(pool.resurrect({

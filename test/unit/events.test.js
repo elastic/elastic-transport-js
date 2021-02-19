@@ -24,7 +24,7 @@ const { test } = require('tap')
 const {
   Transport,
   Serializer,
-  ConnectionPool,
+  ClusterConnectionPool,
   events
 } = require('../../index')
 const { TimeoutError } = require('../../lib/errors')
@@ -37,7 +37,7 @@ const {
 
 function prepare (Connection = MockConnection) {
   const ee = new EventEmitter()
-  const pool = new ConnectionPool({ Connection })
+  const pool = new ClusterConnectionPool({ Connection })
   pool.addConnection('http://localhost:9200')
   const transport = new Transport({
     emit: ee.emit.bind(ee),

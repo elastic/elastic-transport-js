@@ -21,14 +21,14 @@
 
 const { test } = require('tap')
 const { URL } = require('url')
-const ConnectionPool = require('../../lib/pool/ConnectionPool')
+const ClusterConnectionPool = require('../../lib/pool/ClusterConnectionPool')
 const Connection = require('../../lib/Connection')
 const { defaultNodeFilter, roundRobinSelector } = require('../../lib/Transport').internals
 const { connection: { MockConnection, MockConnectionTimeout } } = require('../utils')
 
 test('API', t => {
   t.test('addConnection', t => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     const href = 'http://localhost:9200/'
     pool.addConnection(href)
     t.ok(pool.connections.find(c => c.id === href) instanceof Connection)
@@ -38,7 +38,7 @@ test('API', t => {
   })
 
   t.test('addConnection should throw with two connections with the same id', t => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     const href = 'http://localhost:9200/'
     pool.addConnection(href)
     try {
@@ -51,7 +51,7 @@ test('API', t => {
   })
 
   t.test('addConnection should handle not-friendly url parameters for user and password', t => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     const href = 'http://us"er:p@assword@localhost:9200/'
     pool.addConnection(href)
     const conn = pool.getConnection()
@@ -64,7 +64,7 @@ test('API', t => {
   })
 
   t.test('markDead', t => {
-    const pool = new ConnectionPool({ Connection, sniffEnabled: true })
+    const pool = new ClusterConnectionPool({ Connection, sniffEnabled: true })
     const href = 'http://localhost:9200/'
     let connection = pool.addConnection(href)
     pool.markDead(connection)
@@ -76,7 +76,7 @@ test('API', t => {
   })
 
   t.test('markDead should sort the dead queue by deadTimeout', t => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     const href1 = 'http://localhost:9200/1'
     const href2 = 'http://localhost:9200/2'
     const conn1 = pool.addConnection(href1)
@@ -90,7 +90,7 @@ test('API', t => {
   })
 
   t.test('markDead should ignore connections that no longer exists', t => {
-    const pool = new ConnectionPool({ Connection, sniffEnabled: true })
+    const pool = new ClusterConnectionPool({ Connection, sniffEnabled: true })
     pool.addConnection('http://localhost:9200/')
     pool.markDead({ id: 'foo-bar' })
     t.deepEqual(pool.dead, [])
@@ -98,7 +98,7 @@ test('API', t => {
   })
 
   t.test('markAlive', t => {
-    const pool = new ConnectionPool({ Connection, sniffEnabled: true })
+    const pool = new ClusterConnectionPool({ Connection, sniffEnabled: true })
     const href = 'http://localhost:9200/'
     let connection = pool.addConnection(href)
     pool.markDead(connection)
@@ -114,7 +114,7 @@ test('API', t => {
   t.test('resurrect', t => {
     t.test('ping strategy', t => {
       t.test('alive', t => {
-        const pool = new ConnectionPool({
+        const pool = new ClusterConnectionPool({
           resurrectStrategy: 'ping',
           pingTimeout: 3000,
           Connection: MockConnection,
@@ -140,7 +140,7 @@ test('API', t => {
       })
 
       t.test('dead', t => {
-        const pool = new ConnectionPool({
+        const pool = new ClusterConnectionPool({
           resurrectStrategy: 'ping',
           pingTimeout: 3000,
           Connection: MockConnectionTimeout,
@@ -169,7 +169,7 @@ test('API', t => {
     })
 
     t.test('optimistic strategy', t => {
-      const pool = new ConnectionPool({
+      const pool = new ClusterConnectionPool({
         resurrectStrategy: 'optimistic',
         Connection,
         sniffEnabled: true
@@ -194,7 +194,7 @@ test('API', t => {
     })
 
     t.test('none strategy', t => {
-      const pool = new ConnectionPool({
+      const pool = new ClusterConnectionPool({
         resurrectStrategy: 'none',
         Connection,
         sniffEnabled: true
@@ -224,7 +224,7 @@ test('API', t => {
 
   t.test('getConnection', t => {
     t.test('Should return a connection', t => {
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       const href = 'http://localhost:9200/'
       pool.addConnection(href)
       t.ok(pool.getConnection() instanceof Connection)
@@ -232,7 +232,7 @@ test('API', t => {
     })
 
     t.test('filter option', t => {
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       const href1 = 'http://localhost:9200/'
       const href2 = 'http://localhost:9200/other'
       pool.addConnection([href1, href2])
@@ -244,7 +244,7 @@ test('API', t => {
 
     t.test('filter should get Connection objects', t => {
       t.plan(2)
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       const href1 = 'http://localhost:9200/'
       const href2 = 'http://localhost:9200/other'
       pool.addConnection([href1, href2])
@@ -258,7 +258,7 @@ test('API', t => {
 
     t.test('filter should get alive connections', t => {
       t.plan(2)
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       const href1 = 'http://localhost:9200/'
       const href2 = 'http://localhost:9200/other'
       const conn = pool.addConnection(href1)
@@ -273,7 +273,7 @@ test('API', t => {
     })
 
     t.test('If all connections are marked as dead, getConnection should return a dead connection', t => {
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       const href1 = 'http://localhost:9200/'
       const href2 = 'http://localhost:9200/other'
       const conn1 = pool.addConnection(href1)
@@ -290,7 +290,7 @@ test('API', t => {
   })
 
   t.test('removeConnection', t => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     const href = 'http://localhost:9200/'
     const connection = pool.addConnection(href)
     t.ok(pool.getConnection() instanceof Connection)
@@ -300,7 +300,7 @@ test('API', t => {
   })
 
   t.test('empty', t => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection('http://localhost:9200/')
     pool.addConnection('http://localhost:9201/')
     pool.empty(() => {
@@ -311,7 +311,7 @@ test('API', t => {
   })
 
   t.test('urlToHost', t => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     const url = 'http://localhost:9200'
     t.deepEqual(
       pool.urlToHost(url),
@@ -322,7 +322,7 @@ test('API', t => {
 
   t.test('nodesToHost', t => {
     t.test('publish_address as ip address (IPv4)', t => {
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       const nodes = {
         a1: {
           http: {
@@ -364,7 +364,7 @@ test('API', t => {
     })
 
     t.test('publish_address as ip address (IPv6)', t => {
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       const nodes = {
         a1: {
           http: {
@@ -406,7 +406,7 @@ test('API', t => {
     })
 
     t.test('publish_address as host/ip (IPv4)', t => {
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       const nodes = {
         a1: {
           http: {
@@ -448,7 +448,7 @@ test('API', t => {
     })
 
     t.test('publish_address as host/ip (IPv6)', t => {
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       const nodes = {
         a1: {
           http: {
@@ -490,7 +490,7 @@ test('API', t => {
     })
 
     t.test('Should use the configure protocol', t => {
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       const nodes = {
         a1: {
           http: {
@@ -512,7 +512,7 @@ test('API', t => {
     })
 
     t.test('Should map roles', t => {
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       const nodes = {
         a1: {
           http: {
@@ -556,7 +556,7 @@ test('API', t => {
   t.test('update', t => {
     t.test('Should not update existing connections', t => {
       t.plan(2)
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       pool.addConnection([{
         url: new URL('http://127.0.0.1:9200'),
         id: 'a1',
@@ -591,13 +591,13 @@ test('API', t => {
 
     t.test('Should not update existing connections (mark alive)', t => {
       t.plan(5)
-      class CustomConnectionPool extends ConnectionPool {
+      class CustomClusterConnectionPool extends ClusterConnectionPool {
         markAlive (connection) {
           t.ok('called')
           super.markAlive(connection)
         }
       }
-      const pool = new CustomConnectionPool({ Connection })
+      const pool = new CustomClusterConnectionPool({ Connection })
       const conn1 = pool.addConnection({
         url: new URL('http://127.0.0.1:9200'),
         id: 'a1',
@@ -637,13 +637,13 @@ test('API', t => {
 
     t.test('Should not update existing connections (same url, different id)', t => {
       t.plan(3)
-      class CustomConnectionPool extends ConnectionPool {
+      class CustomClusterConnectionPool extends ClusterConnectionPool {
         markAlive (connection) {
           t.ok('called')
           super.markAlive(connection)
         }
       }
-      const pool = new CustomConnectionPool({ Connection })
+      const pool = new CustomClusterConnectionPool({ Connection })
       pool.addConnection([{
         url: new URL('http://127.0.0.1:9200'),
         id: 'http://127.0.0.1:9200/',
@@ -673,7 +673,7 @@ test('API', t => {
 
     t.test('Add a new connection', t => {
       t.plan(2)
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       pool.addConnection({
         url: new URL('http://127.0.0.1:9200'),
         id: 'a1',
@@ -700,7 +700,7 @@ test('API', t => {
 
     t.test('Remove old connections', t => {
       t.plan(3)
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       pool.addConnection({
         url: new URL('http://127.0.0.1:9200'),
         id: 'a1',
@@ -724,7 +724,7 @@ test('API', t => {
 
     t.test('Remove old connections (markDead)', t => {
       t.plan(5)
-      const pool = new ConnectionPool({ Connection, sniffEnabled: true })
+      const pool = new ClusterConnectionPool({ Connection, sniffEnabled: true })
       const conn = pool.addConnection({
         url: new URL('http://127.0.0.1:9200'),
         id: 'a1',
@@ -759,14 +759,14 @@ test('API', t => {
 test('Node selector', t => {
   t.test('round-robin', t => {
     t.plan(1)
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection('http://localhost:9200/')
     t.true(pool.getConnection({ selector: roundRobinSelector() }) instanceof Connection)
   })
 
   t.test('random', t => {
     t.plan(1)
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection('http://localhost:9200/')
     t.true(pool.getConnection({ selector: roundRobinSelector() }) instanceof Connection)
   })
@@ -777,14 +777,14 @@ test('Node selector', t => {
 test('Node filter', t => {
   t.test('default', t => {
     t.plan(1)
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection({ url: new URL('http://localhost:9200/') })
     t.true(pool.getConnection({ filter: defaultNodeFilter }) instanceof Connection)
   })
 
   t.test('Should filter master only nodes', t => {
     t.plan(1)
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection({
       url: new URL('http://localhost:9200/'),
       roles: {

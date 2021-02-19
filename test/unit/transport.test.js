@@ -40,7 +40,7 @@ const {
   RequestAbortedError
 } = require('../../lib/errors')
 
-const ConnectionPool = require('../../lib/pool/ConnectionPool')
+const ClusterConnectionPool = require('../../lib/pool/ClusterConnectionPool')
 const Connection = require('../../lib/Connection')
 const Serializer = require('../../lib/Serializer')
 const Transport = require('../../lib/Transport')
@@ -53,7 +53,7 @@ test('Basic', t => {
   }
 
   buildServer(handler, ({ port }, server) => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection(`http://localhost:${port}`)
 
     const transport = new Transport({
@@ -80,7 +80,7 @@ test('Basic', t => {
 test('Basic (promises support)', t => {
   t.plan(1)
 
-  const pool = new ConnectionPool({ Connection: MockConnection })
+  const pool = new ClusterConnectionPool({ Connection: MockConnection })
   pool.addConnection('http://localhost:9200')
 
   const transport = new Transport({
@@ -107,7 +107,7 @@ test('Basic (promises support)', t => {
 test('Basic - failing (promises support)', t => {
   t.plan(1)
 
-  const pool = new ConnectionPool({ Connection: MockConnectionTimeout })
+  const pool = new ClusterConnectionPool({ Connection: MockConnectionTimeout })
   pool.addConnection('http://localhost:9200')
 
   const transport = new Transport({
@@ -133,7 +133,7 @@ test('Basic - failing (promises support)', t => {
 test('Basic (options + promises support)', t => {
   t.plan(1)
 
-  const pool = new ConnectionPool({ Connection: MockConnection })
+  const pool = new ClusterConnectionPool({ Connection: MockConnection })
   pool.addConnection('http://localhost:9200')
 
   const transport = new Transport({
@@ -178,7 +178,7 @@ test('Send POST', t => {
   }
 
   buildServer(handler, ({ port }, server) => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection(`http://localhost:${port}`)
 
     const transport = new Transport({
@@ -234,7 +234,7 @@ test('Send POST (ndjson)', t => {
   }
 
   buildServer(handler, ({ port }, server) => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection(`http://localhost:${port}`)
 
     const transport = new Transport({
@@ -277,7 +277,7 @@ test('Send stream', t => {
   }
 
   buildServer(handler, ({ port }, server) => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection(`http://localhost:${port}`)
 
     const transport = new Transport({
@@ -320,7 +320,7 @@ test('Send stream (bulkBody)', t => {
   }
 
   buildServer(handler, ({ port }, server) => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection(`http://localhost:${port}`)
 
     const transport = new Transport({
@@ -353,7 +353,7 @@ test('Not JSON payload from server', t => {
   }
 
   buildServer(handler, ({ port }, server) => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection(`http://localhost:${port}`)
 
     const transport = new Transport({
@@ -379,7 +379,7 @@ test('Not JSON payload from server', t => {
 
 test('NoLivingConnectionsError (null connection)', t => {
   t.plan(3)
-  const pool = new ConnectionPool({ Connection })
+  const pool = new ClusterConnectionPool({ Connection })
   pool.addConnection('http://localhost:9200')
 
   const transport = new Transport({
@@ -407,7 +407,7 @@ test('NoLivingConnectionsError (null connection)', t => {
 
 test('NoLivingConnectionsError (undefined connection)', t => {
   t.plan(3)
-  const pool = new ConnectionPool({ Connection })
+  const pool = new ClusterConnectionPool({ Connection })
   pool.addConnection('http://localhost:9200')
 
   const transport = new Transport({
@@ -435,7 +435,7 @@ test('NoLivingConnectionsError (undefined connection)', t => {
 
 test('SerializationError', t => {
   t.plan(1)
-  const pool = new ConnectionPool({ Connection })
+  const pool = new ClusterConnectionPool({ Connection })
   pool.addConnection('http://localhost:9200')
 
   const transport = new Transport({
@@ -461,7 +461,7 @@ test('SerializationError', t => {
 
 test('SerializationError (bulk)', t => {
   t.plan(1)
-  const pool = new ConnectionPool({ Connection })
+  const pool = new ClusterConnectionPool({ Connection })
   pool.addConnection('http://localhost:9200')
 
   const transport = new Transport({
@@ -493,7 +493,7 @@ test('DeserializationError', t => {
   }
 
   buildServer(handler, ({ port }, server) => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection(`http://localhost:${port}`)
 
     const transport = new Transport({
@@ -519,14 +519,14 @@ test('DeserializationError', t => {
 test('TimeoutError (should call markDead on the failing connection)', t => {
   t.plan(2)
 
-  class CustomConnectionPool extends ConnectionPool {
+  class CustomClusterConnectionPool extends ClusterConnectionPool {
     markDead (connection) {
       t.strictEqual(connection.id, 'node1')
       super.markDead(connection)
     }
   }
 
-  const pool = new CustomConnectionPool({ Connection: MockConnectionTimeout })
+  const pool = new CustomClusterConnectionPool({ Connection: MockConnectionTimeout })
   pool.addConnection({
     url: new URL('http://localhost:9200'),
     id: 'node1'
@@ -553,14 +553,14 @@ test('TimeoutError (should call markDead on the failing connection)', t => {
 test('ConnectionError (should call markDead on the failing connection)', t => {
   t.plan(2)
 
-  class CustomConnectionPool extends ConnectionPool {
+  class CustomClusterConnectionPool extends ClusterConnectionPool {
     markDead (connection) {
       t.strictEqual(connection.id, 'node1')
       super.markDead(connection)
     }
   }
 
-  const pool = new CustomConnectionPool({ Connection: MockConnectionError })
+  const pool = new CustomClusterConnectionPool({ Connection: MockConnectionError })
   pool.addConnection({
     url: new URL('http://localhost:9200'),
     id: 'node1'
@@ -600,7 +600,7 @@ test('Retry mechanism', t => {
   }
 
   buildServer(handler, ({ port }, server) => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection([{
       url: new URL(`http://localhost:${port}`),
       id: 'node1'
@@ -644,7 +644,7 @@ test('Should not retry if the body is a stream', t => {
   }
 
   buildServer(handler, ({ port }, server) => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection([{
       url: new URL(`http://localhost:${port}`),
       id: 'node1'
@@ -689,7 +689,7 @@ test('Should not retry if the bulkBody is a stream', t => {
   }
 
   buildServer(handler, ({ port }, server) => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection([{
       url: new URL(`http://localhost:${port}`),
       id: 'node1'
@@ -734,7 +734,7 @@ test('No retry', t => {
   }
 
   buildServer(handler, ({ port }, server) => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection([{
       url: new URL(`http://localhost:${port}`),
       id: 'node1'
@@ -785,7 +785,7 @@ test('Custom retry mechanism', t => {
   }
 
   buildServer(handler, ({ port }, server) => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection([{
       url: new URL(`http://localhost:${port}`),
       id: 'node1'
@@ -831,7 +831,7 @@ test('Should not retry on 429', t => {
   }
 
   buildServer(handler, ({ port }, server) => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection([{
       url: new URL(`http://localhost:${port}`),
       id: 'node1'
@@ -867,14 +867,14 @@ test('Should not retry on 429', t => {
 test('Should call markAlive with a successful response', t => {
   t.plan(3)
 
-  class CustomConnectionPool extends ConnectionPool {
+  class CustomClusterConnectionPool extends ClusterConnectionPool {
     markAlive (connection) {
       t.strictEqual(connection.id, 'node1')
       super.markAlive(connection)
     }
   }
 
-  const pool = new CustomConnectionPool({ Connection: MockConnection })
+  const pool = new CustomClusterConnectionPool({ Connection: MockConnection })
   pool.addConnection({
     url: new URL('http://localhost:9200'),
     id: 'node1'
@@ -902,7 +902,7 @@ test('Should call markAlive with a successful response', t => {
 test('Should call resurrect on every request', t => {
   t.plan(5)
 
-  class CustomConnectionPool extends ConnectionPool {
+  class CustomClusterConnectionPool extends ClusterConnectionPool {
     resurrect ({ now, requestId, name }) {
       t.type(now, 'number')
       t.type(requestId, 'number')
@@ -910,7 +910,7 @@ test('Should call resurrect on every request', t => {
     }
   }
 
-  const pool = new CustomConnectionPool({ Connection: MockConnection })
+  const pool = new CustomClusterConnectionPool({ Connection: MockConnection })
   pool.addConnection({
     url: new URL('http://localhost:9200'),
     id: 'node1'
@@ -939,7 +939,7 @@ test('Should call resurrect on every request', t => {
 test('Should return a request aborter utility', t => {
   t.plan(1)
 
-  const pool = new ConnectionPool({ Connection: MockConnection })
+  const pool = new ClusterConnectionPool({ Connection: MockConnection })
   pool.addConnection({
     url: new URL('http://localhost:9200'),
     id: 'node1'
@@ -976,7 +976,7 @@ test('Retry mechanism and abort', t => {
   }
 
   buildServer(handler, ({ port }, server) => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection([{
       url: new URL(`http://localhost:${port}`),
       id: 'node1'
@@ -1016,7 +1016,7 @@ test('Retry mechanism and abort', t => {
 test('Abort a request with the promise API', t => {
   t.plan(1)
 
-  const pool = new ConnectionPool({ Connection: MockConnection })
+  const pool = new ClusterConnectionPool({ Connection: MockConnection })
   pool.addConnection({
     url: new URL('http://localhost:9200'),
     id: 'node1'
@@ -1058,7 +1058,7 @@ test('ResponseError', t => {
   }
 
   buildServer(handler, ({ port }, server) => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection(`http://localhost:${port}`)
 
     const transport = new Transport({
@@ -1093,7 +1093,7 @@ test('Override requestTimeout', t => {
   }
 
   buildServer(handler, ({ port }, server) => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection(`http://localhost:${port}`)
 
     const transport = new Transport({
@@ -1129,7 +1129,7 @@ test('sniff', t => {
       }
     }
 
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection('http://localhost:9200')
 
     // eslint-disable-next-line
@@ -1154,7 +1154,7 @@ test('sniff', t => {
       }
     }
 
-    const pool = new ConnectionPool({ Connection: MockConnectionTimeout })
+    const pool = new ClusterConnectionPool({ Connection: MockConnectionTimeout })
     pool.addConnection('http://localhost:9200')
 
     const transport = new MyTransport({
@@ -1188,7 +1188,7 @@ test('sniff', t => {
       }
     }
 
-    const pool = new ConnectionPool({ Connection: MockConnection })
+    const pool = new ClusterConnectionPool({ Connection: MockConnection })
     pool.addConnection('http://localhost:9200')
 
     const transport = new MyTransport({
@@ -1223,14 +1223,14 @@ test(`Should mark as dead connections where the statusCode is 502/3/4
     t.test(statusCode, t => {
       t.plan(3)
 
-      class CustomConnectionPool extends ConnectionPool {
+      class CustomClusterConnectionPool extends ClusterConnectionPool {
         markDead (connection) {
           t.ok('called')
           super.markDead(connection)
         }
       }
 
-      const pool = new CustomConnectionPool({ Connection: MockConnection })
+      const pool = new CustomClusterConnectionPool({ Connection: MockConnection })
       pool.addConnection('http://localhost:9200')
 
       const transport = new Transport({
@@ -1277,14 +1277,14 @@ test('Should retry the request if the statusCode is 502/3/4', t => {
         res.end(JSON.stringify({ hello: 'world' }))
       }
 
-      class CustomConnectionPool extends ConnectionPool {
+      class CustomClusterConnectionPool extends ClusterConnectionPool {
         markDead (connection) {
           t.ok('called')
         }
       }
 
       buildServer(handler, ({ port }, server) => {
-        const pool = new CustomConnectionPool({ Connection })
+        const pool = new CustomClusterConnectionPool({ Connection })
         pool.addConnection(`http://localhost:${port}`)
 
         const transport = new Transport({
@@ -1315,7 +1315,7 @@ test('Should retry the request if the statusCode is 502/3/4', t => {
 test('Ignore status code', t => {
   t.plan(4)
 
-  const pool = new ConnectionPool({ Connection: MockConnection })
+  const pool = new ClusterConnectionPool({ Connection: MockConnection })
   pool.addConnection('http://localhost:9200')
 
   const transport = new Transport({
@@ -1364,7 +1364,7 @@ test('Should serialize the querystring', t => {
   }
 
   buildServer(handler, ({ port }, server) => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection(`http://localhost:${port}`)
 
     const transport = new Transport({
@@ -1404,7 +1404,7 @@ test('timeout option', t => {
       t.plan(1)
 
       buildServer(handler, ({ port }, server) => {
-        const pool = new ConnectionPool({ Connection })
+        const pool = new ClusterConnectionPool({ Connection })
         pool.addConnection({
           url: new URL(`http://localhost:${port}`),
           id: 'node1'
@@ -1434,7 +1434,7 @@ test('timeout option', t => {
       t.plan(1)
 
       buildServer(handler, ({ port }, server) => {
-        const pool = new ConnectionPool({ Connection })
+        const pool = new ClusterConnectionPool({ Connection })
         pool.addConnection({
           url: new URL(`http://localhost:${port}`),
           id: 'node1'
@@ -1470,7 +1470,7 @@ test('timeout option', t => {
       t.plan(1)
 
       buildServer(handler, ({ port }, server) => {
-        const pool = new ConnectionPool({ Connection })
+        const pool = new ClusterConnectionPool({ Connection })
         pool.addConnection({
           url: new URL(`http://localhost:${port}`),
           id: 'node1'
@@ -1500,7 +1500,7 @@ test('timeout option', t => {
       t.plan(1)
 
       buildServer(handler, ({ port }, server) => {
-        const pool = new ConnectionPool({ Connection })
+        const pool = new ClusterConnectionPool({ Connection })
         pool.addConnection({
           url: new URL(`http://localhost:${port}`),
           id: 'node1'
@@ -1537,7 +1537,7 @@ test('timeout option', t => {
 test('Should cast to boolean HEAD request', t => {
   t.test('2xx response', t => {
     t.plan(3)
-    const pool = new ConnectionPool({ Connection: MockConnection })
+    const pool = new ClusterConnectionPool({ Connection: MockConnection })
     pool.addConnection('http://localhost:9200')
 
     const transport = new Transport({
@@ -1562,7 +1562,7 @@ test('Should cast to boolean HEAD request', t => {
 
   t.test('404 response', t => {
     t.plan(3)
-    const pool = new ConnectionPool({ Connection: MockConnection })
+    const pool = new ClusterConnectionPool({ Connection: MockConnection })
     pool.addConnection('http://localhost:9200')
 
     const transport = new Transport({
@@ -1588,7 +1588,7 @@ test('Should cast to boolean HEAD request', t => {
   t.test('4xx response', t => {
     t.plan(2)
 
-    const pool = new ConnectionPool({ Connection: MockConnection })
+    const pool = new ClusterConnectionPool({ Connection: MockConnection })
     pool.addConnection('http://localhost:9200')
 
     const transport = new Transport({
@@ -1612,7 +1612,7 @@ test('Should cast to boolean HEAD request', t => {
 
   t.test('5xx response', t => {
     t.plan(2)
-    const pool = new ConnectionPool({ Connection: MockConnection })
+    const pool = new ClusterConnectionPool({ Connection: MockConnection })
     pool.addConnection('http://localhost:9200')
 
     const transport = new Transport({
@@ -1652,7 +1652,7 @@ test('Suggest compression', t => {
   }
 
   buildServer(handler, ({ port }, server) => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection(`http://localhost:${port}`)
 
     const transport = new Transport({
@@ -1692,7 +1692,7 @@ test('Broken compression', t => {
   }
 
   buildServer(handler, ({ port }, server) => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection(`http://localhost:${port}`)
 
     const transport = new Transport({
@@ -1728,7 +1728,7 @@ test('Warning header', t => {
     }
 
     buildServer(handler, ({ port }, server) => {
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       pool.addConnection(`http://localhost:${port}`)
 
       const transport = new Transport({
@@ -1765,7 +1765,7 @@ test('Warning header', t => {
     }
 
     buildServer(handler, ({ port }, server) => {
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       pool.addConnection(`http://localhost:${port}`)
 
       const transport = new Transport({
@@ -1799,7 +1799,7 @@ test('Warning header', t => {
     }
 
     buildServer(handler, ({ port }, server) => {
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       pool.addConnection(`http://localhost:${port}`)
 
       const transport = new Transport({
@@ -1834,7 +1834,7 @@ test('asStream set to true', t => {
   }
 
   buildServer(handler, ({ port }, server) => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection(`http://localhost:${port}`)
 
     const transport = new Transport({
@@ -1892,7 +1892,7 @@ test('Compress request', t => {
     }
 
     buildServer(handler, ({ port }, server) => {
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       pool.addConnection(`http://localhost:${port}`)
 
       const transport = new Transport({
@@ -1939,7 +1939,7 @@ test('Compress request', t => {
     }
 
     buildServer(handler, ({ port }, server) => {
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       pool.addConnection(`http://localhost:${port}`)
 
       const transport = new Transport({
@@ -1985,7 +1985,7 @@ test('Compress request', t => {
     }
 
     buildServer(handler, ({ port }, server) => {
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       pool.addConnection(`http://localhost:${port}`)
 
       const transport = new Transport({
@@ -2018,7 +2018,7 @@ test('Compress request', t => {
     try {
       new Transport({ // eslint-disable-line
         emit: () => {},
-        connectionPool: new ConnectionPool({ Connection }),
+        connectionPool: new ClusterConnectionPool({ Connection }),
         serializer: new Serializer(),
         maxRetries: 3,
         requestTimeout: 30000,
@@ -2043,7 +2043,7 @@ test('Compress request', t => {
     }
 
     buildServer(handler, ({ port }, server) => {
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       pool.addConnection(`http://localhost:${port}`)
 
       const transport = new Transport({
@@ -2110,7 +2110,7 @@ test('Compress request', t => {
     }
 
     buildServer(handler, ({ port }, server) => {
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       pool.addConnection(`http://localhost:${port}`)
 
       const transport = new Transport({
@@ -2151,7 +2151,7 @@ test('Headers configuration', t => {
     }
 
     buildServer(handler, ({ port }, server) => {
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       pool.addConnection(`http://localhost:${port}`)
 
       const transport = new Transport({
@@ -2190,7 +2190,7 @@ test('Headers configuration', t => {
     }
 
     buildServer(handler, ({ port }, server) => {
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       pool.addConnection(`http://localhost:${port}`)
 
       const transport = new Transport({
@@ -2228,7 +2228,7 @@ test('Headers configuration', t => {
     }
 
     buildServer(handler, ({ port }, server) => {
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       pool.addConnection(`http://localhost:${port}`)
 
       const transport = new Transport({
@@ -2263,7 +2263,7 @@ test('Headers configuration', t => {
 test('nodeFilter and nodeSelector', t => {
   t.plan(4)
 
-  const pool = new ConnectionPool({ Connection: MockConnection })
+  const pool = new ClusterConnectionPool({ Connection: MockConnection })
   pool.addConnection('http://localhost:9200')
 
   const transport = new Transport({
@@ -2304,7 +2304,7 @@ test('Should accept custom querystring in the optons object', t => {
     }
 
     buildServer(handler, ({ port }, server) => {
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       pool.addConnection(`http://localhost:${port}`)
 
       const transport = new Transport({
@@ -2340,7 +2340,7 @@ test('Should accept custom querystring in the optons object', t => {
     }
 
     buildServer(handler, ({ port }, server) => {
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       pool.addConnection(`http://localhost:${port}`)
 
       const transport = new Transport({
@@ -2384,7 +2384,7 @@ test('Should add an User-Agent header', t => {
   }
 
   buildServer(handler, ({ port }, server) => {
-    const pool = new ConnectionPool({ Connection })
+    const pool = new ClusterConnectionPool({ Connection })
     pool.addConnection(`http://localhost:${port}`)
 
     const transport = new Transport({
@@ -2410,7 +2410,7 @@ test('Should add an User-Agent header', t => {
 test('Should pass request params and options to generateRequestId', t => {
   t.plan(3)
 
-  const pool = new ConnectionPool({ Connection: MockConnection })
+  const pool = new ClusterConnectionPool({ Connection: MockConnection })
   pool.addConnection('http://localhost:9200')
 
   const params = { method: 'GET', path: '/hello' }
@@ -2443,7 +2443,7 @@ test('Secure json parsing', t => {
     }
 
     buildServer(handler, ({ port }, server) => {
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       pool.addConnection(`http://localhost:${port}`)
 
       const transport = new Transport({
@@ -2475,7 +2475,7 @@ test('Secure json parsing', t => {
     }
 
     buildServer(handler, ({ port }, server) => {
-      const pool = new ConnectionPool({ Connection })
+      const pool = new ClusterConnectionPool({ Connection })
       pool.addConnection(`http://localhost:${port}`)
 
       const transport = new Transport({
@@ -2533,7 +2533,7 @@ test('Lowercase headers utilty', t => {
 
 test('The callback with a sync error should be called in the next tick - json', t => {
   t.plan(4)
-  const pool = new ConnectionPool({ Connection })
+  const pool = new ClusterConnectionPool({ Connection })
   pool.addConnection('http://localhost:9200')
 
   const transport = new Transport({
@@ -2564,7 +2564,7 @@ test('The callback with a sync error should be called in the next tick - json', 
 
 test('The callback with a sync error should be called in the next tick - ndjson', t => {
   t.plan(4)
-  const pool = new ConnectionPool({ Connection })
+  const pool = new ClusterConnectionPool({ Connection })
   pool.addConnection('http://localhost:9200')
 
   const transport = new Transport({
