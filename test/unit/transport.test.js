@@ -1212,33 +1212,6 @@ test('sniff', t => {
     transport.request(params, t.error)
   })
 
-  t.test('errored', t => {
-    t.plan(1)
-
-    class CustomConnectionPool extends ConnectionPool {
-      nodesToHost () {
-        t.fail('This should not be called')
-      }
-    }
-
-    const pool = new CustomConnectionPool({ Connection: MockConnectionError })
-    pool.addConnection('http://localhost:9200')
-
-    const transport = new Transport({
-      emit: () => {},
-      connectionPool: pool,
-      serializer: new Serializer(),
-      maxRetries: 0,
-      requestTimeout: 30000,
-      sniffInterval: false,
-      sniffEndpoint: '/sniff'
-    })
-
-    transport.sniff((err, hosts) => {
-      t.ok(err instanceof ConnectionError)
-    })
-  })
-
   t.end()
 })
 

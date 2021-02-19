@@ -29,12 +29,53 @@ const {
 } = require('../../index')
 
 const kEventEmitter = Symbol('elasticsearchjs-event-emitter')
+const noop = () => {}
+
+class SniffingTransport extends Transport {
+  sniff (opts, callback = noop) {
+    if (this._isSniffing === true) return
+    this._isSniffing = true
+
+    if (typeof opts === 'function') {
+      callback = opts
+      opts = { reason: Transport.sniffReasons.DEFAULT }
+    }
+
+    const { reason } = opts
+
+    const request = {
+      method: 'GET',
+      path: this.sniffEndpoint
+    }
+
+    this.request(request, { id: opts.requestId }, (err, result) => {
+      this._isSniffing = false
+      if (this._sniffEnabled === true) {
+        this._nextSniff = Date.now() + this.sniffInterval
+      }
+
+      if (err != null) {
+        result.meta.sniff = { hosts: [], reason }
+        this.emit('sniff', err, result)
+        return callback(err)
+      }
+
+      const protocol = result.meta.connection.url.protocol || /* istanbul ignore next */ 'http:'
+      const hosts = this.connectionPool.nodesToHost(result.body.nodes, protocol)
+      this.connectionPool.update(hosts)
+
+      result.meta.sniff = { hosts, reason }
+      this.emit('sniff', null, result)
+      callback(null, hosts)
+    })
+  }
+}
 
 class TestClient {
   constructor (opts = {}) {
     const options = Object.assign({}, {
       Connection,
-      Transport,
+      Transport: SniffingTransport,
       Serializer,
       ConnectionPool: opts.cloud ? CloudConnectionPool : ConnectionPool,
       maxRetries: 3,
