@@ -20,7 +20,7 @@
 import { expectType } from 'tsd'
 import { URL } from 'url'
 import { Connection } from '../../'
-import { ConnectionOptions } from '../../lib/Connection'
+import { ConnectionOptions } from '../../lib/connection/Connection'
 
 {
   const conn = new Connection({

@@ -32,7 +32,7 @@ import Transport, {
   RequestNDBody,
   Context
 } from './lib/Transport';
-import Connection from './lib/Connection'
+import Connection from './lib/connection/Connection'
 import { ClusterConnectionPool, CloudConnectionPool, BaseConnectionPool } from './lib/pool'
 import Serializer from './lib/Serializer'
 import * as errors from './lib/errors'

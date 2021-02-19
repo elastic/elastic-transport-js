@@ -23,15 +23,22 @@ const { test } = require('tap')
 const { inspect } = require('util')
 const { URL } = require('url')
 const { Agent } = require('http')
+const buffer = require('buffer')
 const { Readable } = require('stream')
 const hpagent = require('hpagent')
 const intoStream = require('into-stream')
+const AbortController = require('node-abort-controller')
 const { buildServer } = require('../utils')
-const Connection = require('../../lib/Connection')
-const { TimeoutError, ConfigurationError, RequestAbortedError } = require('../../lib/errors')
+const Connection = require('../../lib/connection/Connection')
+const {
+  TimeoutError,
+  ConfigurationError,
+  RequestAbortedError,
+  ConnectionError
+} = require('../../lib/errors')
 
 test('Basic (http)', t => {
-  t.plan(4)
+  t.plan(3)
 
   function handler (req, res) {
     t.match(req.headers, {
@@ -51,27 +58,16 @@ test('Basic (http)', t => {
       headers: {
         'X-Custom-Test': true
       }
-    }, (err, res) => {
-      t.error(err)
-
-      t.match(res.headers, {
-        connection: 'keep-alive'
-      })
-
-      let payload = ''
-      res.setEncoding('utf8')
-      res.on('data', chunk => { payload += chunk })
-      res.on('error', err => t.fail(err))
-      res.on('end', () => {
-        t.strictEqual(payload, 'ok')
-        server.stop()
-      })
-    })
+    }).then(res => {
+      t.match(res.headers, { connection: 'keep-alive' })
+      t.strictEqual(res.body, 'ok')
+      server.stop()
+    }).catch(t.fail)
   })
 })
 
 test('Basic (https)', t => {
-  t.plan(4)
+  t.plan(3)
 
   function handler (req, res) {
     t.match(req.headers, {
@@ -91,27 +87,16 @@ test('Basic (https)', t => {
       headers: {
         'X-Custom-Test': true
       }
-    }, (err, res) => {
-      t.error(err)
-
-      t.match(res.headers, {
-        connection: 'keep-alive'
-      })
-
-      let payload = ''
-      res.setEncoding('utf8')
-      res.on('data', chunk => { payload += chunk })
-      res.on('error', err => t.fail(err))
-      res.on('end', () => {
-        t.strictEqual(payload, 'ok')
-        server.stop()
-      })
-    })
+    }).then(res => {
+      t.match(res.headers, { connection: 'keep-alive' })
+      t.strictEqual(res.body, 'ok')
+      server.stop()
+    }).catch(t.fail)
   })
 })
 
 test('Basic (https with ssl agent)', t => {
-  t.plan(4)
+  t.plan(3)
 
   function handler (req, res) {
     t.match(req.headers, {
@@ -132,27 +117,16 @@ test('Basic (https with ssl agent)', t => {
       headers: {
         'X-Custom-Test': true
       }
-    }, (err, res) => {
-      t.error(err)
-
-      t.match(res.headers, {
-        connection: 'keep-alive'
-      })
-
-      let payload = ''
-      res.setEncoding('utf8')
-      res.on('data', chunk => { payload += chunk })
-      res.on('error', err => t.fail(err))
-      res.on('end', () => {
-        t.strictEqual(payload, 'ok')
-        server.stop()
-      })
-    })
+    }).then(res => {
+      t.match(res.headers, { connection: 'keep-alive' })
+      t.strictEqual(res.body, 'ok')
+      server.stop()
+    }).catch(t.fail)
   })
 })
 
 test('Custom http agent', t => {
-  t.plan(6)
+  t.plan(5)
 
   function handler (req, res) {
     t.match(req.headers, {
@@ -186,27 +160,16 @@ test('Custom http agent', t => {
       headers: {
         'X-Custom-Test': true
       }
-    }, (err, res) => {
-      t.error(err)
-
-      t.match(res.headers, {
-        connection: 'keep-alive'
-      })
-
-      let payload = ''
-      res.setEncoding('utf8')
-      res.on('data', chunk => { payload += chunk })
-      res.on('error', err => t.fail(err))
-      res.on('end', () => {
-        t.strictEqual(payload, 'ok')
-        server.stop()
-      })
-    })
+    }).then(res => {
+      t.match(res.headers, { connection: 'keep-alive' })
+      t.strictEqual(res.body, 'ok')
+      server.stop()
+    }).catch(t.fail)
   })
 })
 
 test('Disable keep alive', t => {
-  t.plan(3)
+  t.plan(2)
 
   function handler (req, res) {
     t.match(req.headers, {
@@ -227,14 +190,10 @@ test('Disable keep alive', t => {
       headers: {
         'X-Custom-Test': true
       }
-    }, (err, res) => {
-      t.error(err)
-
-      t.match(res.headers, {
-        connection: 'close'
-      })
+    }).then(res => {
+      t.match(res.headers, { connection: 'close' })
       server.stop()
-    })
+    }).catch(t.fail)
   })
 })
 
@@ -256,7 +215,7 @@ test('Timeout support', t => {
       path: '/hello',
       method: 'GET',
       timeout: 500
-    }, (err, res) => {
+    }).then(t.fail).catch(err => {
       t.ok(err instanceof TimeoutError)
       server.stop()
     })
@@ -265,7 +224,7 @@ test('Timeout support', t => {
 
 test('querystring', t => {
   t.test('Should concatenate the querystring', t => {
-    t.plan(2)
+    t.plan(1)
 
     function handler (req, res) {
       t.strictEqual(req.url, '/hello?hello=world&you_know=for%20search')
@@ -280,15 +239,14 @@ test('querystring', t => {
         path: '/hello',
         method: 'GET',
         querystring: 'hello=world&you_know=for%20search'
-      }, (err, res) => {
-        t.error(err)
+      }).then(res => {
         server.stop()
-      })
+      }).catch(t.fail)
     })
   })
 
   t.test('If the querystring is null should not do anything', t => {
-    t.plan(2)
+    t.plan(1)
 
     function handler (req, res) {
       t.strictEqual(req.url, '/hello')
@@ -303,10 +261,9 @@ test('querystring', t => {
         path: '/hello',
         method: 'GET',
         querystring: null
-      }, (err, res) => {
-        t.error(err)
+      }).then(res => {
         server.stop()
-      })
+      }).catch(t.fail)
     })
   })
 
@@ -314,7 +271,7 @@ test('querystring', t => {
 })
 
 test('Body request', t => {
-  t.plan(2)
+  t.plan(1)
 
   function handler (req, res) {
     let payload = ''
@@ -335,15 +292,14 @@ test('Body request', t => {
       path: '/hello',
       method: 'POST',
       body: 'hello'
-    }, (err, res) => {
-      t.error(err)
+    }).then(res => {
       server.stop()
-    })
+    }).catch(t.fail)
   })
 })
 
 test('Send body as buffer', t => {
-  t.plan(2)
+  t.plan(1)
 
   function handler (req, res) {
     let payload = ''
@@ -364,15 +320,14 @@ test('Send body as buffer', t => {
       path: '/hello',
       method: 'POST',
       body: Buffer.from('hello')
-    }, (err, res) => {
-      t.error(err)
+    }).then(res => {
       server.stop()
-    })
+    }).catch(t.fail)
   })
 })
 
 test('Send body as stream', t => {
-  t.plan(2)
+  t.plan(1)
 
   function handler (req, res) {
     let payload = ''
@@ -393,15 +348,14 @@ test('Send body as stream', t => {
       path: '/hello',
       method: 'POST',
       body: intoStream('hello')
-    }, (err, res) => {
-      t.error(err)
+    }).then(res => {
       server.stop()
-    })
+    }).catch(t.fail)
   })
 })
 
 test('Should not close a connection if there are open requests', t => {
-  t.plan(4)
+  t.plan(3)
 
   function handler (req, res) {
     setTimeout(() => res.end('ok'), 1000)
@@ -420,24 +374,16 @@ test('Should not close a connection if there are open requests', t => {
     connection.request({
       path: '/hello',
       method: 'GET'
-    }, (err, res) => {
-      t.error(err)
+    }).then(res => {
       t.strictEqual(connection._openRequests, 0)
-
-      let payload = ''
-      res.setEncoding('utf8')
-      res.on('data', chunk => { payload += chunk })
-      res.on('error', err => t.fail(err))
-      res.on('end', () => {
-        t.strictEqual(payload, 'ok')
-        server.stop()
-      })
-    })
+      t.strictEqual(res.body, 'ok')
+      server.stop()
+    }).catch(t.fail)
   })
 })
 
 test('Should not close a connection if there are open requests (with agent disabled)', t => {
-  t.plan(4)
+  t.plan(3)
 
   function handler (req, res) {
     setTimeout(() => res.end('ok'), 1000)
@@ -457,24 +403,16 @@ test('Should not close a connection if there are open requests (with agent disab
     connection.request({
       path: '/hello',
       method: 'GET'
-    }, (err, res) => {
-      t.error(err)
+    }).then(res => {
       t.strictEqual(connection._openRequests, 0)
-
-      let payload = ''
-      res.setEncoding('utf8')
-      res.on('data', chunk => { payload += chunk })
-      res.on('error', err => t.fail(err))
-      res.on('end', () => {
-        t.strictEqual(payload, 'ok')
-        server.stop()
-      })
-    })
+      t.strictEqual(res.body, 'ok')
+      server.stop()
+    }).catch(t.fail)
   })
 })
 
 test('Url with auth', t => {
-  t.plan(2)
+  t.plan(1)
 
   function handler (req, res) {
     t.match(req.headers, {
@@ -491,15 +429,14 @@ test('Url with auth', t => {
     connection.request({
       path: '/hello',
       method: 'GET'
-    }, (err, res) => {
-      t.error(err)
+    }).then(res => {
       server.stop()
-    })
+    }).catch(t.fail)
   })
 })
 
 test('Url with querystring', t => {
-  t.plan(2)
+  t.plan(1)
 
   function handler (req, res) {
     t.strictEqual(req.url, '/hello?foo=bar&baz=faz')
@@ -514,15 +451,14 @@ test('Url with querystring', t => {
       path: '/hello',
       method: 'GET',
       querystring: 'baz=faz'
-    }, (err, res) => {
-      t.error(err)
+    }).then(res => {
       server.stop()
-    })
+    }).catch(t.fail)
   })
 })
 
 test('Custom headers for connection', t => {
-  t.plan(3)
+  t.plan(2)
 
   function handler (req, res) {
     t.match(req.headers, {
@@ -543,45 +479,44 @@ test('Custom headers for connection', t => {
       headers: {
         'X-Custom-Test': true
       }
-    }, (err, res) => {
-      t.error(err)
+    }).then(res => {
       // should not update the default
       t.deepEqual(connection.headers, { 'x-foo': 'bar' })
       server.stop()
-    })
+    }).catch(t.fail)
   })
 })
 
-// TODO: add a check that the response is not decompressed
-test('asStream set to true', t => {
-  t.plan(2)
+// // TODO: add a check that the response is not decompressed
+// test('asStream set to true', t => {
+//   t.plan(2)
 
-  function handler (req, res) {
-    res.end('ok')
-  }
+//   function handler (req, res) {
+//     res.end('ok')
+//   }
 
-  buildServer(handler, ({ port }, server) => {
-    const connection = new Connection({
-      url: new URL(`http://localhost:${port}`)
-    })
-    connection.request({
-      path: '/hello',
-      method: 'GET',
-      asStream: true
-    }, (err, res) => {
-      t.error(err)
+//   buildServer(handler, ({ port }, server) => {
+//     const connection = new Connection({
+//       url: new URL(`http://localhost:${port}`)
+//     })
+//     connection.request({
+//       path: '/hello',
+//       method: 'GET',
+//       asStream: true
+//     }, (err, res) => {
+//       t.error(err)
 
-      let payload = ''
-      res.setEncoding('utf8')
-      res.on('data', chunk => { payload += chunk })
-      res.on('error', err => t.fail(err))
-      res.on('end', () => {
-        t.strictEqual(payload, 'ok')
-        server.stop()
-      })
-    })
-  })
-})
+//       let payload = ''
+//       res.setEncoding('utf8')
+//       res.on('data', chunk => { payload += chunk })
+//       res.on('error', err => t.fail(err))
+//       res.on('end', () => {
+//         t.strictEqual(payload, 'ok')
+//         server.stop()
+//       })
+//     })
+//   })
+// })
 
 test('Connection id should not contain credentials', t => {
   const connection = new Connection({
@@ -612,7 +547,7 @@ test('Should throw if the protocol is not http or https', t => {
   t.end()
 })
 
-// https://github.com/nodejs/node/commit/b961d9fd83
+// // https://github.com/nodejs/node/commit/b961d9fd83
 test('Should disallow two-byte characters in URL path', t => {
   t.plan(1)
 
@@ -622,7 +557,7 @@ test('Should disallow two-byte characters in URL path', t => {
   connection.request({
     path: '/thisisinvalid\uffe2',
     method: 'GET'
-  }, (err, res) => {
+  }).then(t.fail).catch(err => {
     t.strictEqual(
       err.message,
       'ERR_UNESCAPED_CHARACTERS: /thisisinvalid\uffe2'
@@ -846,17 +781,19 @@ test('Abort a request syncronously', t => {
   }
 
   buildServer(handler, ({ port }, server) => {
+    const controller = new AbortController()
     const connection = new Connection({
       url: new URL(`http://localhost:${port}`)
     })
-    const request = connection.request({
+    connection.request({
       path: '/hello',
-      method: 'GET'
-    }, (err, res) => {
+      method: 'GET',
+      abortController: controller
+    }).then(t.fail).catch(err => {
       t.ok(err instanceof RequestAbortedError)
       server.stop()
     })
-    request.abort()
+    controller.abort()
   })
 })
 
@@ -869,17 +806,19 @@ test('Abort a request asyncronously', t => {
   }
 
   buildServer(handler, ({ port }, server) => {
+    const controller = new AbortController()
     const connection = new Connection({
       url: new URL(`http://localhost:${port}`)
     })
-    const request = connection.request({
+    connection.request({
       path: '/hello',
-      method: 'GET'
-    }, (err, res) => {
+      method: 'GET',
+      abortController: controller
+    }).then(t.fail).catch(err => {
       t.ok(err instanceof RequestAbortedError)
       server.stop()
     })
-    setImmediate(() => request.abort())
+    setImmediate(() => controller.abort())
   })
 })
 
@@ -923,6 +862,7 @@ test('Proxy agent (https)', t => {
 test('Abort with a slow body', t => {
   t.plan(1)
 
+  const controller = new AbortController()
   const connection = new Connection({
     url: new URL('https://localhost:9200'),
     proxy: 'http://localhost:8080'
@@ -937,13 +877,162 @@ test('Abort with a slow body', t => {
     }
   })
 
-  const request = connection.request({
+  connection.request({
     method: 'GET',
     path: '/',
-    body: slowBody
-  }, (err, response) => {
+    body: slowBody,
+    abortController: controller
+  }).then(t.fail).catch(err => {
     t.ok(err instanceof RequestAbortedError)
   })
 
-  setImmediate(() => request.abort())
+  setImmediate(() => controller.abort())
+})
+
+// The nodejs http agent will try to wait for the whole
+// body to arrive before closing the request, so this
+// test might take some time.
+test('Bad content length', t => {
+  t.plan(2)
+
+  function handler (req, res) {
+    const body = JSON.stringify({ hello: 'world' })
+    res.setHeader('Content-Type', 'application/json;utf=8')
+    res.setHeader('Content-Length', body.length + '')
+    res.end(body.slice(0, -5))
+  }
+
+  buildServer(handler, ({ port }, server) => {
+    const connection = new Connection({
+      url: new URL(`http://localhost:${port}`)
+    })
+
+    connection.request({
+      method: 'GET',
+      path: '/'
+    }).then(t.fail).catch(err => {
+      t.ok(err instanceof ConnectionError)
+      t.is(err.message, 'Response aborted while reading the body')
+      server.stop()
+    })
+  })
+})
+
+test('Socket destryed while reading the body', t => {
+  t.plan(2)
+
+  function handler (req, res) {
+    const body = JSON.stringify({ hello: 'world' })
+    res.setHeader('Content-Type', 'application/json;utf=8')
+    res.setHeader('Content-Length', body.length + '')
+    res.write(body.slice(0, -5))
+    setTimeout(() => {
+      res.socket.destroy()
+    }, 500)
+  }
+
+  buildServer(handler, ({ port }, server) => {
+    const connection = new Connection({
+      url: new URL(`http://localhost:${port}`)
+    })
+
+    connection.request({
+      method: 'GET',
+      path: '/'
+    }).then(t.fail).catch(err => {
+      t.ok(err instanceof ConnectionError)
+      t.is(err.message, 'Response aborted while reading the body')
+      server.stop()
+    })
+  })
+})
+
+test('Content length too big (buffer)', t => {
+  t.plan(3)
+
+  class MyConnection extends Connection {
+    constructor (opts) {
+      super(opts)
+      this.makeRequest = () => {
+        const stream = intoStream(JSON.stringify({ hello: 'world' }))
+        stream.statusCode = 200
+        stream.headers = {
+          'content-type': 'application/json;utf=8',
+          'content-encoding': 'gzip',
+          'content-length': buffer.constants.MAX_LENGTH + 10,
+          connection: 'keep-alive',
+          date: new Date().toISOString()
+        }
+        stream.on('close', () => t.pass('Stream destroyed'))
+        return {
+          abort () {},
+          removeListener () {},
+          setNoDelay () {},
+          end () {},
+          on (event, cb) {
+            if (event === 'response') {
+              process.nextTick(cb, stream)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  const connection = new MyConnection({
+    url: new URL('http://localhost:9200')
+  })
+
+  connection.request({
+    method: 'GET',
+    path: '/'
+  }).then(t.fail).catch(err => {
+    t.ok(err instanceof RequestAbortedError)
+    t.is(err.message, `The content length (${buffer.constants.MAX_LENGTH + 10}) is bigger than the maximum allowed buffer (${buffer.constants.MAX_LENGTH})`)
+  })
+})
+
+test('Content length too big (string)', t => {
+  t.plan(3)
+
+  class MyConnection extends Connection {
+    constructor (opts) {
+      super(opts)
+      this.makeRequest = () => {
+        const stream = intoStream(JSON.stringify({ hello: 'world' }))
+        stream.statusCode = 200
+        stream.headers = {
+          'content-type': 'application/json;utf=8',
+          'content-encoding': 'gzip',
+          'content-length': buffer.constants.MAX_STRING_LENGTH + 10,
+          connection: 'keep-alive',
+          date: new Date().toISOString()
+        }
+        stream.on('close', () => t.pass('Stream destroyed'))
+        return {
+          abort () {},
+          removeListener () {},
+          setNoDelay () {},
+          end () {},
+          on (event, cb) {
+            if (event === 'response') {
+              process.nextTick(cb, stream)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  const connection = new MyConnection({
+    url: new URL('http://localhost:9200')
+  })
+
+  connection.request({
+    method: 'GET',
+    path: '/'
+  }).then(t.fail).catch(err => {
+    t.ok(err instanceof RequestAbortedError)
+    t.is(err.message, `The content length (${buffer.constants.MAX_STRING_LENGTH + 10}) is bigger than the maximum allowed string (${buffer.constants.MAX_STRING_LENGTH})`)
+  })
 })

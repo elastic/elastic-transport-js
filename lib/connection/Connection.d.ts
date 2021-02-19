@@ -22,7 +22,7 @@
 import { URL } from 'url';
 import { inspect, InspectOptions } from 'util'
 import { Readable as ReadableStream } from 'stream';
-import { ApiKeyAuth, BasicAuth } from './pool'
+import { ApiKeyAuth, BasicAuth } from '../pool'
 import * as http from 'http'
 import * as https from 'https'
 import * as hpagent from 'hpagent'

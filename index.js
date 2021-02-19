@@ -20,7 +20,7 @@
 'use strict'
 
 const Transport = require('./lib/Transport')
-const Connection = require('./lib/Connection')
+const Connection = require('./lib/connection/Connection')
 const {
   ClusterConnectionPool,
   CloudConnectionPool,
