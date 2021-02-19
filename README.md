@@ -2,7 +2,7 @@
 
 # Elasticsearch Node.js Transport
 
-[![js-standard-style](https://img.shields.io/badge/code%20style-standard-brightgreen.svg?style=flat)](http://standardjs.com/) [![Node CI](https://github.com/elastic/elastic-transport-js/actions/workflows/nodejs.yml/badge.svg)](https://github.com/elastic/elastic-transport-js/actions/workflows/nodejs.yml) [![NPM downloads](https://img.shields.io/npm/dm/@elastic/transport.svg?style=flat)](https://www.npmjs.com/package/@elastic/transport)
+[![js-standard-style](https://img.shields.io/badge/code%20style-standard-brightgreen.svg?style=flat)](http://standardjs.com/) [![Node CI](https://github.com/elastic/elastic-transport-js/actions/workflows/nodejs.yml/badge.svg)](https://github.com/elastic/elastic-transport-js/actions/workflows/nodejs.yml) [![codecov](https://codecov.io/gh/elastic/elastic-transport-js/branch/master/graph/badge.svg?token=4CU5AeB3FW)](https://codecov.io/gh/elastic/elastic-transport-js) [![NPM downloads](https://img.shields.io/npm/dm/@elastic/transport.svg?style=flat)](https://www.npmjs.com/package/@elastic/transport)
 
 This is a HTTP transport Node.js library for communicate with [Elastic](http://elastic.co/) products,
 like [Elasticsearch](https://github.com/elastic/elasticsearch).
