@@ -40,21 +40,21 @@
   },
   "devDependencies": {
     "@sinonjs/fake-timers": "github:sinonjs/fake-timers#0bfffc1",
-    "@types/node": "^12.6.2",
-    "into-stream": "^5.1.1",
+    "@types/node": "^14.14.30",
+    "into-stream": "^6.0.0",
     "license-checker": "^25.0.1",
     "proxy": "^1.0.2",
-    "standard": "^13.0.2",
+    "standard": "^16.0.3",
     "stoppable": "^1.1.0",
-    "tap": "^14.4.1",
-    "tsd": "^0.13.1",
-    "workq": "^2.1.0"
+    "tap": "^14.11.0",
+    "tsd": "^0.14.0",
+    "workq": "^3.0.0"
   },
   "dependencies": {
-    "debug": "^4.1.1",
+    "debug": "^4.3.1",
     "hpagent": "^0.1.1",
-    "ms": "^2.1.1",
+    "ms": "^2.1.3",
     "pump": "^3.0.0",
-    "secure-json-parse": "^2.1.0"
+    "secure-json-parse": "^2.3.1"
   }
 }

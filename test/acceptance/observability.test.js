@@ -17,7 +17,7 @@ test('Request id', t => {
     const genReqId = generateRequestId()
     t.type(genReqId, 'function')
 
-    for (var i = 1; i <= 10; i++) {
+    for (let i = 1; i <= 10; i++) {
       t.strictEqual(genReqId(), i)
     }
 
