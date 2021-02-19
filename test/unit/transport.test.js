@@ -20,6 +20,7 @@
 'use strict'
 
 const { test } = require('tap')
+const buffer = require('buffer')
 const { URL } = require('url')
 const FakeTimers = require('@sinonjs/fake-timers')
 const { createGunzip, gzipSync } = require('zlib')
@@ -27,6 +28,7 @@ const os = require('os')
 const intoStream = require('into-stream')
 const {
   buildServer,
+  TestClient,
   connection: { MockConnection, MockConnectionTimeout, MockConnectionError }
 } = require('../utils')
 const {
@@ -2293,6 +2295,32 @@ test('nodeFilter and nodeSelector', t => {
   })
 })
 
+test('random selector', t => {
+  t.plan(2)
+
+  const pool = new ClusterConnectionPool({ Connection: MockConnection })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    emit: () => {},
+    connectionPool: pool,
+    serializer: new Serializer(),
+    maxRetries: 3,
+    requestTimeout: 30000,
+    sniffInterval: false,
+    sniffOnStart: false,
+    nodeSelector: 'random'
+  })
+
+  transport.request({
+    method: 'GET',
+    path: '/hello'
+  }, (err, { body }) => {
+    t.error(err)
+    t.deepEqual(body, { hello: 'world' })
+  })
+})
+
 test('Should accept custom querystring in the optons object', t => {
   t.test('Options object', t => {
     t.plan(3)
@@ -2591,4 +2619,195 @@ test('The callback with a sync error should be called in the next tick - ndjson'
   t.type(transportReturn.then, 'function')
   t.type(transportReturn.catch, 'function')
   t.type(transportReturn.abort, 'function')
+})
+
+test('Opaque Id support', t => {
+  t.test('No opaqueId', t => {
+    t.plan(3)
+
+    function handler (req, res) {
+      t.strictEqual(req.headers['x-opaque-id'], undefined)
+      res.setHeader('Content-Type', 'application/json;utf=8')
+      res.end(JSON.stringify({ hello: 'world' }))
+    }
+
+    buildServer(handler, ({ port }, server) => {
+      const client = new TestClient({
+        node: `http://localhost:${port}`
+      })
+
+      client.request({
+        index: 'test',
+        q: 'foo:bar'
+      }, (err, { body }) => {
+        t.error(err)
+        t.deepEqual(body, { hello: 'world' })
+        server.stop()
+      })
+    })
+  })
+
+  t.test('No prefix', t => {
+    t.plan(3)
+
+    function handler (req, res) {
+      t.strictEqual(req.headers['x-opaque-id'], 'bar')
+      res.setHeader('Content-Type', 'application/json;utf=8')
+      res.end(JSON.stringify({ hello: 'world' }))
+    }
+
+    buildServer(handler, ({ port }, server) => {
+      const client = new TestClient({
+        node: `http://localhost:${port}`
+      })
+
+      client.request({
+        index: 'test',
+        q: 'foo:bar'
+      }, {
+        opaqueId: 'bar'
+      }, (err, { body }) => {
+        t.error(err)
+        t.deepEqual(body, { hello: 'world' })
+        server.stop()
+      })
+    })
+  })
+
+  t.test('With prefix', t => {
+    t.plan(3)
+
+    function handler (req, res) {
+      t.strictEqual(req.headers['x-opaque-id'], 'foo-bar')
+      res.setHeader('Content-Type', 'application/json;utf=8')
+      res.end(JSON.stringify({ hello: 'world' }))
+    }
+
+    buildServer(handler, ({ port }, server) => {
+      const client = new TestClient({
+        node: `http://localhost:${port}`,
+        opaqueIdPrefix: 'foo-'
+      })
+
+      client.request({
+        index: 'test',
+        q: 'foo:bar'
+      }, {
+        opaqueId: 'bar'
+      }, (err, { body }) => {
+        t.error(err)
+        t.deepEqual(body, { hello: 'world' })
+        server.stop()
+      })
+    })
+  })
+
+  t.end()
+})
+
+// The nodejs http agent will try to wait for the whole
+// body to arrive before closing the request, so this
+// test might take some time.
+test('Bad content length', t => {
+  t.plan(3)
+
+  let count = 0
+  function handler (req, res) {
+    count += 1
+    const body = JSON.stringify({ hello: 'world' })
+    res.setHeader('Content-Type', 'application/json;utf=8')
+    res.setHeader('Content-Length', body.length + '')
+    res.end(body.slice(0, -5))
+  }
+
+  buildServer(handler, ({ port }, server) => {
+    const client = new TestClient({ node: `http://localhost:${port}`, maxRetries: 1 })
+    client.request((err, { body }) => {
+      t.ok(err instanceof ConnectionError)
+      t.is(err.message, 'Response aborted while reading the body')
+      t.strictEqual(count, 2)
+      server.stop()
+    })
+  })
+})
+
+test('Socket destryed while reading the body', t => {
+  t.plan(3)
+
+  let count = 0
+  function handler (req, res) {
+    count += 1
+    const body = JSON.stringify({ hello: 'world' })
+    res.setHeader('Content-Type', 'application/json;utf=8')
+    res.setHeader('Content-Length', body.length + '')
+    res.write(body.slice(0, -5))
+    setTimeout(() => {
+      res.socket.destroy()
+    }, 500)
+  }
+
+  buildServer(handler, ({ port }, server) => {
+    const client = new TestClient({ node: `http://localhost:${port}`, maxRetries: 1 })
+    client.request((err, { body }) => {
+      t.ok(err instanceof ConnectionError)
+      t.is(err.message, 'Response aborted while reading the body')
+      t.strictEqual(count, 2)
+      server.stop()
+    })
+  })
+})
+
+test('Content length too big (buffer)', t => {
+  t.plan(4)
+
+  class MockConnection extends Connection {
+    request (params, callback) {
+      const stream = intoStream(JSON.stringify({ hello: 'world' }))
+      stream.statusCode = 200
+      stream.headers = {
+        'content-type': 'application/json;utf=8',
+        'content-encoding': 'gzip',
+        'content-length': buffer.constants.MAX_LENGTH + 10,
+        connection: 'keep-alive',
+        date: new Date().toISOString()
+      }
+      stream.on('close', () => t.pass('Stream destroyed'))
+      process.nextTick(callback, null, stream)
+      return { abort () {} }
+    }
+  }
+
+  const client = new TestClient({ node: 'http://localhost:9200', Connection: MockConnection })
+  client.request((err, result) => {
+    t.ok(err instanceof RequestAbortedError)
+    t.is(err.message, `The content length (${buffer.constants.MAX_LENGTH + 10}) is bigger than the maximum allowed buffer (${buffer.constants.MAX_LENGTH})`)
+    t.strictEqual(result.meta.attempts, 0)
+  })
+})
+
+test('Content length too big (string)', t => {
+  t.plan(4)
+
+  class MockConnection extends Connection {
+    request (params, callback) {
+      const stream = intoStream(JSON.stringify({ hello: 'world' }))
+      stream.statusCode = 200
+      stream.headers = {
+        'content-type': 'application/json;utf=8',
+        'content-length': buffer.constants.MAX_STRING_LENGTH + 10,
+        connection: 'keep-alive',
+        date: new Date().toISOString()
+      }
+      stream.on('close', () => t.pass('Stream destroyed'))
+      process.nextTick(callback, null, stream)
+      return { abort () {} }
+    }
+  }
+
+  const client = new TestClient({ node: 'http://localhost:9200', Connection: MockConnection })
+  client.request((err, result) => {
+    t.ok(err instanceof RequestAbortedError)
+    t.is(err.message, `The content length (${buffer.constants.MAX_STRING_LENGTH + 10}) is bigger than the maximum allowed string (${buffer.constants.MAX_STRING_LENGTH})`)
+    t.strictEqual(result.meta.attempts, 0)
+  })
 })

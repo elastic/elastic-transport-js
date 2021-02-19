@@ -34,6 +34,15 @@ test('API', t => {
     t.end()
   })
 
+  t.test('addConnection with auth', t => {
+    const pool = new BaseConnectionPool({ Connection, auth: { username: 'foo', password: 'bar' } })
+    const href = 'http://localhost:9200/'
+    pool.addConnection(href)
+    t.ok(pool.connections.find(c => c.id === href) instanceof Connection)
+    t.deepEqual(pool.connections.find(c => c.id === href).headers, { authorization: 'Basic Zm9vOmJhcg==' })
+    t.end()
+  })
+
   t.test('addConnection should throw with two connections with the same id', t => {
     const pool = new BaseConnectionPool({ Connection })
     const href = 'http://localhost:9200/'
