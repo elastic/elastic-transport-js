@@ -21,7 +21,11 @@
 
 const Transport = require('./lib/Transport')
 const Connection = require('./lib/Connection')
-const { ConnectionPool, CloudConnectionPool } = require('./lib/pool')
+const {
+  ClusterConnectionPool,
+  CloudConnectionPool,
+  WeightedConnectionPool
+} = require('./lib/pool')
 const Serializer = require('./lib/Serializer')
 const errors = require('./lib/errors')
 
@@ -37,8 +41,9 @@ const events = {
 module.exports = {
   Transport,
   Connection,
-  ConnectionPool,
+  ClusterConnectionPool,
   CloudConnectionPool,
+  WeightedConnectionPool,
   Serializer,
   errors,
   events

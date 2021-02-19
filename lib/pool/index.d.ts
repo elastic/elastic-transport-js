@@ -33,7 +33,7 @@ interface BaseConnectionPoolOptions {
   Connection: typeof Connection;
 }
 
-interface ConnectionPoolOptions extends BaseConnectionPoolOptions {
+interface ClusterConnectionPoolOptions extends BaseConnectionPoolOptions {
   pingTimeout?: number;
   resurrectStrategy?: 'ping' | 'optimistic' | 'none';
   sniffEnabled?: boolean;
@@ -158,7 +158,7 @@ declare class BaseConnectionPool {
   urlToHost(url: string): { url: URL };
 }
 
-declare class ConnectionPool extends BaseConnectionPool {
+declare class ClusterConnectionPool extends BaseConnectionPool {
   static resurrectStrategies: {
     none: number;
     ping: number;
@@ -170,7 +170,7 @@ declare class ConnectionPool extends BaseConnectionPool {
   resurrectTimeoutCutoff: number;
   pingTimeout: number;
   resurrectStrategy: number;
-  constructor(opts?: ConnectionPoolOptions);
+  constructor(opts?: ClusterConnectionPoolOptions);
 
   /**
    * If enabled, tries to resurrect a connection with the given
@@ -188,6 +188,14 @@ declare class CloudConnectionPool extends BaseConnectionPool {
   getConnection(): Connection | null;
 }
 
+declare class WeightedConnectionPool extends BaseConnectionPool {
+  index: number;
+  maxWeight: number;
+  greatestCommonDivisor: number;
+  currentWeight: number;
+  constructor(opts?: ClusterConnectionPoolOptions);
+}
+
 declare function defaultNodeFilter(node: Connection): boolean;
 declare function roundRobinSelector(): (connections: Connection[]) => Connection;
 declare function randomSelector(connections: Connection[]): Connection;
@@ -200,7 +208,7 @@ declare const internals: {
 
 export {
   // Interfaces
-  ConnectionPoolOptions,
+  ClusterConnectionPoolOptions,
   getConnectionOptions,
   ApiKeyAuth,
   BasicAuth,
@@ -209,6 +217,7 @@ export {
   ResurrectEvent,
   // Classes
   BaseConnectionPool,
-  ConnectionPool,
-  CloudConnectionPool
+  ClusterConnectionPool,
+  CloudConnectionPool,
+  WeightedConnectionPool
 };

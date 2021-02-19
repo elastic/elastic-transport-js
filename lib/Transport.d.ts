@@ -18,7 +18,7 @@
  */
 
 import { Readable as ReadableStream } from 'stream';
-import { ConnectionPool, CloudConnectionPool } from './pool';
+import { ClusterConnectionPool, CloudConnectionPool, WeightedConnectionPool } from './pool';
 import Connection from './Connection';
 import Serializer from './Serializer';
 import * as errors from './errors';
@@ -44,7 +44,7 @@ export interface generateRequestIdFn {
 
 interface TransportOptions {
   emit: (event: string | symbol, ...args: any[]) => boolean;
-  connectionPool: ConnectionPool | CloudConnectionPool;
+  connectionPool: ClusterConnectionPool | CloudConnectionPool | WeightedConnectionPool;
   serializer: Serializer;
   maxRetries: number;
   requestTimeout: number | string;
@@ -139,7 +139,7 @@ export default class Transport {
     DEFAULT: string;
   };
   emit: (event: string | symbol, ...args: any[]) => boolean;
-  connectionPool: ConnectionPool | CloudConnectionPool;
+  connectionPool: ClusterConnectionPool | CloudConnectionPool | WeightedConnectionPool;
   serializer: Serializer;
   maxRetries: number;
   requestTimeout: number;
