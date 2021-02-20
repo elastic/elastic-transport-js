@@ -24,6 +24,7 @@ const { inspect } = require('util')
 const { URL } = require('url')
 const { Agent } = require('http')
 const buffer = require('buffer')
+const { gzipSync } = require('zlib')
 const { Readable } = require('stream')
 const hpagent = require('hpagent')
 const intoStream = require('into-stream')
@@ -1034,5 +1035,52 @@ test('Content length too big (string)', t => {
   }).then(t.fail).catch(err => {
     t.ok(err instanceof RequestAbortedError)
     t.is(err.message, `The content length (${buffer.constants.MAX_STRING_LENGTH + 10}) is bigger than the maximum allowed string (${buffer.constants.MAX_STRING_LENGTH})`)
+  })
+})
+
+test('Compressed responsed should return a buffer as body', t => {
+  t.plan(2)
+
+  function handler (req, res) {
+    t.match(req.headers, {
+      'accept-encoding': 'gzip,deflate'
+    })
+
+    const body = gzipSync(JSON.stringify({ hello: 'world' }))
+    res.setHeader('Content-Type', 'application/json;utf=8')
+    res.setHeader('Content-Encoding', 'gzip')
+    res.setHeader('Content-Length', Buffer.byteLength(body))
+    res.end(body)
+  }
+
+  buildServer(handler, ({ port }, server) => {
+    const connection = new Connection({
+      url: new URL(`http://localhost:${port}`)
+    })
+    connection.request({
+      path: '/hello',
+      method: 'GET',
+      headers: {
+        'accept-encoding': 'gzip,deflate'
+      }
+    }).then(res => {
+      t.true(res.body instanceof Buffer)
+      server.stop()
+    }).catch(t.fail)
+  })
+})
+
+test('Connection error', t => {
+  t.plan(1)
+
+  const connection = new Connection({
+    url: new URL('http://foo.bar')
+  })
+
+  connection.request({
+    path: '/',
+    method: 'GET'
+  }).then(t.fail).catch(err => {
+    t.true(err instanceof ConnectionError)
   })
 })

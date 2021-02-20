@@ -29,45 +29,32 @@ const {
 } = require('../../index')
 
 const kEventEmitter = Symbol('elasticsearchjs-event-emitter')
-const noop = () => {}
 
 class SniffingTransport extends Transport {
-  sniff (opts, callback = noop) {
-    if (this._isSniffing === true) return
-    this._isSniffing = true
-
-    if (typeof opts === 'function') {
-      callback = opts
-      opts = { reason: Transport.sniffReasons.DEFAULT }
-    }
-
-    const { reason } = opts
+  sniff (opts = { reason: Transport.sniffReasons.DEFAULT }) {
+    if (this.isSniffing === true) return
+    this.isSniffing = true
 
     const request = {
       method: 'GET',
       path: this.sniffEndpoint
     }
 
-    this.request(request, { id: opts.requestId }, (err, result) => {
-      this._isSniffing = false
-      if (this._sniffEnabled === true) {
-        this._nextSniff = Date.now() + this.sniffInterval
-      }
+    this.request(request, { id: opts.requestId })
+      .then(result => {
+        this.isSniffing = false
+        const protocol = result.meta.connection.url.protocol || /* istanbul ignore next */ 'http:'
+        const hosts = this.connectionPool.nodesToHost(result.body.nodes, protocol)
+        this.connectionPool.update(hosts)
 
-      if (err != null) {
-        result.meta.sniff = { hosts: [], reason }
-        this.emit('sniff', err, result)
-        return callback(err)
-      }
-
-      const protocol = result.meta.connection.url.protocol || /* istanbul ignore next */ 'http:'
-      const hosts = this.connectionPool.nodesToHost(result.body.nodes, protocol)
-      this.connectionPool.update(hosts)
-
-      result.meta.sniff = { hosts, reason }
-      this.emit('sniff', null, result)
-      callback(null, hosts)
-    })
+        result.meta.sniff = { hosts, reason: opts.reason }
+        this.observability.emit('sniff', null, result)
+      })
+      .catch(err => {
+        this.isSniffing = false
+        err.meta.sniff = { hosts: [], reason: opts.reason }
+        this.observability.emit('sniff', err, {})
+      })
   }
 }
 
