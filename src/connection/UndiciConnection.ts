@@ -88,6 +88,8 @@ export default class Connection extends BaseConnection {
       }
     }
 
+    // TODO: fixme
+    // this.diagnostic.emit('deserialization', null, result)
     if (isCompressed) {
       const payload: Buffer[] = []
       for await (const chunk of response.body) {

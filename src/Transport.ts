@@ -19,6 +19,7 @@
 
 import Debug from 'debug'
 import os from 'os'
+import * as http from 'http'
 import zlib from 'zlib'
 import { promisify } from 'util'
 import ms from 'ms'
@@ -49,8 +50,8 @@ import {
   Result,
   Context
 } from './types'
-import { version as clientVersion } from '../package.json'
 
+const { version: clientVersion } = require('../package.json') // eslint-disable-line
 const debug = Debug('elasticsearch')
 const gzip = promisify(zlib.gzip)
 const unzip = promisify(zlib.unzip)
@@ -112,7 +113,7 @@ export interface TransportRequestOptions {
   requestTimeout?: number | string
   maxRetries?: number
   asStream?: boolean
-  headers?: Record<string, string>
+  headers?: http.IncomingHttpHeaders
   querystring?: Record<string, any>
   compression?: boolean
   id?: any
@@ -134,7 +135,7 @@ export interface SniffOptions {
 export default class Transport {
   [kNodeFilter]: nodeFilterFn
   [kNodeSelector]: nodeSelectorFn
-  [kHeaders]: Record<string, string>
+  [kHeaders]: http.IncomingHttpHeaders
   [kDiagnostic]: Diagnostic
   [kConnectionPool]: ClusterConnectionPool | CloudConnectionPool | WeightedConnectionPool
   [kSerializer]: Serializer
@@ -233,7 +234,7 @@ export default class Transport {
     return this[kDiagnostic]
   }
 
-  async request<TResponse = Record<string, any> | string | boolean, TContext = any> (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<Result<TResponse, TContext>> {
+  async request<TResponse = any, TContext = any> (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<Result<TResponse, TContext>> {
     const meta: Result['meta'] = {
       context: null,
       request: {
@@ -557,10 +558,11 @@ function generateRequestId (): generateRequestIdFn {
   }
 }
 
-function lowerCaseHeaders (oldHeaders?: Record<string, string>): Record<string, string> | null {
+function lowerCaseHeaders (oldHeaders?: http.IncomingHttpHeaders): http.IncomingHttpHeaders | null {
   if (oldHeaders == null) return null
   const newHeaders: Record<string, string> = {}
   for (const header in oldHeaders) {
+    // @ts-expect-error
     newHeaders[header.toLowerCase()] = oldHeaders[header]
   }
   return newHeaders

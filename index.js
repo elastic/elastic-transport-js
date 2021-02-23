@@ -19,32 +19,30 @@
 
 'use strict'
 
-const Transport = require('./lib/Transport')
-const Connection = require('./lib/connection/Connection')
+const Diagnostic = require('./lib/Diagnostic').default
+const Transport = require('./lib/Transport').default
+const {
+  BaseConnection,
+  HttpConnection,
+  UndiciConnection
+} = require('./lib/connection')
 const {
   ClusterConnectionPool,
   CloudConnectionPool,
   WeightedConnectionPool
 } = require('./lib/pool')
-const Serializer = require('./lib/Serializer')
+const Serializer = require('./lib/Serializer').default
 const errors = require('./lib/errors')
 
-const events = {
-  RESPONSE: 'response',
-  REQUEST: 'request',
-  SNIFF: 'sniff',
-  RESURRECT: 'resurrect',
-  SERIALIZATION: 'serialization',
-  DESERIALIZATION: 'deserialization'
-}
-
 module.exports = {
+  Diagnostic,
   Transport,
-  Connection,
+  BaseConnection,
+  HttpConnection,
+  UndiciConnection,
   ClusterConnectionPool,
   CloudConnectionPool,
   WeightedConnectionPool,
   Serializer,
-  errors,
-  events
+  errors
 }

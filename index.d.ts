@@ -17,55 +17,35 @@
  * under the License.
  */
 
+import Diagnostic from './lib/Diagnostic'
 import Transport, {
-  ApiError,
-  ApiResponse,
-  RequestEvent,
   TransportRequestParams,
-  TransportRequestOptions,
-  nodeFilterFn,
-  nodeSelectorFn,
-  generateRequestIdFn,
-  TransportRequestCallback,
-  TransportRequestPromise,
-  RequestBody,
-  RequestNDBody,
-  Context
-} from './lib/Transport';
-import Connection from './lib/connection/Connection'
-import { ClusterConnectionPool, CloudConnectionPool, BaseConnectionPool } from './lib/pool'
+  TransportRequestOptions
+} from './lib/Transport'
+import {
+  BaseConnection,
+  HttpConnection,
+  UndiciConnection
+} from './lib/connection'
+import {
+  ClusterConnectionPool,
+  CloudConnectionPool,
+  BaseConnectionPool
+} from './lib/pool'
 import Serializer from './lib/Serializer'
 import * as errors from './lib/errors'
 
-declare const events: {
-  SERIALIZATION: string
-  REQUEST: string
-  DESERIALIZATION: string
-  RESPONSE: string
-  SNIFF: string
-  RESURRECT: string
-}
-
 export {
+  Diagnostic,
   Transport,
   ClusterConnectionPool,
   BaseConnectionPool,
   CloudConnectionPool,
-  Connection,
+  BaseConnection,
+  HttpConnection,
+  UndiciConnection,
   Serializer,
-  events,
   errors,
-  ApiError,
-  ApiResponse,
-  RequestEvent,
   TransportRequestParams,
-  TransportRequestOptions,
-  nodeFilterFn,
-  nodeSelectorFn,
-  generateRequestIdFn,
-  TransportRequestCallback,
-  TransportRequestPromise,
-  RequestBody,
-  RequestNDBody,
-  Context
+  TransportRequestOptions
 }

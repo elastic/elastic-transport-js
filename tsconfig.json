@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es2020",
+    "target": "es2019",
     "module": "commonjs",
     "moduleResolution": "node",
     "declaration": true,
@@ -8,7 +8,7 @@
     "noEmitOnError": true,
     "strict": true,
     "resolveJsonModule": true,
-    "removeComments": true,
+    "removeComments": false,
     "newLine": "lf",
     "noUnusedLocals": true,
     "noFallthroughCasesInSwitch": true,

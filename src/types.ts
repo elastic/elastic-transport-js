@@ -29,7 +29,7 @@ export type RequestBody<T = Record<string, any>> = T | string | Buffer | Readabl
 
 export type RequestNDBody<T = Array<Record<string, any>>> = T | string | string[] | Buffer | ReadableStream
 
-export interface Result<TResponse = Record<string, any> | string | boolean, TContext = Context> {
+export interface Result<TResponse = any, TContext = Context> {
   body?: TResponse
   statusCode?: number
   headers?: http.IncomingHttpHeaders

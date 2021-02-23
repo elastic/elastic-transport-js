@@ -17,16 +17,17 @@
  * under the License.
  */
 
-import assert from 'assert'
 import { inspect } from 'util'
 import * as http from 'http'
 import { URL } from 'url'
 import { ConnectionOptions as TlsConnectionOptions } from 'tls'
 import AbortController from 'node-abort-controller'
+import Diagnostic from '../Diagnostic'
 import { ApiKeyAuth, BasicAuth } from '../types'
 import { ConfigurationError } from '../errors'
 
 const kStatus = Symbol('status')
+const kDiagnostic = Symbol('diagnostics')
 
 export interface BaseConnectionOptions {
   url: URL
@@ -35,6 +36,7 @@ export interface BaseConnectionOptions {
   headers?: http.IncomingHttpHeaders
   status?: string
   auth?: BasicAuth | ApiKeyAuth
+  diagnostic?: Diagnostic
 }
 
 export interface ConnectionRequestOptions {
@@ -64,6 +66,7 @@ export default class BaseConnection {
   _openRequests: number
   weight: number
   [kStatus]: string
+  [kDiagnostic]: Diagnostic
 
   static statuses = {
     ALIVE: 'alive',
@@ -78,9 +81,9 @@ export default class BaseConnection {
     this.deadCount = 0
     this.resurrectTimeout = 0
     this.weight = 0
-
     this._openRequests = 0
     this[kStatus] = opts.status ?? BaseConnection.statuses.ALIVE
+    this[kDiagnostic] = opts.diagnostic ?? new Diagnostic()
 
     if (!['http:', 'https:'].includes(this.url.protocol)) {
       throw new ConfigurationError(`Invalid protocol: '${this.url.protocol}'`)
@@ -92,11 +95,14 @@ export default class BaseConnection {
   }
 
   set status (status: string) {
-    assert(
-      ~validStatuses.indexOf(status),
-      `Unsupported status: '${status}'`
-    )
+    if (!validStatuses.includes(status)) {
+      throw new ConfigurationError(`Unsupported status: '${status}'`)
+    }
     this[kStatus] = status
+  }
+
+  get diagnostic (): Diagnostic {
+    return this[kDiagnostic]
   }
 
   // Handles console.log and utils.inspect invocations.

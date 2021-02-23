@@ -168,7 +168,7 @@ export default class HttpConnection extends BaseConnection {
         }
 
         // TODO: fixme
-        // this.emit('deserialization', null, result)
+        // this.diagnostic.emit('deserialization', null, result)
         response.on('data', onData)
         response.on('error', onEnd)
         response.on('end', onEnd)

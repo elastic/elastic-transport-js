@@ -9,17 +9,17 @@
   },
   "scripts": {
     "test": "npm run lint && tap test/{unit,acceptance}/{*,**/*}.test.js && npm run test:types",
-    "test:unit": "tap test/unit/{*,**/*}.test.js",
+    "test:unit": "npm run build && tap test/unit/{*,**/*}.test.ts",
     "test:acceptance": "tap test/acceptance/*.test.js",
     "test:types": "tsd",
     "test:coverage-100": "tap test/{unit,acceptance}/{*,**/*}.test.js --coverage --100",
     "test:coverage-report": "tap test/{unit,acceptance}/{*,**/*}.test.js --coverage && nyc report --reporter=text-lcov > coverage.lcov",
-    "test:coverage-ui": "tap test/{unit,acceptance}/{*,**/*}.test.js --coverage --coverage-report=html",
+    "test:coverage-ui": "tap test/unit/{*,**/*}.test.ts --coverage --coverage-report=html",
     "lint": "ts-standard src",
     "lint:fix": "ts-standard --fix src",
     "license-checker": "license-checker --production --onlyAllow='MIT;Apache-2.0;Apache1.1;ISC;BSD-3-Clause;BSD-2-Clause'",
     "prebuild": "npm run clean-build && npm run lint",
-    "build": "tsc -p ./tsconfig.json",
+    "build": "tsc",
     "clean-build": "rimraf ./lib && mkdir lib",
     "prepublishOnly": "npm run build"
   },
@@ -38,7 +38,7 @@
   },
   "homepage": "https://github.com/elastic/elastic-transport-js#readme",
   "engines": {
-    "node": ">=10"
+    "node": ">=12"
   },
   "tsd": {
     "directory": "test/types"
@@ -48,6 +48,7 @@
     "@types/debug": "^4.1.5",
     "@types/ms": "^0.7.31",
     "@types/node": "^14.14.31",
+    "@types/tap": "^14.10.2",
     "into-stream": "^6.0.0",
     "license-checker": "^25.0.1",
     "node-abort-controller": "^1.1.0",
@@ -69,5 +70,12 @@
     "pump": "^3.0.0",
     "secure-json-parse": "^2.3.1",
     "undici": "^3.3.3"
+  },
+  "tap": {
+    "esm": false,
+    "ts": true,
+    "jsx": false,
+    "flow": false,
+    "coverage": false
   }
 }
