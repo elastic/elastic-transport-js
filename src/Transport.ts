@@ -347,12 +347,10 @@ export default class Transport {
       if (isStream(connectionParams.body)) {
         if (compression) {
           connectionParams.headers['content-encoding'] = 'gzip'
-          // @ts-expect-error
           connectionParams.body = connectionParams.body.pipe(createGzip())
         }
       } else if (compression) {
         try {
-          // @ts-expect-error
           connectionParams.body = await gzip(connectionParams.body)
         } catch (err) {
           this[kDiagnostic].emit('request', err, result)
@@ -361,7 +359,6 @@ export default class Transport {
         connectionParams.headers['content-encoding'] = 'gzip'
         connectionParams.headers['content-length'] = '' + Buffer.byteLength(connectionParams.body) // eslint-disable-line
       } else {
-        // @ts-expect-error
         connectionParams.headers['content-length'] = '' + Buffer.byteLength(connectionParams.body) // eslint-disable-line
       }
     }

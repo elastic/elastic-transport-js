@@ -21,6 +21,7 @@ import { inspect } from 'util'
 import * as http from 'http'
 import { URL } from 'url'
 import { ConnectionOptions as TlsConnectionOptions } from 'tls'
+import { Readable as ReadableStream } from 'stream'
 import AbortController from 'node-abort-controller'
 import Diagnostic from '../Diagnostic'
 import { ApiKeyAuth, BasicAuth } from '../types'
@@ -37,6 +38,7 @@ export interface BaseConnectionOptions {
   status?: string
   auth?: BasicAuth | ApiKeyAuth
   diagnostic?: Diagnostic
+  timeout?: number
 }
 
 export interface ConnectionRequestOptions {
@@ -60,6 +62,7 @@ export default class BaseConnection {
   url: URL
   ssl: TlsConnectionOptions | null
   id: string
+  timeout: number
   headers: http.IncomingHttpHeaders
   deadCount: number
   resurrectTimeout: number
@@ -78,6 +81,7 @@ export default class BaseConnection {
     this.ssl = opts.ssl ?? null
     this.id = opts.id ?? stripAuth(opts.url.href)
     this.headers = prepareHeaders(opts.headers, opts.auth)
+    this.timeout = opts.timeout ?? 30000
     this.deadCount = 0
     this.resurrectTimeout = 0
     this.weight = 0

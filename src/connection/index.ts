@@ -17,21 +17,20 @@
  * under the License.
  */
 
-import BaseConnection, {
+import BaseConnection from './BaseConnection'
+import HttpConnection from './HttpConnection'
+import UndiciConnection from './UndiciConnection'
+
+export type Connection = HttpConnection | UndiciConnection
+export type { HttpConnectionOptions } from './HttpConnection'
+export type {
+  BaseConnectionOptions,
   ConnectionRequestOptions,
   ConnectionRequestResponse
 } from './BaseConnection'
-import HttpConnection, { HttpConnectionOptions } from './HttpConnection'
-import UndiciConnection from './UndiciConnection'
-
-type Connection = HttpConnection | UndiciConnection
 
 export {
   BaseConnection,
   HttpConnection,
-  UndiciConnection,
-  ConnectionRequestOptions,
-  ConnectionRequestResponse,
-  HttpConnectionOptions,
-  Connection
+  UndiciConnection
 }

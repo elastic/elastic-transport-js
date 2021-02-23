@@ -9,6 +9,7 @@
     "strict": true,
     "resolveJsonModule": true,
     "removeComments": false,
+    "sourceMap": true,
     "newLine": "lf",
     "noUnusedLocals": true,
     "noFallthroughCasesInSwitch": true,
@@ -16,6 +17,8 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
+    "isolatedModules": true,
+    "importHelpers": true,
     "outDir": "lib",
     "lib": [
       "esnext"

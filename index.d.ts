@@ -18,10 +18,7 @@
  */
 
 import Diagnostic from './lib/Diagnostic'
-import Transport, {
-  TransportRequestParams,
-  TransportRequestOptions
-} from './lib/Transport'
+import Transport from './lib/Transport'
 import {
   BaseConnection,
   HttpConnection,
@@ -35,6 +32,18 @@ import {
 import Serializer from './lib/Serializer'
 import * as errors from './lib/errors'
 
+export type {
+  BaseConnectionOptions,
+  HttpConnectionOptions,
+  ConnectionRequestOptions,
+  ConnectionRequestResponse
+} from './lib/connection'
+
+export type {
+  TransportRequestParams,
+  TransportRequestOptions
+} from './lib/Transport'
+
 export {
   Diagnostic,
   Transport,
@@ -45,7 +54,5 @@ export {
   HttpConnection,
   UndiciConnection,
   Serializer,
-  errors,
-  TransportRequestParams,
-  TransportRequestOptions
+  errors
 }

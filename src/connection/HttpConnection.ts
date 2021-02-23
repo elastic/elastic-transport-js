@@ -47,7 +47,7 @@ const MAX_BUFFER_LENGTH = buffer.constants.MAX_LENGTH
 const MAX_STRING_LENGTH = buffer.constants.MAX_STRING_LENGTH
 
 export interface HttpConnectionOptions extends BaseConnectionOptions {
-  agent?: AgentOptions | agentFn
+  agent?: AgentOptions | agentFn | boolean
   proxy?: string | URL
 }
 
@@ -60,7 +60,7 @@ export default class HttpConnection extends BaseConnection {
 
     if (typeof opts.agent === 'function') {
       this.agent = opts.agent(opts)
-    } else if (opts.agent === false) {
+    } else if (typeof opts.agent === 'boolean') {
       this.agent = undefined
     } else {
       const agentOptions = Object.assign({}, {
@@ -117,7 +117,7 @@ export default class HttpConnection extends BaseConnection {
         this._openRequests--
 
         const contentEncoding = (response.headers['content-encoding'] ?? '').toLowerCase()
-        const isCompressed = contentEncoding.includes('gzip') ?? contentEncoding.includes('deflate')
+        const isCompressed = contentEncoding.includes('gzip') || contentEncoding.includes('deflate')
 
         /* istanbul ignore else */
         if (response.headers['content-length'] !== undefined) {
@@ -236,6 +236,7 @@ export default class HttpConnection extends BaseConnection {
     while (this._openRequests > 0) {
       await sleep(1000)
     }
+    /* istanbul ignore else */
     if (this.agent !== undefined) {
       this.agent.destroy()
     }
@@ -257,14 +258,15 @@ export default class HttpConnection extends BaseConnection {
       // https://github.com/elastic/elasticsearch-js/issues/843
       port: url.port !== '' ? url.port : undefined,
       headers: this.headers,
-      agent: this.agent
+      agent: this.agent,
+      timeout: this.timeout
     }
 
     const paramsKeys = Object.keys(params)
     for (let i = 0, len = paramsKeys.length; i < len; i++) {
       const key = paramsKeys[i]
       if (key === 'path') {
-        request.pathname = resolve(request.pathname, params[key] ?? '')
+        request.pathname = resolve(request.pathname, params[key])
       } else if (key === 'querystring' && Boolean(params[key])) {
         if (request.search === '') {
           request.search = `?${params[key] as string}`

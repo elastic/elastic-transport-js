@@ -42,15 +42,20 @@ export default class Connection extends BaseConnection {
 
   constructor (opts: BaseConnectionOptions) {
     super(opts)
-    this.pool = new Pool(this.url.toString(), { tls: this.ssl as TlsOptions })
+    this.pool = new Pool(this.url.toString(), {
+      tls: this.ssl as TlsOptions,
+      headersTimeout: this.timeout,
+      // @ts-expect-error
+      bodyTimeout: this.timeout
+    })
   }
 
   async request (params: ConnectionRequestOptions): Promise<ConnectionRequestResponse> {
     const requestParams = {
       method: params.method,
       path: params.path + (params.querystring == null || params.querystring === '' ? '' : `?${params.querystring}`),
-      headers: params.headers,
-      bodyTimeout: params.timeout,
+      headers: Object.assign({}, this.headers, params.headers),
+      body: params.body,
       signal: params.abortController?.signal
     }
     // https://github.com/nodejs/node/commit/b961d9fd83
@@ -66,7 +71,7 @@ export default class Connection extends BaseConnection {
       switch (err.code) {
         case 'UND_ERR_ABORTED':
           throw new RequestAbortedError('Request aborted')
-        case 'UND_ERR_BODY_TIMEOUT':
+        case 'UND_ERR_HEADERS_TIMEOUT':
           throw new TimeoutError('Request timed out')
         default:
           throw new ConnectionError(err.message)
@@ -90,27 +95,31 @@ export default class Connection extends BaseConnection {
 
     // TODO: fixme
     // this.diagnostic.emit('deserialization', null, result)
-    if (isCompressed) {
-      const payload: Buffer[] = []
-      for await (const chunk of response.body) {
-        payload.push(chunk)
+    try {
+      if (isCompressed) {
+        const payload: Buffer[] = []
+        for await (const chunk of response.body) {
+          payload.push(chunk)
+        }
+        return {
+          statusCode: response.statusCode,
+          headers: response.headers,
+          body: Buffer.concat(payload)
+        }
+      } else {
+        let payload = ''
+        response.body.setEncoding('utf8')
+        for await (const chunk of response.body) {
+          payload += chunk as string
+        }
+        return {
+          statusCode: response.statusCode,
+          headers: response.headers,
+          body: payload
+        }
       }
-      return {
-        statusCode: response.statusCode,
-        headers: response.headers,
-        body: Buffer.concat(payload)
-      }
-    } else {
-      let payload = ''
-      response.body.setEncoding('utf8')
-      for await (const chunk of response.body) {
-        payload += chunk as string
-      }
-      return {
-        statusCode: response.statusCode,
-        headers: response.headers,
-        body: payload
-      }
+    } catch (err) {
+      throw new ConnectionError(err.message)
     }
   }
 
