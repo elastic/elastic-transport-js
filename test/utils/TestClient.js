@@ -79,7 +79,6 @@ class TestClient {
       agent: null,
       headers: {},
       nodeFilter: null,
-      nodeSelector: 'round-robin',
       generateRequestId: null,
       name: 'elasticsearch-js',
       auth: null,

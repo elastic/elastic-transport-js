@@ -17,12 +17,12 @@
  * under the License.
  */
 
-import { expectType } from 'tsd'
-import { Serializer } from '../../'
+import * as http from 'http'
 
-const serializer = new Serializer()
-
-expectType<string>(serializer.serialize({}))
-expectType<any>(serializer.deserialize(''))
-expectType<string>(serializer.ndserialize([]))
-expectType<string>(serializer.qserialize({}))
+type ServerHandler = (req: http.IncomingMessage, res: http.OutgoingMessage) => void
+interface Options {
+  secure?: boolean
+}
+type HttpServer = http.Server & { stop: () => void }
+type Server = [{ key: string, cert: string, port: number }, HttpServer]
+export declare function buildServer (handler: ServerHandler, otps?: Options): Promise<Server>

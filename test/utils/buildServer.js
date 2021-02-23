@@ -36,13 +36,9 @@ const secureOpts = {
 }
 
 let id = 0
-function buildServer (handler, opts, cb) {
+function buildServer (handler, opts = {}) {
   const serverId = id++
   debug(`Booting server '${serverId}'`)
-  if (cb == null) {
-    cb = opts
-    opts = {}
-  }
 
   const server = opts.secure
     ? stoppable(https.createServer(secureOpts))
@@ -53,21 +49,13 @@ function buildServer (handler, opts, cb) {
     console.log('http server error', err)
     process.exit(1)
   })
-  if (cb === undefined) {
-    return new Promise((resolve, reject) => {
-      server.listen(0, () => {
-        const port = server.address().port
-        debug(`Server '${serverId}' booted on port ${port}`)
-        resolve([Object.assign({}, secureOpts, { port }), server])
-      })
-    })
-  } else {
+  return new Promise((resolve, reject) => {
     server.listen(0, () => {
       const port = server.address().port
       debug(`Server '${serverId}' booted on port ${port}`)
-      cb(Object.assign({}, secureOpts, { port }), server)
+      resolve([Object.assign({}, secureOpts, { port }), server])
     })
-  }
+  })
 }
 
 module.exports = buildServer
