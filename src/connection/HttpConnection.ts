@@ -22,23 +22,20 @@ import http from 'http'
 import https from 'https'
 import Debug from 'debug'
 import buffer from 'buffer'
-import { URL } from 'url'
 import { promisify } from 'util'
 import BaseConnection, {
-  BaseConnectionOptions,
+  ConnectionOptions,
   ConnectionRequestOptions,
   ConnectionRequestResponse
 } from './BaseConnection'
 import { Readable as ReadableStream, pipeline } from 'stream'
 import {
-  AgentOptions,
-  agentFn
-} from '../types'
-import {
+  ConfigurationError,
   ConnectionError,
   RequestAbortedError,
   TimeoutError
 } from '../errors'
+import { HttpAgentOptions } from '../types'
 
 const sleep = promisify(setTimeout)
 const debug = Debug('elasticsearch')
@@ -46,16 +43,11 @@ const INVALID_PATH_REGEX = /[^\u0021-\u00ff]/
 const MAX_BUFFER_LENGTH = buffer.constants.MAX_LENGTH
 const MAX_STRING_LENGTH = buffer.constants.MAX_STRING_LENGTH
 
-export interface HttpConnectionOptions extends BaseConnectionOptions {
-  agent?: AgentOptions | agentFn | boolean
-  proxy?: string | URL
-}
-
 export default class HttpConnection extends BaseConnection {
   agent?: http.Agent | https.Agent | hpagent.HttpProxyAgent | hpagent.HttpsProxyAgent
   makeRequest: typeof http.request | typeof https.request
 
-  constructor (opts: HttpConnectionOptions) {
+  constructor (opts: ConnectionOptions) {
     super(opts)
 
     if (typeof opts.agent === 'function') {
@@ -63,6 +55,9 @@ export default class HttpConnection extends BaseConnection {
     } else if (typeof opts.agent === 'boolean') {
       this.agent = undefined
     } else {
+      if (opts.agent != null && !isHttpAgentOptions(opts.agent)) {
+        throw new ConfigurationError('Bad agent configuration for Http agent')
+      }
       const agentOptions = Object.assign({}, {
         keepAlive: true,
         keepAliveMsecs: 1000,
@@ -302,4 +297,15 @@ function resolve (host: string, path: string): string {
   } else {
     return host + '/' + path
   }
+}
+
+/* istanbul ignore next */
+function isHttpAgentOptions (opts: Record<string, any>): opts is HttpAgentOptions {
+  if (opts.keepAliveTimeout != null) return false
+  if (opts.keepAliveMaxTimeout != null) return false
+  if (opts.keepAliveTimeoutThreshold != null) return false
+  if (opts.pipelining != null) return false
+  if (opts.maxHeaderSize != null) return false
+  if (opts.connections != null) return false
+  return true
 }

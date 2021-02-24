@@ -21,9 +21,10 @@ import { URL } from 'url'
 import { ConnectionOptions as TlsConnectionOptions } from 'tls'
 import Debug from 'debug'
 import Diagnostic from '../Diagnostic'
-import { Connection, HttpConnection, UndiciConnection, HttpConnectionOptions } from '../connection'
+import { Connection, HttpConnection, UndiciConnection, ConnectionOptions } from '../connection'
 import {
-  AgentOptions,
+  HttpAgentOptions,
+  UndiciAgentOptions,
   agentFn,
   ApiKeyAuth,
   BasicAuth
@@ -31,10 +32,10 @@ import {
 
 const debug = Debug('elasticsearch')
 
-type AddConnectionOptions = string | HttpConnectionOptions
+type AddConnectionOptions = string | ConnectionOptions
 export interface BaseConnectionPoolOptions {
   ssl?: TlsConnectionOptions
-  agent?: AgentOptions | agentFn
+  agent?: HttpAgentOptions | UndiciAgentOptions | agentFn
   proxy?: string | URL
   auth?: BasicAuth | ApiKeyAuth
   diagnostic?: Diagnostic
@@ -47,7 +48,7 @@ export default class BaseConnectionPool {
   Connection: typeof HttpConnection | typeof UndiciConnection
   diagnostic: Diagnostic
   auth?: BasicAuth | ApiKeyAuth
-  _agent?: AgentOptions | agentFn
+  _agent?: HttpAgentOptions | UndiciAgentOptions | agentFn
   _proxy?: string | URL
   _ssl?: TlsConnectionOptions
 
@@ -75,7 +76,7 @@ export default class BaseConnectionPool {
   /**
    * Creates a new connection instance.
    */
-  createConnection (opts: string | HttpConnectionOptions): Connection {
+  createConnection (opts: string | ConnectionOptions): Connection {
     if (typeof opts === 'string') {
       opts = this.urlToHost(opts)
     }
@@ -156,7 +157,7 @@ export default class BaseConnectionPool {
    * @param {array} array of connections
    * @returns {ConnectionPool}
    */
-  update (nodes: Array<Connection | HttpConnectionOptions>): this {
+  update (nodes: Array<Connection | ConnectionOptions>): this {
     debug('Updating the connection pool')
     const newConnections = []
     const oldConnections = []
@@ -180,7 +181,7 @@ export default class BaseConnectionPool {
         this.markAlive(connectionByUrl)
         newConnections.push(connectionByUrl)
       } else {
-        newConnections.push(this.createConnection(node as HttpConnectionOptions))
+        newConnections.push(this.createConnection(node as ConnectionOptions))
       }
     }
 
@@ -209,7 +210,7 @@ export default class BaseConnectionPool {
    * @param {object} nodes
    * @returns {array} hosts
    */
-  nodesToHost (nodes: Record<string, any>, protocol: string): HttpConnectionOptions[] {
+  nodesToHost (nodes: Record<string, any>, protocol: string): ConnectionOptions[] {
     const ids = Object.keys(nodes)
     const hosts = []
 
@@ -251,7 +252,7 @@ export default class BaseConnectionPool {
    * @param {string} url
    * @returns {object} host
    */
-  urlToHost (url: string): HttpConnectionOptions {
+  urlToHost (url: string): ConnectionOptions {
     return {
       url: new URL(url)
     }

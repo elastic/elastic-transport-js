@@ -24,13 +24,19 @@ import { ConnectionOptions as TlsConnectionOptions } from 'tls'
 import { Readable as ReadableStream } from 'stream'
 import AbortController from 'node-abort-controller'
 import Diagnostic from '../Diagnostic'
-import { ApiKeyAuth, BasicAuth } from '../types'
+import {
+  ApiKeyAuth,
+  BasicAuth,
+  HttpAgentOptions,
+  UndiciAgentOptions,
+  agentFn
+} from '../types'
 import { ConfigurationError } from '../errors'
 
 const kStatus = Symbol('status')
 const kDiagnostic = Symbol('diagnostics')
 
-export interface BaseConnectionOptions {
+export interface ConnectionOptions {
   url: URL
   ssl?: TlsConnectionOptions
   id?: string
@@ -39,6 +45,8 @@ export interface BaseConnectionOptions {
   auth?: BasicAuth | ApiKeyAuth
   diagnostic?: Diagnostic
   timeout?: number
+  agent?: HttpAgentOptions | UndiciAgentOptions | agentFn | boolean
+  proxy?: string | URL
 }
 
 export interface ConnectionRequestOptions {
@@ -76,7 +84,7 @@ export default class BaseConnection {
     DEAD: 'dead'
   }
 
-  constructor (opts: BaseConnectionOptions) {
+  constructor (opts: ConnectionOptions) {
     this.url = opts.url
     this.ssl = opts.ssl ?? null
     this.id = opts.id ?? stripAuth(opts.url.href)
@@ -107,6 +115,11 @@ export default class BaseConnection {
 
   get diagnostic (): Diagnostic {
     return this[kDiagnostic]
+  }
+
+  /* istanbul ignore next */
+  async request (params: ConnectionRequestOptions): Promise<ConnectionRequestResponse> {
+    throw new ConfigurationError('The request method should be implemented by extended classes')
   }
 
   // Handles console.log and utils.inspect invocations.

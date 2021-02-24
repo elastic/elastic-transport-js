@@ -18,7 +18,7 @@
  */
 
 import BaseConnectionPool, { BaseConnectionPoolOptions } from './BaseConnectionPool'
-import { Connection, HttpConnectionOptions } from '../connection'
+import { Connection, ConnectionOptions } from '../connection'
 
 export default class CloudConnectionPool extends BaseConnectionPool {
   cloudConnection: Connection | null
@@ -52,7 +52,7 @@ export default class CloudConnectionPool extends BaseConnectionPool {
    * @param {array} array of connections
    * @returns {ConnectionPool}
    */
-  update (connections: Array<Connection | HttpConnectionOptions>): this {
+  update (connections: Array<Connection | ConnectionOptions>): this {
     super.update(connections)
     this.cloudConnection = this.connections[0]
     return this

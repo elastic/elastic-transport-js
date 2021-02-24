@@ -33,8 +33,7 @@ import Serializer from './lib/Serializer'
 import * as errors from './lib/errors'
 
 export type {
-  BaseConnectionOptions,
-  HttpConnectionOptions,
+  ConnectionOptions,
   ConnectionRequestOptions,
   ConnectionRequestResponse
 } from './lib/connection'

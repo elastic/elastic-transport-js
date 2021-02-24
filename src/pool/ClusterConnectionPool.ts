@@ -20,7 +20,7 @@
 import BaseConnectionPool, { BaseConnectionPoolOptions } from './BaseConnectionPool'
 import assert from 'assert'
 import Debug from 'debug'
-import { Connection, BaseConnection, HttpConnectionOptions } from '../connection'
+import { Connection, BaseConnection, ConnectionOptions } from '../connection'
 import {
   nodeFilterFn,
   nodeSelectorFn
@@ -258,7 +258,7 @@ export default class ClusterConnectionPool extends BaseConnectionPool {
    * @param {array} array of connections
    * @returns {ConnectionPool}
    */
-  update (connections: Array<Connection | HttpConnectionOptions>): this {
+  update (connections: Array<Connection | ConnectionOptions>): this {
     super.update(connections)
     this.dead = []
     return this

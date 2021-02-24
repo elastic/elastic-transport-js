@@ -17,36 +17,62 @@
  * under the License.
  */
 
+import { EventEmitter } from 'events'
 import Debug from 'debug'
 import buffer from 'buffer'
 import BaseConnection, {
-  BaseConnectionOptions,
+  ConnectionOptions,
   ConnectionRequestOptions,
   ConnectionRequestResponse
 } from './BaseConnection'
 import { Pool } from 'undici'
 import {
+  ConfigurationError,
   RequestAbortedError,
   ConnectionError,
   TimeoutError
 } from '../errors'
 import { TlsOptions } from 'tls'
+import { UndiciAgentOptions } from '../types'
 
 const debug = Debug('elasticsearch')
 const INVALID_PATH_REGEX = /[^\u0021-\u00ff]/
 const MAX_BUFFER_LENGTH = buffer.constants.MAX_LENGTH
 const MAX_STRING_LENGTH = buffer.constants.MAX_STRING_LENGTH
+const kEmitter = Symbol('event emitter')
 
 export default class Connection extends BaseConnection {
   pool: Pool
+  [kEmitter]: EventEmitter
 
-  constructor (opts: BaseConnectionOptions) {
+  constructor (opts: ConnectionOptions) {
     super(opts)
+
+    if (opts.proxy != null) {
+      throw new ConfigurationError('Undici connection can\'t work with proxies')
+    }
+
+    if (typeof opts.agent === 'function' || typeof opts.agent === 'boolean') {
+      throw new ConfigurationError('Undici connection agent options can\'t be a function or a boolean')
+    }
+
+    if (opts.agent != null && !isUndiciAgentOptions(opts.agent)) {
+      throw new ConfigurationError('Bad agent configuration for Undici agent')
+    }
+
+    this[kEmitter] = new EventEmitter()
     this.pool = new Pool(this.url.toString(), {
       tls: this.ssl as TlsOptions,
+      keepAliveTimeout: 4000,
+      keepAliveMaxTimeout: 600e3,
+      keepAliveTimeoutThreshold: 1000,
+      pipelining: 1,
+      maxHeaderSize: 16384,
+      connections: 256,
       headersTimeout: this.timeout,
       // @ts-expect-error
-      bodyTimeout: this.timeout
+      bodyTimeout: this.timeout,
+      ...opts.agent
     })
   }
 
@@ -56,8 +82,26 @@ export default class Connection extends BaseConnection {
       path: params.path + (params.querystring == null || params.querystring === '' ? '' : `?${params.querystring}`),
       headers: Object.assign({}, this.headers, params.headers),
       body: params.body,
-      signal: params.abortController?.signal
+      signal: params.abortController?.signal ?? this[kEmitter]
     }
+
+    // undici does not support per-request timeouts,
+    // to address this issue, we default to the constructor
+    // timeout (which is handled by undici) and create a local
+    // setTimeout callback if the request-specific timeout
+    // is different from the constructor timeout.
+    let timedout = false
+    if (params.timeout != null && params.timeout !== this.timeout) {
+      setTimeout(() => {
+        timedout = true
+        if (params.abortController?.signal != null) {
+          params.abortController.abort()
+        } else {
+          this[kEmitter].emit('abort')
+        }
+      }, params.timeout)
+    }
+
     // https://github.com/nodejs/node/commit/b961d9fd83
     if (INVALID_PATH_REGEX.test(requestParams.path)) {
       throw new TypeError(`ERR_UNESCAPED_CHARACTERS: ${requestParams.path}`)
@@ -70,7 +114,7 @@ export default class Connection extends BaseConnection {
     } catch (err) {
       switch (err.code) {
         case 'UND_ERR_ABORTED':
-          throw new RequestAbortedError('Request aborted')
+          throw (timedout ? new TimeoutError('Request timed out') : new RequestAbortedError('Request aborted'))
         case 'UND_ERR_HEADERS_TIMEOUT':
           throw new TimeoutError('Request timed out')
         default:
@@ -127,4 +171,15 @@ export default class Connection extends BaseConnection {
     debug('Closing connection', this.id)
     await this.pool.close()
   }
+}
+
+/* istanbul ignore next */
+function isUndiciAgentOptions (opts: Record<string, any>): opts is UndiciAgentOptions {
+  if (opts.keepAlive != null) return false
+  if (opts.keepAliveMsecs != null) return false
+  if (opts.maxSockets != null) return false
+  if (opts.maxFreeSockets != null) return false
+  if (opts.scheduling != null) return false
+  if (opts.proxy != null) return false
+  return true
 }

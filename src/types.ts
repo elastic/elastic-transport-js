@@ -20,7 +20,7 @@
 import { Readable as ReadableStream } from 'stream'
 import { URL } from 'url'
 import * as http from 'http'
-import { Connection, HttpConnectionOptions } from './connection'
+import { Connection, ConnectionOptions } from './connection'
 import { TransportRequestParams, TransportRequestOptions } from './Transport'
 
 export type Context = Record<string, unknown> | null
@@ -52,15 +52,24 @@ export interface Result<TResponse = any, TContext = Context> {
   }
 }
 
-export declare type agentFn = (opts: HttpConnectionOptions) => any
+export declare type agentFn = (opts: ConnectionOptions) => any
 
-export interface AgentOptions {
+export interface HttpAgentOptions {
   keepAlive?: boolean
   keepAliveMsecs?: number
   maxSockets?: number
   maxFreeSockets?: number
   scheduling?: 'lifo' | 'fifo'
   proxy?: string | URL
+}
+
+export interface UndiciAgentOptions {
+  keepAliveTimeout?: number
+  keepAliveMaxTimeout?: number
+  keepAliveTimeoutThreshold?: number
+  pipelining?: number
+  maxHeaderSize?: number
+  connections?: number
 }
 
 export interface ApiKeyAuth {

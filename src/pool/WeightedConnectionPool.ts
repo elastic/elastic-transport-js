@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Connection, BaseConnection, HttpConnectionOptions } from '../connection'
+import { Connection, BaseConnection, ConnectionOptions } from '../connection'
 import BaseConnectionPool, { BaseConnectionPoolOptions } from './BaseConnectionPool'
 import { nodeFilterFn } from '../types'
 
@@ -139,7 +139,7 @@ export default class WeightedConnectionPool extends BaseConnectionPool {
    * @param {array} array of connections
    * @returns {ConnectionPool}
    */
-  update (connections: Array<Connection | HttpConnectionOptions>): this {
+  update (connections: Array<Connection | ConnectionOptions>): this {
     super.update(connections)
 
     this.connections.forEach(connection => {
