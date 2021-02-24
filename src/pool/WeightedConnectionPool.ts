@@ -18,14 +18,12 @@
  */
 
 import { Connection, BaseConnection, ConnectionOptions } from '../connection'
-import BaseConnectionPool, { BaseConnectionPoolOptions } from './BaseConnectionPool'
-import { nodeFilterFn } from '../types'
+import BaseConnectionPool, {
+  ConnectionPoolOptions,
+  GetConnectionOptions
+} from './BaseConnectionPool'
 
 const noFilter = (): boolean => true
-
-export interface GetConnectionOptions {
-  filter?: nodeFilterFn
-}
 
 export default class WeightedConnectionPool extends BaseConnectionPool {
   index: number
@@ -33,7 +31,7 @@ export default class WeightedConnectionPool extends BaseConnectionPool {
   greatestCommonDivisor: number
   currentWeight: number
 
-  constructor (opts: BaseConnectionPoolOptions) {
+  constructor (opts: ConnectionPoolOptions) {
     super(opts)
     // index choosen last time
     this.index = -1
@@ -51,7 +49,7 @@ export default class WeightedConnectionPool extends BaseConnectionPool {
    * @param {object} options (filter)
    * @returns {object|null} connection
    */
-  getConnection (opts: GetConnectionOptions = {}): Connection | null {
+  getConnection (opts: GetConnectionOptions): Connection | null {
     const filter = opts.filter != null ? opts.filter : noFilter
     // we should be able to find the next node in 1 array scan,
     // if we don't, it means that we are in an infinite loop

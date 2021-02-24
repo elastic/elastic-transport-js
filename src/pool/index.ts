@@ -22,6 +22,11 @@ import WeightedConnectionPool from './WeightedConnectionPool'
 import ClusterConnectionPool from './ClusterConnectionPool'
 import CloudConnectionPool from './CloudConnectionPool'
 
+export type {
+  ConnectionPoolOptions,
+  GetConnectionOptions
+} from './BaseConnectionPool'
+
 export {
   BaseConnectionPool,
   WeightedConnectionPool,

@@ -91,8 +91,9 @@ export default class Connection extends BaseConnection {
     // setTimeout callback if the request-specific timeout
     // is different from the constructor timeout.
     let timedout = false
+    let timeoutId
     if (params.timeout != null && params.timeout !== this.timeout) {
-      setTimeout(() => {
+      timeoutId = setTimeout(() => {
         timedout = true
         if (params.abortController?.signal != null) {
           params.abortController.abort()
@@ -111,7 +112,9 @@ export default class Connection extends BaseConnection {
     let response
     try {
       response = await this.pool.request(requestParams)
+      if (timeoutId != null) clearTimeout(timeoutId)
     } catch (err) {
+      if (timeoutId != null) clearTimeout(timeoutId)
       switch (err.code) {
         case 'UND_ERR_ABORTED':
           throw (timedout ? new TimeoutError('Request timed out') : new RequestAbortedError('Request aborted'))

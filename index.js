@@ -27,6 +27,7 @@ const {
   UndiciConnection
 } = require('./lib/connection')
 const {
+  BaseConnectionPool,
   ClusterConnectionPool,
   CloudConnectionPool,
   WeightedConnectionPool
@@ -40,6 +41,7 @@ module.exports = {
   BaseConnection,
   HttpConnection,
   UndiciConnection,
+  BaseConnectionPool,
   ClusterConnectionPool,
   CloudConnectionPool,
   WeightedConnectionPool,

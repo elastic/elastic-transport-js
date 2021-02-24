@@ -25,6 +25,7 @@ import {
   UndiciConnection
 } from './lib/connection'
 import {
+  WeightedConnectionPool,
   ClusterConnectionPool,
   CloudConnectionPool,
   BaseConnectionPool
@@ -33,19 +34,28 @@ import Serializer from './lib/Serializer'
 import * as errors from './lib/errors'
 
 export type {
+  Connection,
   ConnectionOptions,
   ConnectionRequestOptions,
   ConnectionRequestResponse
 } from './lib/connection'
 
 export type {
+  ConnectionPoolOptions,
+  GetConnectionOptions
+} from './lib/pool'
+
+export type {
   TransportRequestParams,
   TransportRequestOptions
 } from './lib/Transport'
 
+export type { Result } from './lib/types'
+
 export {
   Diagnostic,
   Transport,
+  WeightedConnectionPool,
   ClusterConnectionPool,
   BaseConnectionPool,
   CloudConnectionPool,

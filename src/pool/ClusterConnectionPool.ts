@@ -17,33 +17,19 @@
  * under the License.
  */
 
-import BaseConnectionPool, { BaseConnectionPoolOptions } from './BaseConnectionPool'
+import BaseConnectionPool, {
+  ConnectionPoolOptions,
+  GetConnectionOptions
+} from './BaseConnectionPool'
 import assert from 'assert'
 import Debug from 'debug'
 import { Connection, BaseConnection, ConnectionOptions } from '../connection'
-import {
-  nodeFilterFn,
-  nodeSelectorFn
-} from '../types'
 
 const debug = Debug('elasticsearch')
 
-export interface ClusterConnectionPoolOptions extends BaseConnectionPoolOptions {
-  pingTimeout: number
-  resurrectStrategy?: 'none' | 'ping' | 'optimistic'
-}
-
 export interface ResurrectOptions {
   now: number
-  requestId: string
-  name: string
-}
-
-export interface GetConnectionOptions {
-  filter?: nodeFilterFn
-  selector?: nodeSelectorFn
-  now: number
-  requestId: string
+  requestId: string | number
   name: string
 }
 
@@ -60,7 +46,7 @@ export default class ClusterConnectionPool extends BaseConnectionPool {
     optimistic: 2
   }
 
-  constructor (opts: ClusterConnectionPoolOptions) {
+  constructor (opts: ConnectionPoolOptions) {
     super(opts)
 
     this.dead = []
@@ -69,7 +55,7 @@ export default class ClusterConnectionPool extends BaseConnectionPool {
     // number of consecutive failures after which
     // the timeout doesn't increase
     this.resurrectTimeoutCutoff = 5
-    this.pingTimeout = opts.pingTimeout
+    this.pingTimeout = opts.pingTimeout ?? 3000
 
     const resurrectStrategy = opts.resurrectStrategy ?? 'ping'
     this.resurrectStrategy = ClusterConnectionPool.resurrectStrategies[resurrectStrategy]
@@ -154,7 +140,7 @@ export default class ClusterConnectionPool extends BaseConnectionPool {
     // the dead list is sorted in ascending order based on the timeout
     // so the first element will always be the one with the smaller timeout
     const connection = this.connections.find(c => c.id === this.dead[0]) as Connection
-    if ((opts.now ?? Date.now()) < connection.resurrectTimeout) {
+    if (opts.now < connection.resurrectTimeout) {
       debug('Nothing to resurrect')
       return
     }

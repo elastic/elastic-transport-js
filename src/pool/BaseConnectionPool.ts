@@ -21,38 +21,55 @@ import { URL } from 'url'
 import { ConnectionOptions as TlsConnectionOptions } from 'tls'
 import Debug from 'debug'
 import Diagnostic from '../Diagnostic'
-import { Connection, HttpConnection, UndiciConnection, ConnectionOptions } from '../connection'
+import {
+  Connection,
+  ConnectionOptions,
+  BaseConnection
+} from '../connection'
 import {
   HttpAgentOptions,
   UndiciAgentOptions,
   agentFn,
   ApiKeyAuth,
-  BasicAuth
+  BasicAuth,
+  nodeFilterFn,
+  nodeSelectorFn
 } from '../types'
+import { ConfigurationError } from '../errors'
 
 const debug = Debug('elasticsearch')
 
 type AddConnectionOptions = string | ConnectionOptions
-export interface BaseConnectionPoolOptions {
+export interface ConnectionPoolOptions {
   ssl?: TlsConnectionOptions
   agent?: HttpAgentOptions | UndiciAgentOptions | agentFn
   proxy?: string | URL
   auth?: BasicAuth | ApiKeyAuth
   diagnostic?: Diagnostic
-  Connection: typeof HttpConnection | typeof UndiciConnection
+  Connection: typeof BaseConnection
+  pingTimeout?: number
+  resurrectStrategy?: 'none' | 'ping' | 'optimistic'
+}
+
+export interface GetConnectionOptions {
+  filter?: nodeFilterFn
+  selector?: nodeSelectorFn
+  now: number
+  requestId: string | number
+  name: string
 }
 
 export default class BaseConnectionPool {
   connections: Connection[]
   size: number
-  Connection: typeof HttpConnection | typeof UndiciConnection
+  Connection: typeof BaseConnection
   diagnostic: Diagnostic
   auth?: BasicAuth | ApiKeyAuth
   _agent?: HttpAgentOptions | UndiciAgentOptions | agentFn
   _proxy?: string | URL
   _ssl?: TlsConnectionOptions
 
-  constructor (opts: BaseConnectionPoolOptions) {
+  constructor (opts: ConnectionPoolOptions) {
     // list of nodes and weights
     this.connections = []
     // how many nodes we have in our scheduler
@@ -66,11 +83,17 @@ export default class BaseConnectionPool {
   }
 
   markAlive (connection: Connection): this {
+    connection.status = BaseConnection.statuses.ALIVE
     return this
   }
 
   markDead (connection: Connection): this {
+    connection.status = BaseConnection.statuses.DEAD
     return this
+  }
+
+  getConnection (opts: GetConnectionOptions): Connection | null {
+    throw new ConfigurationError('The getConnection method should be implemented by extended classes')
   }
 
   /**
@@ -120,9 +143,9 @@ export default class BaseConnectionPool {
       for (const conn of connection) {
         connections.push(this.createConnection(conn))
       }
-      return this.update(connections)
+      return this.update([...this.connections, ...connections])
     } else {
-      return this.update([this.createConnection(connection)])
+      return this.update([...this.connections, this.createConnection(connection)])
     }
   }
 
@@ -195,7 +218,7 @@ export default class BaseConnectionPool {
 
     // close old connections
     for (const connection of oldConnections) {
-      connection.close().catch(() => {})
+      connection.close().catch(/* istanbul ignore next */() => {})
     }
 
     this.connections = newConnections

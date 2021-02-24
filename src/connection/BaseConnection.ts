@@ -122,6 +122,11 @@ export default class BaseConnection {
     throw new ConfigurationError('The request method should be implemented by extended classes')
   }
 
+  /* istanbul ignore next */
+  async close (): Promise<void> {
+    throw new ConfigurationError('The close method should be implemented by extended classes')
+  }
+
   // Handles console.log and utils.inspect invocations.
   // We want to hide `auth`, `agent` and `ssl` since they made
   // the logs very hard to read. The user can still

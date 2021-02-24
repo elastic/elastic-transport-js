@@ -48,7 +48,7 @@ export default class Serializer {
     return object
   }
 
-  ndserialize (array: Array<Record<string, any>>): string {
+  ndserialize (array: Array<Record<string, any> | string>): string {
     debug('ndserialize', array)
     if (!Array.isArray(array)) {
       throw new SerializationError('The argument provided is not an array', array)
@@ -58,6 +58,7 @@ export default class Serializer {
       if (typeof array[i] === 'string') {
         ndjson += array[i] + '\n' // eslint-disable-line
       } else {
+        // @ts-expect-error
         ndjson += this.serialize(array[i]) + '\n' // eslint-disable-line
       }
     }

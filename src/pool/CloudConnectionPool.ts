@@ -17,12 +17,15 @@
  * under the License.
  */
 
-import BaseConnectionPool, { BaseConnectionPoolOptions } from './BaseConnectionPool'
+import BaseConnectionPool, {
+  ConnectionPoolOptions,
+  GetConnectionOptions
+} from './BaseConnectionPool'
 import { Connection, ConnectionOptions } from '../connection'
 
 export default class CloudConnectionPool extends BaseConnectionPool {
   cloudConnection: Connection | null
-  constructor (opts: BaseConnectionPoolOptions) {
+  constructor (opts: ConnectionPoolOptions) {
     super(opts)
     this.cloudConnection = null
   }
@@ -32,7 +35,7 @@ export default class CloudConnectionPool extends BaseConnectionPool {
    *
    * @returns {object} connection
    */
-  getConnection (): Connection | null {
+  getConnection (opts: GetConnectionOptions): Connection | null {
     return this.cloudConnection
   }
 

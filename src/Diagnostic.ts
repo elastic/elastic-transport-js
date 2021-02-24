@@ -18,9 +18,10 @@
  */
 
 import { EventEmitter } from 'events'
-import { ConfigurationError } from './errors'
+import { ElasticsearchClientError, ConfigurationError } from './errors'
+import { Result } from './types'
 
-export type DiagnosticListener = (...args: any[]) => void
+export type DiagnosticListener = (err: ElasticsearchClientError | null, meta: Result | null) => void
 
 export default class Diagnostic extends EventEmitter {
   static events = {

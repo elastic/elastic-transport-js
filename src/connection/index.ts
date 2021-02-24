@@ -21,7 +21,7 @@ import BaseConnection from './BaseConnection'
 import HttpConnection from './HttpConnection'
 import UndiciConnection from './UndiciConnection'
 
-export type Connection = HttpConnection | UndiciConnection
+export type Connection = BaseConnection | HttpConnection | UndiciConnection
 export type {
   ConnectionOptions,
   ConnectionRequestOptions,
