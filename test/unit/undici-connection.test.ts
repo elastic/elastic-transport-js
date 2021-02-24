@@ -219,6 +219,26 @@ test('Timeout support / 4', async t => {
   server.stop()
 })
 
+test('Timeout support / 5', async t => {
+  t.plan(1)
+
+  function handler (req: http.IncomingMessage, res: http.OutgoingMessage) {
+    res.end('ok')
+  }
+
+  const [{ port }, server] = await buildServer(handler)
+  const connection = new UndiciConnection({
+    url: new URL(`http://localhost:${port}`)
+  })
+  const res = await connection.request({
+    path: '/hello',
+    method: 'GET',
+    timeout: 50
+  })
+  t.strictEqual(res.body, 'ok')
+  server.stop()
+})
+
 test('Should concatenate the querystring', async t => {
   t.plan(1)
 

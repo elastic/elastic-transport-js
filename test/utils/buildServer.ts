@@ -17,26 +17,29 @@
  * under the License.
  */
 
-'use strict'
+import { readFileSync } from 'fs'
+import { join } from 'path'
+import https from 'https'
+import http from 'http'
+import Debug from 'debug'
+import stoppable, { StoppableServer } from 'stoppable'
 
-const debug = require('debug')('elasticsearch-test')
-const stoppable = require('stoppable')
+const debug = Debug('elasticsearch-test')
 
 // allow self signed certificates for testing purposes
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = 0
-
-const { readFileSync } = require('fs')
-const { join } = require('path')
-const https = require('https')
-const http = require('http')
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 
 const secureOpts = {
   key: readFileSync(join(__dirname, '..', 'fixtures', 'https.key'), 'utf8'),
   cert: readFileSync(join(__dirname, '..', 'fixtures', 'https.cert'), 'utf8')
 }
 
+type ServerHandler = (req: http.IncomingMessage, res: http.OutgoingMessage) => void
+interface Options { secure?: boolean }
+type Server = [{ key: string, cert: string, port: number }, StoppableServer]
+
 let id = 0
-function buildServer (handler, opts = {}) {
+export default function buildServer (handler: ServerHandler, opts: Options = {}): Promise<Server> {
   const serverId = id++
   debug(`Booting server '${serverId}'`)
 
@@ -51,11 +54,10 @@ function buildServer (handler, opts = {}) {
   })
   return new Promise((resolve, reject) => {
     server.listen(0, () => {
+      // @ts-expect-error
       const port = server.address().port
       debug(`Server '${serverId}' booted on port ${port}`)
       resolve([Object.assign({}, secureOpts, { port }), server])
     })
   })
 }
-
-module.exports = buildServer
