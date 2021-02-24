@@ -1,21 +1,21 @@
-  /*
-   * Licensed to Elasticsearch B.V. under one or more contributor
-   * license agreements. See the NOTICE file distributed with
-   * this work for additional information regarding copyright
-   * ownership. Elasticsearch B.V. licenses this file to you under
-   * the Apache License, Version 2.0 (the "License"); you may
-   * not use this file except in compliance with the License.
-   * You may obtain a copy of the License at
-   *
-   *    http://www.apache.org/licenses/LICENSE-2.0
-   *
-   * Unless required by applicable law or agreed to in writing,
-   * software distributed under the License is distributed on an
-   * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-   * KIND, either express or implied.  See the License for the
-   * specific language governing permissions and limitations
-   * under the License.
-   */
+/*
+ * Licensed to Elasticsearch B.V. under one or more contributor
+ * license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright
+ * ownership. Elasticsearch B.V. licenses this file to you under
+ * the Apache License, Version 2.0 (the "License"); you may
+ * not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
 import { test } from 'tap'
 import { URL } from 'url'
@@ -26,9 +26,10 @@ import { Readable } from 'stream'
 import intoStream from 'into-stream'
 import AbortController from 'node-abort-controller'
 import { buildServer } from '../utils'
-import { UndiciConnection, errors, BaseConnectionOptions } from '../../'
+import { UndiciConnection, errors, ConnectionOptions } from '../../'
 
 const {
+  ConfigurationError,
   TimeoutError,
   RequestAbortedError,
   ConnectionError
@@ -158,6 +159,58 @@ test('Timeout support / 2', async t => {
     await connection.request({
       path: '/hello',
       method: 'GET'
+    })
+  } catch (err) {
+    t.ok(err instanceof TimeoutError)
+    t.is(err.message, 'Request timed out')
+  }
+  server.stop()
+})
+
+test('Timeout support / 3', async t => {
+  t.plan(2)
+
+  function handler (req: http.IncomingMessage, res: http.OutgoingMessage) {
+    setTimeout(() => res.end('ok'), 100)
+  }
+
+  const [{ port }, server] = await buildServer(handler)
+  const connection = new UndiciConnection({
+    url: new URL(`http://localhost:${port}`),
+    timeout: 200
+  })
+  try {
+    await connection.request({
+      path: '/hello',
+      method: 'GET',
+      timeout: 50
+    })
+  } catch (err) {
+    t.ok(err instanceof TimeoutError)
+    t.is(err.message, 'Request timed out')
+  }
+  server.stop()
+})
+
+test('Timeout support / 4', async t => {
+  t.plan(2)
+
+  function handler (req: http.IncomingMessage, res: http.OutgoingMessage) {
+    setTimeout(() => res.end('ok'), 100)
+  }
+
+  const [{ port }, server] = await buildServer(handler)
+  const connection = new UndiciConnection({
+    url: new URL(`http://localhost:${port}`),
+    timeout: 200
+  })
+  const abortController = new AbortController()
+  try {
+    await connection.request({
+      path: '/hello',
+      method: 'GET',
+      abortController,
+      timeout: 50
     })
   } catch (err) {
     t.ok(err instanceof TimeoutError)
@@ -544,7 +597,7 @@ test('Content length too big (buffer)', async t => {
   t.plan(2)
 
   class MyConnection extends UndiciConnection {
-    constructor (opts: BaseConnectionOptions) {
+    constructor (opts: ConnectionOptions) {
       super(opts)
       this.pool = {
         // @ts-expect-error
@@ -583,7 +636,7 @@ test('Content length too big (string)', async t => {
   t.plan(2)
 
   class MyConnection extends UndiciConnection {
-    constructor (opts: BaseConnectionOptions) {
+    constructor (opts: ConnectionOptions) {
       super(opts)
       this.pool = {
         // @ts-expect-error
@@ -692,5 +745,51 @@ test('Connection error', async t => {
     })
   } catch (err) {
     t.true(err instanceof ConnectionError)
+  }
+})
+
+test('Throw if detects http agent options', async t => {
+  t.plan(3)
+
+  try {
+    new UndiciConnection({
+      url: new URL('http://localhost:9200'),
+      agent: {
+        keepAlive: false
+      }
+    })
+  } catch (err) {
+    t.true(err instanceof ConfigurationError)
+  }
+
+  try {
+    new UndiciConnection({
+      url: new URL('http://localhost:9200'),
+      agent: () => new http.Agent()
+    })
+  } catch (err) {
+    t.true(err instanceof ConfigurationError)
+  }
+
+  try {
+    new UndiciConnection({
+      url: new URL('http://localhost:9200'),
+      agent: false
+    })
+  } catch (err) {
+    t.true(err instanceof ConfigurationError)
+  }
+})
+
+test('Throw if detects proxy option', async t => {
+  t.plan(1)
+
+  try {
+    new UndiciConnection({
+      url: new URL('http://localhost:9200'),
+      proxy: new URL('http://localhost:9201')
+    })
+  } catch (err) {
+    t.true(err instanceof ConfigurationError)
   }
 })
