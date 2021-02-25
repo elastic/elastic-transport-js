@@ -195,10 +195,10 @@ export default class Transport {
     this[kMaxRetries] = typeof opts.maxRetries === 'number' ? opts.maxRetries : 3
     this[kCompression] = opts.compression === true
     this[kRequestTimeout] = opts.requestTimeout != null ? toMs(opts.requestTimeout) : 30000
+    this[kSniffInterval] = opts.sniffInterval ?? false
     this[kSniffEnabled] = typeof this[kSniffInterval] === 'number'
     this[kNextSniff] = this[kSniffEnabled] ? (Date.now() + (this[kSniffInterval] as number)) : 0
     this[kIsSniffing] = false
-    this[kSniffInterval] = opts.sniffInterval ?? false
     this[kSniffOnConnectionFault] = opts.sniffOnConnectionFault ?? false
     this[kSniffEndpoint] = opts.sniffEndpoint ?? null
 
@@ -301,6 +301,8 @@ export default class Transport {
           this[kDiagnostic].emit('request', err, result)
           throw err
         }
+      } else {
+        connectionParams.body = params.body
       }
 
       if (params.body !== '') {
@@ -353,7 +355,9 @@ export default class Transport {
         try {
           connectionParams.body = await gzip(connectionParams.body)
         } catch (err) {
+          /* istanbul ignore next */
           this[kDiagnostic].emit('request', err, result)
+          /* istanbul ignore next */
           throw err
         }
         connectionParams.headers['content-encoding'] = 'gzip'
@@ -366,7 +370,6 @@ export default class Transport {
     while (meta.attempts <= maxRetries) {
       try {
         if (abortController?.signal.aborted) { // eslint-disable-line
-          meta.aborted = true
           throw new RequestAbortedError('Request has been aborted by the user', result)
         }
 
@@ -383,7 +386,7 @@ export default class Transport {
         result.headers = headers
 
         const contentEncoding = (headers['content-encoding'] ?? '').toLowerCase()
-        if (contentEncoding.includes('gzip') ?? contentEncoding.includes('deflate')) {
+        if (contentEncoding.includes('gzip') || contentEncoding.includes('deflate')) {
           body = await unzip(body)
         }
 

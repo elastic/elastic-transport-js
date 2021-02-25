@@ -47,7 +47,8 @@ export type {
 
 export type {
   TransportRequestParams,
-  TransportRequestOptions
+  TransportRequestOptions,
+  SniffOptions
 } from './lib/Transport'
 
 export type { Result } from './lib/types'
