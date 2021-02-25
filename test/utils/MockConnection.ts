@@ -18,6 +18,7 @@
  */
 
 import assert from 'assert'
+import * as http from 'http'
 import {
   BaseConnection,
   ConnectionRequestOptions,
@@ -92,7 +93,7 @@ export class MockConnectionSniff extends BaseConnection {
 }
 
 interface onRequestMock {
-  onRequest(opts: ConnectionRequestOptions): { body: any, statusCode?: number }
+  onRequest(opts: ConnectionRequestOptions): { body: any, statusCode?: number, headers?: http.IncomingHttpHeaders }
 }
 export function buildMockConnection (opts: onRequestMock) {
   assert(opts.onRequest, 'Missing required onRequest option')
@@ -100,16 +101,17 @@ export function buildMockConnection (opts: onRequestMock) {
   class MockConnection extends BaseConnection {
     request (params: ConnectionRequestOptions): Promise<ConnectionRequestResponse> {
       return new Promise((resolve, reject) => {
-        let { body, statusCode } = opts.onRequest(params)
-        if (typeof body !== 'string') {
+        let { body, statusCode, headers } = opts.onRequest(params)
+        if (typeof body !== 'string' && !(body instanceof Buffer)) {
           body = JSON.stringify(body)
         }
         statusCode = statusCode || 200
-        const headers = {
+        headers = {
           'content-type': 'application/json;utf=8',
           date: new Date().toISOString(),
           connection: 'keep-alive',
-          'content-length': Buffer.byteLength(body)
+          'content-length': Buffer.byteLength(body) + '',
+          ...headers
         }
         process.nextTick(resolve, { body, statusCode, headers })
       })
