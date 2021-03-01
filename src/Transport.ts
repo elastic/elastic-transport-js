@@ -161,10 +161,6 @@ export default class Transport {
   }
 
   constructor (opts: TransportOptions) {
-    if (typeof opts.compression === 'string' && opts.compression !== 'gzip') {
-      throw new ConfigurationError(`Invalid compression: '${opts.compression}'`) // eslint-disable-line
-    }
-
     if (opts.connectionPool == null) {
       throw new ConfigurationError('The Connection Pool option is not defined')
     }
@@ -173,7 +169,7 @@ export default class Transport {
       throw new ConfigurationError('The maxRetries option must be a positive integer or zero')
     }
 
-    if (opts.sniffInterval === true ??
+    if (opts.sniffInterval === true ||
        (typeof opts.sniffInterval === 'number' && opts.sniffInterval < 0 && Number.isInteger(opts.sniffInterval))) {
       throw new ConfigurationError('The sniffInterval option must be false or a positive integer')
     }

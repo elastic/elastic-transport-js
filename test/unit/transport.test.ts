@@ -59,7 +59,8 @@ const {
   NoLivingConnectionsError,
   SerializationError,
   DeserializationError,
-  RequestAbortedError
+  RequestAbortedError,
+  ConfigurationError
 } = errors
 
 test('Basic', async t => {
@@ -1429,6 +1430,55 @@ test('Sniff interval', async t => {
     path: '/hello'
   })
   t.strictEqual(res.statusCode, 200)
+})
+
+test('No connection pool', t => {
+  t.plan(1)
+  try {
+    // @ts-expect-error
+    new Transport({})
+  } catch (err) {
+    t.true(err instanceof ConfigurationError)
+  }
+})
+
+test('Negative maxRetries is not valid', t => {
+  t.plan(1)
+  const pool = new WeightedConnectionPool({ Connection: MockConnection })
+  pool.addConnection('http://localhost:9200')
+
+  try {
+    new Transport({
+      connectionPool: pool,
+      maxRetries: -1
+    })
+  } catch (err) {
+    t.true(err instanceof ConfigurationError)
+  }
+})
+
+test('sniffInterval should be false or a positive integer', t => {
+  t.plan(2)
+  const pool = new WeightedConnectionPool({ Connection: MockConnection })
+  pool.addConnection('http://localhost:9200')
+
+  try {
+    new Transport({
+      connectionPool: pool,
+      sniffInterval: true
+    })
+  } catch (err) {
+    t.true(err instanceof ConfigurationError)
+  }
+
+  try {
+    new Transport({
+      connectionPool: pool,
+      sniffInterval: -1
+    })
+  } catch (err) {
+    t.true(err instanceof ConfigurationError)
+  }
 })
 
 // test('asStream set to true', t => {
