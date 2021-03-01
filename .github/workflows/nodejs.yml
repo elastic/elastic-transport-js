@@ -36,17 +36,13 @@ jobs:
       run: |
         npm run test:acceptance
 
-    - name: Type Definitions
-      run: |
-        npm run test:types
-
   code-coverage:
     name: Code coverage
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        node-version: [12.x]
+        node-version: [14.x]
 
     steps:
     - uses: actions/checkout@v2
@@ -80,7 +76,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [12.x]
+        node-version: [14.x]
 
     steps:
     - uses: actions/checkout@v2

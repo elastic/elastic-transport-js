@@ -8,10 +8,9 @@
     "test": "test"
   },
   "scripts": {
-    "test": "npm run lint && tap test/{unit,acceptance}/{*,**/*}.test.js && npm run test:types",
+    "test": "npm run lint && tap test/{unit,acceptance}/{*,**/*}.test.js",
     "test:unit": "npm run build && tap test/unit/{*,**/*}.test.ts",
     "test:acceptance": "tap test/acceptance/*.test.js",
-    "test:types": "tsd",
     "test:coverage-100": "tap test/{unit,acceptance}/{*,**/*}.test.js --coverage --100",
     "test:coverage-report": "tap test/{unit,acceptance}/{*,**/*}.test.js --coverage && nyc report --reporter=text-lcov > coverage.lcov",
     "test:coverage-ui": "tap test/unit/{*,**/*}.test.ts --coverage --coverage-report=html",
@@ -40,9 +39,6 @@
   "engines": {
     "node": ">=12"
   },
-  "tsd": {
-    "directory": "test/types"
-  },
   "devDependencies": {
     "@sinonjs/fake-timers": "github:sinonjs/fake-timers#0bfffc1",
     "@types/debug": "^4.1.5",
@@ -60,7 +56,6 @@
     "tap": "^14.11.0",
     "ts-node": "^9.1.1",
     "ts-standard": "^10.0.0",
-    "tsd": "^0.14.0",
     "typescript": "^4.1.5",
     "workq": "^3.0.0"
   },
