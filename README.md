@@ -14,7 +14,7 @@ npm install @elastic/transport
 
 ### Node.js support
 
-NOTE: The minimum supported version of Node.js is `v10`.
+NOTE: The minimum supported version of Node.js is `v12`.
 
 The client versioning follows the Elastc Stack versioning, this means that
 major, minor, and patch releases are done following a precise schedule that

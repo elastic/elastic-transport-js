@@ -17,34 +17,17 @@
  * under the License.
  */
 
-'use strict'
+import buildServer from './buildServer'
+import * as connection from './MockConnection'
+// const buildCluster = require('./buildCluster')
+// const buildProxy = require('./buildProxy')
+// const connection = require('./MockConnection')
+// const TestClient = require('./TestClient')
 
-const Diagnostic = require('./lib/Diagnostic').default
-const Transport = require('./lib/Transport').default
-const {
-  BaseConnection,
-  HttpConnection,
-  UndiciConnection
-} = require('./lib/connection')
-const {
-  BaseConnectionPool,
-  ClusterConnectionPool,
-  CloudConnectionPool,
-  WeightedConnectionPool
-} = require('./lib/pool')
-const Serializer = require('./lib/Serializer').default
-const errors = require('./lib/errors')
-
-module.exports = {
-  Diagnostic,
-  Transport,
-  BaseConnection,
-  HttpConnection,
-  UndiciConnection,
-  BaseConnectionPool,
-  ClusterConnectionPool,
-  CloudConnectionPool,
-  WeightedConnectionPool,
-  Serializer,
-  errors
+export {
+  buildServer,
+  connection
+  // buildCluster,
+  // buildProxy,
+  // TestClient
 }
