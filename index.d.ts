@@ -49,10 +49,12 @@ export type {
 export type {
   TransportRequestParams,
   TransportRequestOptions,
+  TransportRequestOptionsWithMeta,
+  TransportRequestOptionsWithOutMeta,
   SniffOptions
 } from './lib/Transport'
 
-export type { Result } from './lib/types'
+export type { TransportResult, DiagnosticResult } from './lib/types'
 
 export {
   Diagnostic,

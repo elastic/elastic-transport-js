@@ -29,7 +29,7 @@ export type RequestBody<T = Record<string, any>> = T | string | Buffer | Readabl
 
 export type RequestNDBody<T = Array<Record<string, any>>> = T | string | string[] | Buffer | ReadableStream
 
-export interface Result<TResponse = any, TContext = Context> {
+export interface DiagnosticResult<TResponse = unknown, TContext = Context> {
   body?: TResponse
   statusCode?: number
   headers?: http.IncomingHttpHeaders
@@ -51,6 +51,8 @@ export interface Result<TResponse = any, TContext = Context> {
     }
   }
 }
+
+export type TransportResult<TResponse = unknown, TContext = Context> = Required<DiagnosticResult<TResponse, TContext>>
 
 export declare type agentFn = (opts: ConnectionOptions) => any
 

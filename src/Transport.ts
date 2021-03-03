@@ -48,7 +48,7 @@ import {
   generateRequestIdFn,
   RequestBody,
   RequestNDBody,
-  Result,
+  TransportResult,
   Context
 } from './types'
 
@@ -122,6 +122,15 @@ export interface TransportRequestOptions {
   warnings?: string[]
   opaqueId?: string
   abortController?: AbortController
+  meta?: boolean
+}
+
+export interface TransportRequestOptionsWithMeta extends TransportRequestOptions {
+  meta: true
+}
+
+export interface TransportRequestOptionsWithOutMeta extends TransportRequestOptions {
+  meta: false
 }
 
 export interface GetConnectionOptions {
@@ -241,8 +250,11 @@ export default class Transport {
     return this[kDiagnostic]
   }
 
-  async request<TResponse = any, TContext = any> (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<Result<TResponse, TContext>> {
-    const meta: Result['meta'] = {
+  async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptionsWithOutMeta): Promise<TResponse>
+  async request<TResponse = unknown, TContext = any> (params: TransportRequestParams, options?: TransportRequestOptionsWithMeta): Promise<TransportResult<TResponse, TContext>>
+  async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptions): Promise<TResponse>
+  async request (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<any> {
+    const meta: TransportResult['meta'] = {
       context: null,
       request: {
         params: params,
@@ -255,6 +267,8 @@ export default class Transport {
       aborted: false
     }
 
+    const returnMeta = options.meta ?? false
+
     if (this[kContext] != null && options.context != null) {
       meta.context = Object.assign({}, this[kContext], options.context)
     } else if (this[kContext] !== null) {
@@ -263,12 +277,12 @@ export default class Transport {
       meta.context = options.context
     }
 
-    const result: Result = {
+    const result: TransportResult = {
       // the default body value can't be `null`
       // as it's a valid JSON value
       body: undefined,
-      statusCode: undefined,
-      headers: undefined,
+      statusCode: 0,
+      headers: {},
       meta,
       get warnings () {
         return this.headers?.warning != null
@@ -456,8 +470,7 @@ export default class Transport {
             result.body = false
           }
           this[kDiagnostic].emit('response', null, result)
-          // @ts-expect-error
-          return result
+          return returnMeta ? result : result.body
         }
       } catch (error) {
         switch (error.name) {
@@ -511,8 +524,8 @@ export default class Transport {
         }
       }
     }
-    // @ts-expect-error
-    return result
+
+    return returnMeta ? result : result.body
   }
 
   getConnection (opts: GetConnectionOptions): Connection | null {
