@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import assert from 'assert'
 import {
   Transport,
   HttpConnection,
@@ -39,8 +40,9 @@ class SniffingTransport extends Transport {
       path: this.sniffEndpoint ?? '/_nodes/_all/http'
     }
 
-    this.request(request, { id: opts.requestId })
+    this.request(request, { id: opts.requestId, meta: true })
       .then(result => {
+        assert(isObject(result.body), 'The body should be an object')
         this.isSniffing = false
         const protocol = result.meta.connection?.url.protocol || /* istanbul ignore next */ 'http:'
         const hosts = this.connectionPool.nodesToHost(result.body.nodes, protocol)
@@ -55,6 +57,10 @@ class SniffingTransport extends Transport {
         this.diagnostic.emit('sniff', err, null)
       })
   }
+}
+
+function isObject (obj: any): obj is Record<string, any> {
+  return typeof obj === 'object'
 }
 
 export default class TestClient {
