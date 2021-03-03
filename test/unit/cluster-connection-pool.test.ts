@@ -20,12 +20,13 @@
 import { test } from 'tap'
 import {
   ClusterConnectionPool,
+  ConnectionRequestParams,
   HttpConnection,
   BaseConnection,
   Connection,
-  errors
+  errors,
+  events
 } from '../../'
-import { ConnectionRequestOptions } from '../../lib/connection'
 import { connection } from '../utils'
 const { TimeoutError } = errors
 const {
@@ -97,9 +98,10 @@ test('resurrect', t => {
       const opts = {
         now: Date.now() + 1000 * 60 * 3,
         requestId: 1,
-        name: 'elasticsearch-js'
+        name: 'elasticsearch-js',
+        context: null
       }
-      pool.diagnostic.on('resurrect', (err, meta) => {
+      pool.diagnostic.on(events.RESURRECT, (err, meta) => {
         t.error(err)
         t.deepEqual(meta, {
           strategy: 'ping',
@@ -128,9 +130,10 @@ test('resurrect', t => {
       const opts = {
         now: Date.now() + 1000 * 60 * 3,
         requestId: 1,
-        name: 'elasticsearch-js'
+        name: 'elasticsearch-js',
+        context: null
       }
-      pool.diagnostic.on('resurrect', (err, meta) => {
+      pool.diagnostic.on(events.RESURRECT, (err, meta) => {
         t.true(err instanceof TimeoutError)
         t.strictEqual(meta, null)
         t.strictEqual(pool.connections[0].deadCount, 1)
@@ -144,7 +147,7 @@ test('resurrect', t => {
     t.test('still dead', t => {
       t.plan(6)
       const Conn = buildMockConnection({
-        onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number } {
+        onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
           return {
             body: { error: true },
             statusCode: 502
@@ -161,9 +164,10 @@ test('resurrect', t => {
       const opts = {
         now: Date.now() + 1000 * 60 * 3,
         requestId: 1,
-        name: 'elasticsearch-js'
+        name: 'elasticsearch-js',
+        context: null
       }
-      pool.diagnostic.on('resurrect', (err, meta) => {
+      pool.diagnostic.on(events.RESURRECT, (err, meta) => {
         t.error(err)
         t.deepEqual(meta, {
           strategy: 'ping',
@@ -195,9 +199,10 @@ test('resurrect', t => {
     const opts = {
       now: Date.now() + 1000 * 60 * 3,
       requestId: 1,
-      name: 'elasticsearch-js'
+      name: 'elasticsearch-js',
+      context: null
     }
-    pool.diagnostic.on('resurrect', (err, meta) => {
+    pool.diagnostic.on(events.RESURRECT, (err, meta) => {
       t.error(err)
       t.deepEqual(meta, {
         strategy: 'optimistic',
@@ -226,9 +231,10 @@ test('resurrect', t => {
     const opts = {
       now: Date.now() + 1000 * 60 * 3,
       requestId: 1,
-      name: 'elasticsearch-js'
+      name: 'elasticsearch-js',
+      context: null
     }
-    pool.diagnostic.on('resurrect', (e, meta) => {
+    pool.diagnostic.on(events.RESURRECT, (e, meta) => {
       t.fail('should not be called')
     })
     pool.resurrect(opts)
@@ -251,9 +257,10 @@ test('resurrect', t => {
     const opts = {
       now: Date.now() - 1000 * 60 * 3,
       requestId: 1,
-      name: 'elasticsearch-js'
+      name: 'elasticsearch-js',
+      context: null
     }
-    pool.diagnostic.on('resurrect', (e, meta) => {
+    pool.diagnostic.on(events.RESURRECT, (e, meta) => {
       t.fail('should not be called')
     })
     pool.resurrect(opts)
@@ -270,7 +277,8 @@ test('getConnection', t => {
   const opts = {
     now: Date.now() + 1000 * 60 * 3,
     requestId: 1,
-    name: 'elasticsearch-js'
+    name: 'elasticsearch-js',
+    context: null
   }
 
   t.test('Should return a connection', t => {

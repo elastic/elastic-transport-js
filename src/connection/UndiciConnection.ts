@@ -22,6 +22,7 @@ import Debug from 'debug'
 import buffer from 'buffer'
 import BaseConnection, {
   ConnectionOptions,
+  ConnectionRequestParams,
   ConnectionRequestOptions,
   ConnectionRequestResponse
 } from './BaseConnection'
@@ -76,7 +77,7 @@ export default class Connection extends BaseConnection {
     })
   }
 
-  async request (params: ConnectionRequestOptions): Promise<ConnectionRequestResponse> {
+  async request (params: ConnectionRequestParams, options: ConnectionRequestOptions): Promise<ConnectionRequestResponse> {
     const requestParams = {
       method: params.method,
       path: params.path + (params.querystring == null || params.querystring === '' ? '' : `?${params.querystring}`),
@@ -140,8 +141,7 @@ export default class Connection extends BaseConnection {
       }
     }
 
-    // TODO: fixme
-    // this.diagnostic.emit('deserialization', null, result)
+    this.diagnostic.emit('deserialization', null, options)
     try {
       if (isCompressed) {
         const payload: Buffer[] = []

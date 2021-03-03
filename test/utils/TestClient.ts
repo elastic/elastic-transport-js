@@ -17,54 +17,58 @@
  * under the License.
  */
 
-'use strict'
-
-const { EventEmitter } = require('events')
-const {
+import {
   Transport,
-  Connection,
+  HttpConnection,
   ClusterConnectionPool,
-  CloudClusterConnectionPool,
-  Serializer
-} = require('../../index')
-
-const kEventEmitter = Symbol('elasticsearchjs-event-emitter')
+  CloudConnectionPool,
+  Serializer,
+  Diagnostic,
+  TransportRequestParams,
+  TransportRequestOptions,
+  SniffOptions
+} from '../..'
 
 class SniffingTransport extends Transport {
-  sniff (opts = { reason: Transport.sniffReasons.DEFAULT }) {
+  sniff (opts: SniffOptions): void {
     if (this.isSniffing === true) return
     this.isSniffing = true
 
     const request = {
       method: 'GET',
-      path: this.sniffEndpoint
+      path: this.sniffEndpoint ?? '/_nodes/_all/http'
     }
 
     this.request(request, { id: opts.requestId })
       .then(result => {
         this.isSniffing = false
-        const protocol = result.meta.connection.url.protocol || /* istanbul ignore next */ 'http:'
+        const protocol = result.meta.connection?.url.protocol || /* istanbul ignore next */ 'http:'
         const hosts = this.connectionPool.nodesToHost(result.body.nodes, protocol)
         this.connectionPool.update(hosts)
 
         result.meta.sniff = { hosts, reason: opts.reason }
-        this.observability.emit('sniff', null, result)
+        this.diagnostic.emit('sniff', null, result)
       })
       .catch(err => {
         this.isSniffing = false
         err.meta.sniff = { hosts: [], reason: opts.reason }
-        this.observability.emit('sniff', err, {})
+        this.diagnostic.emit('sniff', err, null)
       })
   }
 }
 
-class TestClient {
-  constructor (opts = {}) {
+export default class TestClient {
+  diagnostic: Diagnostic
+  name: string
+  connectionPool: CloudConnectionPool | ClusterConnectionPool
+  transport: SniffingTransport
+  serializer: Serializer
+  constructor (opts: any) {
     const options = Object.assign({}, {
-      Connection,
+      Connection: HttpConnection,
       Transport: SniffingTransport,
       Serializer,
-      ConnectionPool: opts.cloud ? CloudClusterConnectionPool : ClusterConnectionPool,
+      ConnectionPool: opts.cloud ? CloudConnectionPool : ClusterConnectionPool,
       maxRetries: 3,
       requestTimeout: 30000,
       pingTimeout: 3000,
@@ -89,7 +93,7 @@ class TestClient {
     }, opts)
 
     this.name = options.name
-    this[kEventEmitter] = new EventEmitter()
+    this.diagnostic = new Diagnostic()
     this.serializer = new options.Serializer()
     this.connectionPool = new options.ConnectionPool({
       pingTimeout: options.pingTimeout,
@@ -99,14 +103,14 @@ class TestClient {
       proxy: options.proxy,
       Connection: options.Connection,
       auth: options.auth,
-      emit: this[kEventEmitter].emit.bind(this[kEventEmitter]),
+      diagnostic: this.diagnostic,
       sniffEnabled: options.sniffInterval !== false ||
                     options.sniffOnStart !== false ||
                     options.sniffOnConnectionFault !== false
     })
     this.connectionPool.addConnection(options.node || options.nodes)
     this.transport = new options.Transport({
-      emit: this[kEventEmitter].emit.bind(this[kEventEmitter]),
+      diagnostic: this.diagnostic,
       connectionPool: this.connectionPool,
       serializer: this.serializer,
       maxRetries: options.maxRetries,
@@ -127,38 +131,7 @@ class TestClient {
     })
   }
 
-  get emit () {
-    return this[kEventEmitter].emit.bind(this[kEventEmitter])
-  }
-
-  get on () {
-    return this[kEventEmitter].on.bind(this[kEventEmitter])
-  }
-
-  get once () {
-    return this[kEventEmitter].once.bind(this[kEventEmitter])
-  }
-
-  get off () {
-    return this[kEventEmitter].off.bind(this[kEventEmitter])
-  }
-
-  request (params, options, callback) {
-    if (typeof options === 'function') {
-      callback = options
-      options = {}
-    }
-    if (typeof params === 'object' && params !== null && Object.keys(params).length === 0) {
-      params = { method: 'GET', path: '/', querystring: null, body: null }
-    }
-    if (typeof params === 'function' || params == null) {
-      callback = params
-      params = { method: 'GET', path: '/', querystring: null, body: null }
-      options = {}
-    }
-    params = params || { method: 'GET', path: '/', querystring: null, body: null }
-    return this.transport.request(params, options, callback)
+  request (params: TransportRequestParams, options?: TransportRequestOptions) {
+    return this.transport.request(params, options)
   }
 }
-
-module.exports = TestClient

@@ -57,6 +57,7 @@ export interface GetConnectionOptions {
   now: number
   requestId: string | number
   name: string
+  context: any
 }
 
 export default class BaseConnectionPool {
@@ -119,6 +120,8 @@ export default class BaseConnectionPool {
     if (opts.agent == null) opts.agent = this._agent
     /* istanbul ignore else */
     if (opts.proxy == null) opts.proxy = this._proxy
+    /* istanbul ignore else */
+    if (opts.diagnostic == null) opts.diagnostic = this.diagnostic
 
     const connection = new this.Connection(opts)
 

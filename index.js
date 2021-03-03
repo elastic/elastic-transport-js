@@ -19,7 +19,7 @@
 
 'use strict'
 
-const Diagnostic = require('./lib/Diagnostic').default
+const { default: Diagnostic, events } = require('./lib/Diagnostic')
 const Transport = require('./lib/Transport').default
 const {
   BaseConnection,
@@ -46,5 +46,6 @@ module.exports = {
   CloudConnectionPool,
   WeightedConnectionPool,
   Serializer,
-  errors
+  errors,
+  events
 }

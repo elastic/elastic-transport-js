@@ -34,7 +34,7 @@ const secureOpts = {
   cert: readFileSync(join(__dirname, '..', 'fixtures', 'https.cert'), 'utf8')
 }
 
-type ServerHandler = (req: http.IncomingMessage, res: http.OutgoingMessage) => void
+type ServerHandler = (req: http.IncomingMessage, res: http.ServerResponse) => void
 interface Options { secure?: boolean }
 type Server = [{ key: string, cert: string, port: number }, StoppableServer]
 

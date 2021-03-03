@@ -21,6 +21,7 @@ import assert from 'assert'
 import * as http from 'http'
 import {
   BaseConnection,
+  ConnectionRequestParams,
   ConnectionRequestOptions,
   ConnectionRequestResponse,
   errors
@@ -31,7 +32,7 @@ const {
 } = errors
 
 export class MockConnection extends BaseConnection {
-  request (params: ConnectionRequestOptions): Promise<ConnectionRequestResponse> {
+  request (params: ConnectionRequestParams, options: ConnectionRequestOptions): Promise<ConnectionRequestResponse> {
     return new Promise((resolve, reject) => {
       const body = JSON.stringify({ hello: 'world' })
       const statusCode = setStatusCode(params.path)
@@ -47,7 +48,7 @@ export class MockConnection extends BaseConnection {
 }
 
 export class MockConnectionTimeout extends BaseConnection {
-  request (params: ConnectionRequestOptions): Promise<ConnectionRequestResponse> {
+  request (params: ConnectionRequestParams, options: ConnectionRequestOptions): Promise<ConnectionRequestResponse> {
     return new Promise((resolve, reject) => {
       process.nextTick(reject, new TimeoutError('Request timed out'))
     })
@@ -55,7 +56,7 @@ export class MockConnectionTimeout extends BaseConnection {
 }
 
 export class MockConnectionError extends BaseConnection {
-  request (params: ConnectionRequestOptions): Promise<ConnectionRequestResponse> {
+  request (params: ConnectionRequestParams, options: ConnectionRequestOptions): Promise<ConnectionRequestResponse> {
     return new Promise((resolve, reject) => {
       process.nextTick(reject, new ConnectionError('kaboom'))
     })
@@ -63,7 +64,7 @@ export class MockConnectionError extends BaseConnection {
 }
 
 export class MockConnectionSniff extends BaseConnection {
-  request (params: ConnectionRequestOptions): Promise<ConnectionRequestResponse> {
+  request (params: ConnectionRequestParams, options: ConnectionRequestOptions): Promise<ConnectionRequestResponse> {
     return new Promise((resolve, reject) => {
       const sniffResult = {
         nodes: {
@@ -93,13 +94,13 @@ export class MockConnectionSniff extends BaseConnection {
 }
 
 interface onRequestMock {
-  onRequest(opts: ConnectionRequestOptions): { body: any, statusCode?: number, headers?: http.IncomingHttpHeaders }
+  onRequest(opts: ConnectionRequestParams): { body: any, statusCode?: number, headers?: http.IncomingHttpHeaders }
 }
 export function buildMockConnection (opts: onRequestMock) {
   assert(opts.onRequest, 'Missing required onRequest option')
 
   class MockConnection extends BaseConnection {
-    request (params: ConnectionRequestOptions): Promise<ConnectionRequestResponse> {
+    request (params: ConnectionRequestParams, options: ConnectionRequestOptions): Promise<ConnectionRequestResponse> {
       return new Promise((resolve, reject) => {
         let { body, statusCode, headers } = opts.onRequest(params)
         if (typeof body !== 'string' && !(body instanceof Buffer)) {

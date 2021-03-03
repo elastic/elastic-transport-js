@@ -19,6 +19,7 @@
 
 import buildServer from './buildServer'
 import * as connection from './MockConnection'
+import TestClient from './TestClient'
 // const buildCluster = require('./buildCluster')
 // const buildProxy = require('./buildProxy')
 // const connection = require('./MockConnection')
@@ -26,8 +27,8 @@ import * as connection from './MockConnection'
 
 export {
   buildServer,
-  connection
+  connection,
   // buildCluster,
   // buildProxy,
-  // TestClient
+  TestClient
 }

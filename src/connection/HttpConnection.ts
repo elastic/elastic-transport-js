@@ -25,6 +25,7 @@ import buffer from 'buffer'
 import { promisify } from 'util'
 import BaseConnection, {
   ConnectionOptions,
+  ConnectionRequestParams,
   ConnectionRequestOptions,
   ConnectionRequestResponse
 } from './BaseConnection'
@@ -85,7 +86,7 @@ export default class HttpConnection extends BaseConnection {
       : https.request
   }
 
-  async request (params: ConnectionRequestOptions): Promise<ConnectionRequestResponse> {
+  async request (params: ConnectionRequestParams, options: ConnectionRequestOptions): Promise<ConnectionRequestResponse> {
     return await new Promise((resolve, reject) => {
       this._openRequests++
       let cleanedListeners = false
@@ -162,8 +163,7 @@ export default class HttpConnection extends BaseConnection {
           response.setEncoding('utf8')
         }
 
-        // TODO: fixme
-        // this.diagnostic.emit('deserialization', null, result)
+        this.diagnostic.emit('deserialization', null, options)
         response.on('data', onData)
         response.on('error', onEnd)
         response.on('end', onEnd)
@@ -237,7 +237,7 @@ export default class HttpConnection extends BaseConnection {
     }
   }
 
-  buildRequestObject (params: ConnectionRequestOptions): http.ClientRequestArgs {
+  buildRequestObject (params: ConnectionRequestParams): http.ClientRequestArgs {
     const url = this.url
     const request = {
       protocol: url.protocol,

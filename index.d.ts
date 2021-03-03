@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import Diagnostic from './lib/Diagnostic'
+import Diagnostic, { events } from './lib/Diagnostic'
 import Transport from './lib/Transport'
 import {
   BaseConnection,
@@ -36,6 +36,7 @@ import * as errors from './lib/errors'
 export type {
   Connection,
   ConnectionOptions,
+  ConnectionRequestParams,
   ConnectionRequestOptions,
   ConnectionRequestResponse
 } from './lib/connection'
@@ -64,5 +65,6 @@ export {
   HttpConnection,
   UndiciConnection,
   Serializer,
-  errors
+  errors,
+  events
 }

@@ -35,10 +35,16 @@ const {
   ConnectionError
 } = errors
 
+const options = {
+  requestId: 42,
+  name: 'test',
+  context: null
+}
+
 test('Basic (http)', async t => {
   t.plan(3)
 
-  function handler (req: http.IncomingMessage, res: http.OutgoingMessage) {
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
     t.match(req.headers, {
       'x-custom-test': /true/,
       connection: /keep-alive/
@@ -56,7 +62,7 @@ test('Basic (http)', async t => {
     headers: {
       'X-Custom-Test': 'true'
     }
-  })
+  }, options)
   t.match(res.headers, { connection: /keep-alive/ })
   t.strictEqual(res.body, 'ok')
   server.stop()
@@ -65,7 +71,7 @@ test('Basic (http)', async t => {
 test('Basic (https)', async t => {
   t.plan(3)
 
-  function handler (req: http.IncomingMessage, res: http.OutgoingMessage) {
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
     t.match(req.headers, {
       'x-custom-test': /true/,
       connection: /keep-alive/
@@ -83,7 +89,7 @@ test('Basic (https)', async t => {
     headers: {
       'X-Custom-Test': 'true'
     }
-  })
+  }, options)
   t.match(res.headers, { connection: /keep-alive/ })
   t.strictEqual(res.body, 'ok')
   server.stop()
@@ -92,7 +98,7 @@ test('Basic (https)', async t => {
 test('Basic (https with ssl agent)', async t => {
   t.plan(3)
 
-  function handler (req: http.IncomingMessage, res: http.OutgoingMessage) {
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
     t.match(req.headers, {
       'x-custom-test': /true/,
       connection: /keep-alive/
@@ -111,7 +117,7 @@ test('Basic (https with ssl agent)', async t => {
     headers: {
       'X-Custom-Test': 'true'
     }
-  })
+  }, options)
   t.match(res.headers, { connection: /keep-alive/ })
   t.strictEqual(res.body, 'ok')
   server.stop()
@@ -120,7 +126,7 @@ test('Basic (https with ssl agent)', async t => {
 test('Timeout support / 1', async t => {
   t.plan(1)
 
-  function handler (req: http.IncomingMessage, res: http.OutgoingMessage) {
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
     setTimeout(() => res.end('ok'), 100)
   }
 
@@ -134,7 +140,7 @@ test('Timeout support / 1', async t => {
     await connection.request({
       path: '/hello',
       method: 'GET'
-    })
+    }, options)
   } catch (err) {
     t.true(err instanceof TimeoutError)
   }
@@ -144,8 +150,7 @@ test('Timeout support / 1', async t => {
 test('Timeout support / 2', async t => {
   t.plan(2)
 
-  function handler (req: http.IncomingMessage, res: http.OutgoingMessage) {
-    // @ts-expect-error
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
     res.writeHead(200, { 'content-type': 'text/plain' })
     setTimeout(() => res.end('ok'), 100)
   }
@@ -159,7 +164,7 @@ test('Timeout support / 2', async t => {
     await connection.request({
       path: '/hello',
       method: 'GET'
-    })
+    }, options)
   } catch (err) {
     t.ok(err instanceof TimeoutError)
     t.is(err.message, 'Request timed out')
@@ -170,7 +175,7 @@ test('Timeout support / 2', async t => {
 test('Timeout support / 3', async t => {
   t.plan(2)
 
-  function handler (req: http.IncomingMessage, res: http.OutgoingMessage) {
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
     setTimeout(() => res.end('ok'), 100)
   }
 
@@ -184,7 +189,7 @@ test('Timeout support / 3', async t => {
       path: '/hello',
       method: 'GET',
       timeout: 50
-    })
+    }, options)
   } catch (err) {
     t.ok(err instanceof TimeoutError)
     t.is(err.message, 'Request timed out')
@@ -195,7 +200,7 @@ test('Timeout support / 3', async t => {
 test('Timeout support / 4', async t => {
   t.plan(2)
 
-  function handler (req: http.IncomingMessage, res: http.OutgoingMessage) {
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
     setTimeout(() => res.end('ok'), 100)
   }
 
@@ -211,7 +216,7 @@ test('Timeout support / 4', async t => {
       method: 'GET',
       abortController,
       timeout: 50
-    })
+    }, options)
   } catch (err) {
     t.ok(err instanceof TimeoutError)
     t.is(err.message, 'Request timed out')
@@ -222,7 +227,7 @@ test('Timeout support / 4', async t => {
 test('Timeout support / 5', async t => {
   t.plan(1)
 
-  function handler (req: http.IncomingMessage, res: http.OutgoingMessage) {
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
     res.end('ok')
   }
 
@@ -234,7 +239,7 @@ test('Timeout support / 5', async t => {
     path: '/hello',
     method: 'GET',
     timeout: 50
-  })
+  }, options)
   t.strictEqual(res.body, 'ok')
   server.stop()
 })
@@ -242,7 +247,7 @@ test('Timeout support / 5', async t => {
 test('Should concatenate the querystring', async t => {
   t.plan(1)
 
-  function handler (req: http.IncomingMessage, res: http.OutgoingMessage) {
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
     t.strictEqual(req.url, '/hello?hello=world&you_know=for%20search')
     res.end('ok')
   }
@@ -256,14 +261,14 @@ test('Should concatenate the querystring', async t => {
     path: '/hello',
     method: 'GET',
     querystring: 'hello=world&you_know=for%20search'
-  })
+  }, options)
   server.stop()
 })
 
 test('Body request', async t => {
   t.plan(1)
 
-  function handler (req: http.IncomingMessage, res: http.OutgoingMessage) {
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
     let payload = ''
     req.setEncoding('utf8')
     req.on('data', chunk => { payload += chunk })
@@ -283,14 +288,14 @@ test('Body request', async t => {
     path: '/hello',
     method: 'POST',
     body: 'hello'
-  })
+  }, options)
   server.stop()
 })
 
 test('Send body as buffer', async t => {
   t.plan(1)
 
-  function handler (req: http.IncomingMessage, res: http.OutgoingMessage) {
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
     let payload = ''
     req.setEncoding('utf8')
     req.on('data', chunk => { payload += chunk })
@@ -310,14 +315,14 @@ test('Send body as buffer', async t => {
     path: '/hello',
     method: 'POST',
     body: Buffer.from('hello')
-  })
+  }, options)
   server.stop()
 })
 
 test('Send body as stream', async t => {
   t.plan(1)
 
-  function handler (req: http.IncomingMessage, res: http.OutgoingMessage) {
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
     let payload = ''
     req.setEncoding('utf8')
     req.on('data', chunk => { payload += chunk })
@@ -338,14 +343,14 @@ test('Send body as stream', async t => {
     method: 'POST',
     // @ts-ignore
     body: intoStream('hello')
-  })
+  }, options)
   server.stop()
 })
 
 test('Should not close a connection if there are open requests', async t => {
   t.plan(1)
 
-  function handler (req: http.IncomingMessage, res: http.OutgoingMessage) {
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
     setTimeout(() => res.end('ok'), 100)
   }
 
@@ -358,7 +363,7 @@ test('Should not close a connection if there are open requests', async t => {
   const res = await connection.request({
     path: '/hello',
     method: 'GET'
-  })
+  }, options)
   t.strictEqual(res.body, 'ok')
 
   server.stop()
@@ -367,7 +372,7 @@ test('Should not close a connection if there are open requests', async t => {
 test('Url with auth', async t => {
   t.plan(1)
 
-  function handler (req: http.IncomingMessage, res: http.OutgoingMessage) {
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
     t.strictEqual(req.headers.authorization, 'Basic Zm9vOmJhcg==')
     res.end('ok')
   }
@@ -381,7 +386,7 @@ test('Url with auth', async t => {
   await connection.request({
     path: '/hello',
     method: 'GET'
-  })
+  }, options)
 
   server.stop()
 })
@@ -389,7 +394,7 @@ test('Url with auth', async t => {
 test('Custom headers for connection', async t => {
   t.plan(2)
 
-  function handler (req: http.IncomingMessage, res: http.OutgoingMessage) {
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
     t.match(req.headers, {
       'x-custom-test': /true/,
       'x-foo': /bar/
@@ -409,7 +414,7 @@ test('Custom headers for connection', async t => {
     headers: {
       'X-Custom-Test': 'true'
     }
-  })
+  }, options)
 
   // should not update the default
   t.deepEqual(connection.headers, { 'x-foo': 'bar' })
@@ -458,7 +463,7 @@ test('Should disallow two-byte characters in URL path', async t => {
     await connection.request({
       path: '/thisisinvalid\uffe2',
       method: 'GET'
-    })
+    }, options)
   } catch (err) {
     t.strictEqual(
       err.message,
@@ -470,7 +475,7 @@ test('Should disallow two-byte characters in URL path', async t => {
 test('Abort a request syncronously', async t => {
   t.plan(1)
 
-  function handler (req: http.IncomingMessage, res: http.OutgoingMessage) {
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
     t.fail('The server should not be contacted')
   }
 
@@ -485,7 +490,7 @@ test('Abort a request syncronously', async t => {
     path: '/hello',
     method: 'GET',
     abortController: controller
-  }).catch(err => {
+  }, options).catch(err => {
     t.ok(err instanceof RequestAbortedError)
     server.stop()
   })
@@ -497,7 +502,7 @@ test('Abort a request syncronously', async t => {
 test('Abort a request asyncronously', async t => {
   t.plan(1)
 
-  function handler (req: http.IncomingMessage, res: http.OutgoingMessage) {
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
     // might be called or not
     res.end('ok')
   }
@@ -515,7 +520,7 @@ test('Abort a request asyncronously', async t => {
       path: '/hello',
       method: 'GET',
       abortController: controller
-    })
+    }, options)
   } catch (err) {
     t.ok(err instanceof RequestAbortedError)
   }
@@ -549,7 +554,7 @@ test('Abort with a slow body', async t => {
       // @ts-ignore
       body: slowBody,
       abortController: controller
-    })
+    }, options)
   } catch (err) {
     t.ok(err instanceof RequestAbortedError)
   }
@@ -561,7 +566,7 @@ test('Abort with a slow body', async t => {
 test('Bad content length', async t => {
   t.plan(2)
 
-  function handler (req: http.IncomingMessage, res: http.OutgoingMessage) {
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
     const body = JSON.stringify({ hello: 'world' })
     res.setHeader('Content-Type', 'application/json;utf=8')
     res.setHeader('Content-Length', body.length + '')
@@ -576,7 +581,7 @@ test('Bad content length', async t => {
     await connection.request({
       path: '/hello',
       method: 'GET'
-    })
+    }, options)
   } catch (err) {
     t.ok(err instanceof ConnectionError)
     t.is(err.message, 'other side closed')
@@ -587,7 +592,7 @@ test('Bad content length', async t => {
 test('Socket destryed while reading the body', async t => {
   t.plan(2)
 
-  function handler (req: http.IncomingMessage, res: http.OutgoingMessage) {
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
     const body = JSON.stringify({ hello: 'world' })
     res.setHeader('Content-Type', 'application/json;utf=8')
     res.setHeader('Content-Length', body.length + '')
@@ -605,7 +610,7 @@ test('Socket destryed while reading the body', async t => {
     await connection.request({
       path: '/hello',
       method: 'GET'
-    })
+    }, options)
   } catch (err) {
     t.ok(err instanceof ConnectionError)
     t.is(err.message, 'other side closed')
@@ -645,7 +650,7 @@ test('Content length too big (buffer)', async t => {
     await connection.request({
       method: 'GET',
       path: '/'
-    })
+    }, options)
   } catch (err) {
     t.ok(err instanceof RequestAbortedError)
     t.is(err.message, `The content length (${buffer.constants.MAX_LENGTH + 10}) is bigger than the maximum allowed buffer (${buffer.constants.MAX_LENGTH})`)
@@ -684,7 +689,7 @@ test('Content length too big (string)', async t => {
     await connection.request({
       method: 'GET',
       path: '/'
-    })
+    }, options)
   } catch (err) {
     t.ok(err instanceof RequestAbortedError)
     t.is(err.message, `The content length (${buffer.constants.MAX_STRING_LENGTH + 10}) is bigger than the maximum allowed string (${buffer.constants.MAX_STRING_LENGTH})`)
@@ -694,7 +699,7 @@ test('Content length too big (string)', async t => {
 test('Compressed responsed should return a buffer as body (gzip)', async t => {
   t.plan(2)
 
-  function handler (req: http.IncomingMessage, res: http.OutgoingMessage) {
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
     t.match(req.headers, {
       'accept-encoding': /gzip,deflate/
     })
@@ -716,7 +721,7 @@ test('Compressed responsed should return a buffer as body (gzip)', async t => {
     headers: {
       'accept-encoding': 'gzip,deflate'
     }
-  })
+  }, options)
   t.true(res.body instanceof Buffer)
   server.stop()
 })
@@ -724,7 +729,7 @@ test('Compressed responsed should return a buffer as body (gzip)', async t => {
 test('Compressed responsed should return a buffer as body (deflate)', async t => {
   t.plan(2)
 
-  function handler (req: http.IncomingMessage, res: http.OutgoingMessage) {
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
     t.match(req.headers, {
       'accept-encoding': /gzip,deflate/
     })
@@ -746,7 +751,7 @@ test('Compressed responsed should return a buffer as body (deflate)', async t =>
     headers: {
       'accept-encoding': 'gzip,deflate'
     }
-  })
+  }, options)
   t.true(res.body instanceof Buffer)
   server.stop()
 })
@@ -762,7 +767,7 @@ test('Connection error', async t => {
     await connection.request({
       path: '/',
       method: 'GET'
-    })
+    }, options)
   } catch (err) {
     t.true(err instanceof ConnectionError)
   }
