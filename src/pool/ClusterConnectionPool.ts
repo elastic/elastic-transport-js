@@ -31,6 +31,7 @@ export interface ResurrectOptions {
   now: number
   requestId: string | number
   name: string
+  context: any
 }
 
 export default class ClusterConnectionPool extends BaseConnectionPool {
@@ -149,11 +150,10 @@ export default class ClusterConnectionPool extends BaseConnectionPool {
 
     // ping strategy
     if (this.resurrectStrategy === 1) {
-      connection.request({
-        method: 'HEAD',
-        path: '/',
-        timeout: this.pingTimeout
-      })
+      connection.request(
+        { method: 'HEAD', path: '/', timeout: this.pingTimeout },
+        { requestId: opts.requestId, name: opts.name, context: opts.context }
+      )
         .then(({ statusCode }) => {
           let isAlive = true
           if (statusCode === 502 || statusCode === 503 || statusCode === 504) {
@@ -207,7 +207,8 @@ export default class ClusterConnectionPool extends BaseConnectionPool {
     this.resurrect({
       now: opts.now,
       requestId: opts.requestId,
-      name: opts.name
+      name: opts.name,
+      context: opts.context
     })
 
     const noAliveConnections = this.size === this.dead.length

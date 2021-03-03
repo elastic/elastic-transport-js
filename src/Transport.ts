@@ -31,7 +31,7 @@ import {
   ConfigurationError,
   TimeoutError
 } from './errors'
-import { Connection, ConnectionRequestOptions } from './connection'
+import { Connection, ConnectionRequestParams } from './connection'
 import Diagnostic from './Diagnostic'
 import Serializer from './Serializer'
 import AbortController from 'node-abort-controller'
@@ -39,7 +39,8 @@ import { Readable as ReadableStream } from 'stream'
 import {
   ClusterConnectionPool,
   CloudConnectionPool,
-  WeightedConnectionPool
+  WeightedConnectionPool,
+  BaseConnectionPool
 } from './pool'
 import {
   nodeFilterFn,
@@ -124,12 +125,14 @@ export interface TransportRequestOptions {
 }
 
 export interface GetConnectionOptions {
-  requestId: string
+  requestId: string | number
+  context: any
 }
 
 export interface SniffOptions {
-  requestId?: string
+  requestId?: string | number
   reason: string
+  context: any
 }
 
 export default class Transport {
@@ -199,8 +202,16 @@ export default class Transport {
     this[kSniffEndpoint] = opts.sniffEndpoint ?? null
 
     if (opts.sniffOnStart === true) {
-      this.sniff({ reason: Transport.sniffReasons.SNIFF_ON_START })
+      this.sniff({
+        reason: Transport.sniffReasons.SNIFF_ON_START,
+        requestId: `sniff-on-start-${Math.random()}`,
+        context: this[kContext]
+      })
     }
+  }
+
+  get connectionPool (): BaseConnectionPool {
+    return this[kConnectionPool]
   }
 
   get sniffEnabled (): boolean {
@@ -266,7 +277,7 @@ export default class Transport {
       }
     }
 
-    const connectionParams: ConnectionRequestOptions = {
+    const connectionParams: ConnectionRequestParams = {
       method: params.method,
       path: params.path
     }
@@ -369,7 +380,10 @@ export default class Transport {
           throw new RequestAbortedError('Request has been aborted by the user', result)
         }
 
-        meta.connection = this.getConnection({ requestId: meta.request.id })
+        meta.connection = this.getConnection({
+          requestId: meta.request.id,
+          context: meta.context
+        })
         if (meta.connection === null) {
           throw new NoLivingConnectionsError('There are no living connections', result)
         }
@@ -377,7 +391,11 @@ export default class Transport {
         this[kDiagnostic].emit('request', null, result)
 
         // perform the actual http request
-        let { statusCode, headers, body } = await meta.connection.request(connectionParams)
+        let { statusCode, headers, body } = await meta.connection.request(connectionParams, {
+          requestId: meta.request.id,
+          name: this[kName],
+          context: meta.context
+        })
         result.statusCode = statusCode
         result.headers = headers
 
@@ -466,7 +484,8 @@ export default class Transport {
             if (this[kSniffOnConnectionFault]) {
               this.sniff({
                 reason: Transport.sniffReasons.SNIFF_ON_CONNECTION_FAULT,
-                requestId: meta.request.id
+                requestId: meta.request.id,
+                context: meta.context
               })
             }
 
@@ -500,13 +519,18 @@ export default class Transport {
     const now = Date.now()
     if (this[kSniffEnabled] && now > this[kNextSniff]) {
       this[kNextSniff] = now + (this[kSniffInterval] as number)
-      this.sniff({ reason: Transport.sniffReasons.SNIFF_INTERVAL, requestId: opts.requestId })
+      this.sniff({
+        reason: Transport.sniffReasons.SNIFF_INTERVAL,
+        requestId: opts.requestId,
+        context: opts.context
+      })
     }
     return this[kConnectionPool].getConnection({
       filter: this[kNodeFilter],
       selector: this[kNodeSelector],
       requestId: opts.requestId,
       name: this[kName],
+      context: opts.context,
       now
     })
   }

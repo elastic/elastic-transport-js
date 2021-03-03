@@ -49,7 +49,7 @@ export interface ConnectionOptions {
   proxy?: string | URL
 }
 
-export interface ConnectionRequestOptions {
+export interface ConnectionRequestParams {
   method: string
   path: string
   headers?: http.IncomingHttpHeaders
@@ -58,6 +58,12 @@ export interface ConnectionRequestOptions {
   querystring?: string
   abortController?: AbortController
   timeout?: number
+}
+
+export interface ConnectionRequestOptions {
+  requestId: string | number
+  name: string
+  context: any
 }
 
 export interface ConnectionRequestResponse {
@@ -118,7 +124,7 @@ export default class BaseConnection {
   }
 
   /* istanbul ignore next */
-  async request (params: ConnectionRequestOptions): Promise<ConnectionRequestResponse> {
+  async request (params: ConnectionRequestParams, options: ConnectionRequestOptions): Promise<ConnectionRequestResponse> {
     throw new ConfigurationError('The request method should be implemented by extended classes')
   }
 
