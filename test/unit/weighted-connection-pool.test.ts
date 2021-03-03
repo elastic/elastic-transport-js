@@ -28,7 +28,8 @@ import {
 const opts = {
   now: Date.now() + 1000 * 60 * 3,
   requestId: 1,
-  name: 'elasticsearch-js'
+  name: 'elasticsearch-js',
+  context: null
 }
 
 test('API', t => {

@@ -19,7 +19,7 @@
 
 import { test } from 'tap'
 import { URL } from 'url'
-import { Diagnostic, HttpConnection, errors, Result } from '../..'
+import { Diagnostic, HttpConnection, errors, Result, events } from '../..'
 const { ConnectionError, ConfigurationError } = errors
 
 const mmeta = {
@@ -45,26 +45,26 @@ test('on', t => {
   t.plan(4)
   const d = new Diagnostic()
 
-  d.on(Diagnostic.events.REQUEST, (err, meta) => {
+  d.on(events.REQUEST, (err, meta) => {
     t.true(err instanceof ConnectionError)
     t.deepEqual(meta, mmeta)
   })
 
-  d.emit(Diagnostic.events.REQUEST, new ConnectionError('kaboom'), mmeta)
-  d.emit(Diagnostic.events.REQUEST, new ConnectionError('kaboom'), mmeta)
+  d.emit(events.REQUEST, new ConnectionError('kaboom'), mmeta)
+  d.emit(events.REQUEST, new ConnectionError('kaboom'), mmeta)
 })
 
 test('once', t => {
   t.plan(2)
   const d = new Diagnostic()
 
-  d.once(Diagnostic.events.REQUEST, (err, meta) => {
+  d.once(events.REQUEST, (err, meta) => {
     t.true(err instanceof ConnectionError)
     t.deepEqual(meta, mmeta)
   })
 
-  d.emit(Diagnostic.events.REQUEST, new ConnectionError('kaboom'), mmeta)
-  d.emit(Diagnostic.events.REQUEST, new ConnectionError('kaboom'), mmeta)
+  d.emit(events.REQUEST, new ConnectionError('kaboom'), mmeta)
+  d.emit(events.REQUEST, new ConnectionError('kaboom'), mmeta)
 })
 
 test('off', t => {
@@ -76,11 +76,11 @@ test('off', t => {
     t.deepEqual(meta, mmeta)
   }
 
-  d.on(Diagnostic.events.REQUEST, handler)
-  d.emit(Diagnostic.events.REQUEST, new ConnectionError('kaboom'), mmeta)
+  d.on(events.REQUEST, handler)
+  d.emit(events.REQUEST, new ConnectionError('kaboom'), mmeta)
 
-  d.off(Diagnostic.events.REQUEST, handler)
-  d.emit(Diagnostic.events.REQUEST, new ConnectionError('kaboom'), mmeta)
+  d.off(events.REQUEST, handler)
+  d.emit(events.REQUEST, new ConnectionError('kaboom'), mmeta)
 })
 
 
@@ -89,6 +89,7 @@ test('on', t => {
   const d = new Diagnostic()
 
   try {
+    // @ts-expect-error
     d.on('foobar', (err, meta) => {
       t.true(err instanceof ConnectionError)
       t.deepEqual(meta, mmeta)

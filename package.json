@@ -8,12 +8,12 @@
     "test": "test"
   },
   "scripts": {
-    "test": "npm run lint && tap test/{unit,acceptance}/{*,**/*}.test.js",
+    "test": "npm run lint && tap test/{unit,acceptance}/{*,**/*}.test.ts",
     "test:unit": "npm run build && tap test/unit/{*,**/*}.test.ts",
-    "test:acceptance": "tap test/acceptance/*.test.js",
-    "test:coverage-100": "tap test/{unit,acceptance}/{*,**/*}.test.js --coverage --100",
-    "test:coverage-report": "tap test/{unit,acceptance}/{*,**/*}.test.js --coverage && nyc report --reporter=text-lcov > coverage.lcov",
-    "test:coverage-ui": "tap test/unit/{*,**/*}.test.ts --coverage --coverage-report=html",
+    "test:acceptance": "tap test/acceptance/*.test.ts",
+    "test:coverage-100": "tap test/{unit,acceptance}/{*,**/*}.test.ts --coverage --100",
+    "test:coverage-report": "tap test/{unit,acceptance}/{*,**/*}.test.ts --coverage && nyc report --reporter=text-lcov > coverage.lcov",
+    "test:coverage-ui": "tap test/{unit,acceptance}/{*,**/*}.test.ts --coverage --coverage-report=html",
     "lint": "ts-standard src",
     "lint:fix": "ts-standard --fix src",
     "license-checker": "license-checker --production --onlyAllow='MIT;Apache-2.0;Apache1.1;ISC;BSD-3-Clause;BSD-2-Clause'",

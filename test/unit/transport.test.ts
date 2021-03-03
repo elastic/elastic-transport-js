@@ -33,12 +33,12 @@ import {
   Serializer,
   WeightedConnectionPool,
   ClusterConnectionPool,
-  ConnectionRequestOptions,
+  ConnectionRequestParams,
   UndiciConnection,
   Connection,
   TransportRequestParams,
   TransportRequestOptions,
-  Diagnostic,
+  events,
   SniffOptions,
   errors
 } from '../..'
@@ -166,7 +166,7 @@ test('Ignore status code', async t => {
 
 test('Send POST (json)', async t => {
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
       return {
         body: JSON.parse(opts.body as string),
         statusCode: 200
@@ -198,7 +198,7 @@ test('Send POST (ndjson)', async t => {
   ]
 
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
       t.strictEqual(opts.headers?.['content-type'], 'application/x-ndjson')
       const body = opts.body as string
       t.strictEqual(body.split('\n')[0], JSON.stringify(bulkBody[0]))
@@ -227,7 +227,7 @@ test('Send POST (ndjson)', async t => {
 test('Send stream (json)', async t => {
   t.plan(2)
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
       const body = opts.body as Readable
       t.true(typeof body?.pipe === 'function')
       return {
@@ -259,7 +259,7 @@ test('Send stream (ndjson)', async t => {
   ]
 
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
       const body = opts.body as Readable
       t.true(typeof body?.pipe === 'function')
       return {
@@ -285,7 +285,7 @@ test('Send stream (ndjson)', async t => {
 
 test('Not JSON payload from server', async t => {
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
       return {
         body: 'hello!',
         headers: { 'content-type': 'text/plain' },
@@ -371,7 +371,7 @@ test('SerializationError (bulk)', async t => {
 
 test('DeserializationError', async t => {
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
       return {
         body: '{"hello":"wo',
         statusCode: 200
@@ -397,7 +397,7 @@ test('DeserializationError', async t => {
 test('Retry mechanism', async t => {
   let count = 0
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
       count += 1
       return {
         body: { hello: 'world' },
@@ -427,7 +427,7 @@ test('Retry mechanism', async t => {
 test('Should not retry if the body is a stream', async t => {
   let count = 0
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
       count += 1
       return {
         body: { hello: 'world' },
@@ -462,7 +462,7 @@ test('Should not retry if the body is a stream', async t => {
 test('Should not retry if the bulkBody is a stream', async t => {
   let count = 0
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
       count += 1
       return {
         body: { hello: 'world' },
@@ -497,7 +497,7 @@ test('Should not retry if the bulkBody is a stream', async t => {
 test('Disable maxRetries locally', async t => {
   let count = 0
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
       count += 1
       return {
         body: { hello: 'world' },
@@ -531,7 +531,7 @@ test('Disable maxRetries locally', async t => {
 test('Override global maxRetries', async t => {
   let count = 0
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
       count += 1
       return {
         body: { hello: 'world' },
@@ -598,7 +598,7 @@ test('Retry on timeout error', async t => {
 
 test('Abort a request', async t => {
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
       return {
         body: { hello: 'world' },
         statusCode: 200
@@ -627,7 +627,7 @@ test('Serialize querystring', async t => {
   t.plan(2)
 
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
       t.strictEqual(opts.querystring, 'foo=bar&baz=faz')
       return {
         body: { hello: 'world' },
@@ -656,7 +656,7 @@ test('Serialize querystring (merge with options)', async t => {
   t.plan(2)
 
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
       t.strictEqual(opts.querystring, 'foo=bar&baz=faz')
       return {
         body: { hello: 'world' },
@@ -704,7 +704,7 @@ test('Should cast to boolean HEAD request (false)', async t => {
   t.plan(2)
 
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
       return {
         body: { hello: 'world' },
         statusCode: 404
@@ -729,7 +729,7 @@ test('Enable compression (gzip response)', async t => {
   t.plan(6)
 
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
       t.strictEqual(opts.headers?.['accept-encoding'], 'gzip,deflate')
       t.strictEqual(opts.headers?.['content-encoding'], 'gzip')
       t.true(opts.body instanceof Buffer)
@@ -763,7 +763,7 @@ test('Enable compression (deflate response)', async t => {
   t.plan(6)
 
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
       t.strictEqual(opts.headers?.['accept-encoding'], 'gzip,deflate')
       t.strictEqual(opts.headers?.['content-encoding'], 'gzip')
       t.true(opts.body instanceof Buffer)
@@ -798,7 +798,7 @@ test('Retry compressed request', async t => {
 
   let count = 0
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
       count += 1
       t.strictEqual(opts.headers?.['accept-encoding'], 'gzip,deflate')
       t.strictEqual(opts.headers?.['content-encoding'], 'gzip')
@@ -828,7 +828,7 @@ test('Retry compressed request', async t => {
 
 test('Broken compression', async t => {
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
       const body = gzipSync(JSON.stringify({ hello: 'world' }))
       return {
         body: body.slice(0, -5),
@@ -863,7 +863,7 @@ test('Compress stream', async t => {
   t.plan(6)
 
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
       t.strictEqual(opts.headers?.['accept-encoding'], 'gzip,deflate')
       t.strictEqual(opts.headers?.['content-encoding'], 'gzip')
       const body = opts.body as Readable
@@ -897,7 +897,7 @@ test('Compress stream', async t => {
 test('Warning header (single)', async t => {
   const warn = '112 - "cache down" "Wed, 21 Oct 2015 07:28:00 GMT"'
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
       return {
         body: { hello: 'world' },
         statusCode: 200,
@@ -926,7 +926,7 @@ test('Warning header (multiple)', async t => {
   const warn2 = '199 agent "Error message" "2015-01-01"'
 
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
       return {
         body: { hello: 'world' },
         statusCode: 200,
@@ -968,7 +968,7 @@ test('No warnings', async t => {
 
 test('Custom global headers', async t => {
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
       t.strictEqual(opts.headers?.['x-foo'], 'bar')
       return {
         body: { hello: 'world' },
@@ -994,7 +994,7 @@ test('Custom global headers', async t => {
 
 test('Custom local headers', async t => {
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
       t.strictEqual(opts.headers?.['x-foo'], 'bar')
       return {
         body: { hello: 'world' },
@@ -1019,7 +1019,7 @@ test('Custom local headers', async t => {
 
 test('Merge local and global headers', async t => {
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
       t.strictEqual(opts.headers?.['x-foo'], 'bar2')
       t.strictEqual(opts.headers?.['x-faz'], 'baz')
       return {
@@ -1079,7 +1079,7 @@ test('User-Agent header', async t => {
   const userAgent = `elastic-transport-js/${transportVersion} (${os.platform()} ${os.release()}-${os.arch()}; Node.js ${process.version})`
 
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
       t.strictEqual(opts.headers?.['user-agent'], userAgent)
       return {
         body: { hello: 'world' },
@@ -1118,7 +1118,7 @@ test('generateRequestId', async t => {
     }
   })
 
-  transport.diagnostic.on(Diagnostic.events.REQUEST, (err, meta) => {
+  transport.diagnostic.on(events.REQUEST, (err, meta) => {
     t.error(err)
     t.strictEqual(meta?.meta.request.id, 42)
   })
@@ -1138,7 +1138,7 @@ test('custom request id', async t => {
 
   const transport = new Transport({ connectionPool: pool })
 
-  transport.diagnostic.on(Diagnostic.events.REQUEST, (err, meta) => {
+  transport.diagnostic.on(events.REQUEST, (err, meta) => {
     t.error(err)
     t.strictEqual(meta?.meta.request.id, 42)
   })
@@ -1152,7 +1152,7 @@ test('custom request id', async t => {
 
 test('No opaque id by default', async t => {
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
       t.strictEqual(opts.headers?.['x-opaque-id'], undefined)
       return {
         body: { hello: 'world' },
@@ -1175,7 +1175,7 @@ test('No opaque id by default', async t => {
 
 test('Opaque id', async t => {
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
       t.strictEqual(opts.headers?.['x-opaque-id'], 'foo')
       return {
         body: { hello: 'world' },
@@ -1200,7 +1200,7 @@ test('Opaque id', async t => {
 
 test('Opaque id and prefix', async t => {
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
       t.strictEqual(opts.headers?.['x-opaque-id'], 'bar-foo')
       return {
         body: { hello: 'world' },
@@ -1228,7 +1228,7 @@ test('Opaque id and prefix', async t => {
 
 test('Opaque id prefix', async t => {
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestOptions): { body: any, statusCode: number } {
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
       t.strictEqual(opts.headers?.['x-opaque-id'], undefined)
       return {
         body: { hello: 'world' },
@@ -1263,7 +1263,7 @@ test('global context', async t => {
     context: { hello: 'world' }
   })
 
-  transport.diagnostic.on(Diagnostic.events.REQUEST, (err, meta) => {
+  transport.diagnostic.on(events.REQUEST, (err, meta) => {
     t.error(err)
     t.deepEqual(meta?.meta.context, { hello: 'world' })
   })
@@ -1283,7 +1283,7 @@ test('local context', async t => {
 
   const transport = new Transport({ connectionPool: pool })
 
-  transport.diagnostic.on(Diagnostic.events.REQUEST, (err, meta) => {
+  transport.diagnostic.on(events.REQUEST, (err, meta) => {
     t.error(err)
     t.deepEqual(meta?.meta.context, { hello: 'world' })
   })
@@ -1308,7 +1308,7 @@ test('local and global context', async t => {
     context: { hello: 'world1' }
   })
 
-  transport.diagnostic.on(Diagnostic.events.REQUEST, (err, meta) => {
+  transport.diagnostic.on(events.REQUEST, (err, meta) => {
     t.error(err)
     t.deepEqual(meta?.meta.context, { hello: 'world2' })
   })
