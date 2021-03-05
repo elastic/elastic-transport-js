@@ -150,7 +150,7 @@ export default class HttpConnection extends BaseConnection {
           resolve({
             body: isCompressed ? Buffer.concat(payload as Buffer[]) : payload as string,
             statusCode: response.statusCode as number,
-            headers: response.headers as Record<string, string>
+            headers: response.headers
           })
         }
 

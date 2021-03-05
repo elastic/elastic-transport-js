@@ -19,7 +19,7 @@
 
 import { test } from 'tap'
 import { URL } from 'url'
-import { Diagnostic, HttpConnection, errors, Result, events } from '../..'
+import { Diagnostic, HttpConnection, errors, DiagnosticResult, events } from '../..'
 const { ConnectionError, ConfigurationError } = errors
 
 const mmeta = {
@@ -71,7 +71,7 @@ test('off', t => {
   t.plan(2)
   const d = new Diagnostic()
 
-  function handler (err: errors.ElasticsearchClientError | null, meta: Result | null) {
+  function handler (err: errors.ElasticsearchClientError | null, meta: DiagnosticResult | null) {
     t.true(err instanceof ConnectionError)
     t.deepEqual(meta, mmeta)
   }

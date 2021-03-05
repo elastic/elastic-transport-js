@@ -18,7 +18,7 @@
  */
 
 import * as http from 'http'
-import { Result } from './types'
+import { DiagnosticResult } from './types'
 
 export class ElasticsearchClientError extends Error {
   constructor (message: string) {
@@ -28,8 +28,8 @@ export class ElasticsearchClientError extends Error {
 }
 
 export class TimeoutError extends ElasticsearchClientError {
-  meta?: Result
-  constructor (message: string, meta?: Result) {
+  meta?: DiagnosticResult
+  constructor (message: string, meta?: DiagnosticResult) {
     super(message)
     Error.captureStackTrace(this, TimeoutError)
     this.name = 'TimeoutError'
@@ -39,8 +39,8 @@ export class TimeoutError extends ElasticsearchClientError {
 }
 
 export class ConnectionError extends ElasticsearchClientError {
-  meta?: Result
-  constructor (message: string, meta?: Result) {
+  meta?: DiagnosticResult
+  constructor (message: string, meta?: DiagnosticResult) {
     super(message)
     Error.captureStackTrace(this, ConnectionError)
     this.name = 'ConnectionError'
@@ -50,8 +50,8 @@ export class ConnectionError extends ElasticsearchClientError {
 }
 
 export class NoLivingConnectionsError extends ElasticsearchClientError {
-  meta: Result
-  constructor (message: string, meta: Result) {
+  meta: DiagnosticResult
+  constructor (message: string, meta: DiagnosticResult) {
     super(message)
     Error.captureStackTrace(this, NoLivingConnectionsError)
     this.name = 'NoLivingConnectionsError'
@@ -92,12 +92,12 @@ export class ConfigurationError extends ElasticsearchClientError {
 }
 
 export class ResponseError extends ElasticsearchClientError {
-  meta: Result
-  constructor (meta: Result) {
+  meta: DiagnosticResult
+  constructor (meta: DiagnosticResult) {
     super('Response Error')
     Error.captureStackTrace(this, ResponseError)
     this.name = 'ResponseError'
-    this.message = typeof meta.body === 'object'
+    this.message = isObject(meta.body)
       ? meta.body?.error?.type ?? 'Response Error'
       : 'Response Error'
     this.meta = meta
@@ -108,7 +108,7 @@ export class ResponseError extends ElasticsearchClientError {
   }
 
   get statusCode (): number | undefined {
-    if (typeof this.meta.body === 'object' && typeof this.meta.body.status === 'number') {
+    if (isObject(this.meta.body) && typeof this.meta.body.status === 'number') {
       return this.meta.body.status
     }
     return this.meta.statusCode
@@ -120,12 +120,16 @@ export class ResponseError extends ElasticsearchClientError {
 }
 
 export class RequestAbortedError extends ElasticsearchClientError {
-  meta?: Result
-  constructor (message: string, meta?: Result) {
+  meta?: DiagnosticResult
+  constructor (message: string, meta?: DiagnosticResult) {
     super(message)
     Error.captureStackTrace(this, RequestAbortedError)
     this.name = 'RequestAbortedError'
     this.message = message ?? 'Request aborted'
     this.meta = meta
   }
+}
+
+function isObject (obj: any): obj is Record<string, any> {
+  return typeof obj === 'object'
 }

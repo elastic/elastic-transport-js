@@ -20,10 +20,10 @@
 import { EventEmitter } from 'events'
 import { ElasticsearchClientError, ConfigurationError } from './errors'
 import { ConnectionRequestOptions } from './connection'
-import { Result } from './types'
+import { DiagnosticResult } from './types'
 
 export type DiagnosticListener = (err: ElasticsearchClientError | null, meta: any | null) => void
-export type DiagnosticListenerFull = (err: ElasticsearchClientError | null, meta: Result | null) => void
+export type DiagnosticListenerFull = (err: ElasticsearchClientError | null, meta: DiagnosticResult | null) => void
 export type DiagnosticListenerLight = (err: ElasticsearchClientError | null, meta: ConnectionRequestOptions | null) => void
 
 export enum events {

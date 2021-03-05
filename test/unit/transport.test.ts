@@ -85,7 +85,7 @@ test('Basic', async t => {
   const res = await transport.request({
     method: 'GET',
     path: '/hello'
-  })
+  }, { meta: true })
   t.deepEqual(res.body, { hello: 'world' })
   t.strictEqual(res.statusCode, 200)
   t.strictEqual(res.headers?.['content-type'], 'application/json;utf=8')
@@ -143,7 +143,7 @@ test('Basic error (ConnectionError)', async t => {
     await transport.request({
       method: 'GET',
       path: '/hello'
-    })
+    }, { meta: true })
   } catch (err) {
     t.true(err instanceof ConnectionError)
   }
@@ -157,7 +157,7 @@ test('Ignore status code', async t => {
 
   const res = await transport.request(
     { method: 'GET', path: '/404' },
-    { ignore: [404] }
+    { ignore: [404], meta: true }
   )
   t.deepEqual(res.body, { hello: 'world' })
   t.strictEqual(res.statusCode, 404)
@@ -183,7 +183,7 @@ test('Send POST (json)', async t => {
     method: 'POST',
     path: '/hello',
     body: { hello: 'world' }
-  })
+  }, { meta: true })
   t.deepEqual(res.body, { hello: 'world' })
   t.strictEqual(res.statusCode, 200)
   t.strictEqual(res.headers?.['content-type'], 'application/json;utf=8')
@@ -220,7 +220,7 @@ test('Send POST (ndjson)', async t => {
     method: 'POST',
     path: '/hello',
     bulkBody
-  })
+  }, { meta: true })
   t.strictEqual(res.statusCode, 200)
 })
 
@@ -246,7 +246,7 @@ test('Send stream (json)', async t => {
     method: 'POST',
     path: '/hello',
     body: intoStream(JSON.stringify({ hello: 'world' }))
-  })
+  }, { meta: true })
   t.strictEqual(res.statusCode, 200)
 })
 
@@ -279,7 +279,7 @@ test('Send stream (ndjson)', async t => {
     method: 'POST',
     path: '/hello',
     bulkBody: intoStream(s.ndserialize(bulkBody))
-  })
+  }, { meta: true })
   t.strictEqual(res.statusCode, 200)
 })
 
@@ -302,7 +302,7 @@ test('Not JSON payload from server', async t => {
   const res = await transport.request({
     method: 'GET',
     path: '/hello'
-  })
+  }, { meta: true })
   t.strictEqual(res.statusCode, 200)
   t.strictEqual(res.body, 'hello!')
 })
@@ -418,7 +418,7 @@ test('Retry mechanism', async t => {
   const res = await transport.request({
     method: 'GET',
     path: '/hello'
-  })
+  }, { meta: true })
   t.deepEqual(res.body, { hello: 'world' })
   t.strictEqual(res.statusCode, 200)
   t.strictEqual(res.meta.attempts, 2)
@@ -551,7 +551,7 @@ test('Override global maxRetries', async t => {
 
   const res = await transport.request(
     { method: 'GET', path: '/hello' },
-    { maxRetries: 3 }
+    { maxRetries: 3, meta: true }
   )
   t.deepEqual(res.body, { hello: 'world' })
   t.strictEqual(res.statusCode, 200)
@@ -648,7 +648,7 @@ test('Serialize querystring', async t => {
       foo: 'bar',
       baz: 'faz'
     }
-  })
+  }, { meta: true })
   t.strictEqual(res.statusCode, 200)
 })
 
@@ -679,7 +679,8 @@ test('Serialize querystring (merge with options)', async t => {
   }, {
     querystring: {
       baz: 'faz'
-    }
+    },
+    meta: true
   })
   t.strictEqual(res.statusCode, 200)
 })
@@ -695,7 +696,7 @@ test('Should cast to boolean HEAD request (true)', async t => {
   const res = await transport.request({
     method: 'HEAD',
     path: '/hello'
-  })
+  }, { meta: true })
   t.strictEqual(res.body, true)
   t.strictEqual(res.statusCode, 200)
 })
@@ -720,7 +721,7 @@ test('Should cast to boolean HEAD request (false)', async t => {
   const res = await transport.request({
     method: 'HEAD',
     path: '/hello'
-  })
+  }, { meta: true })
   t.strictEqual(res.body, false)
   t.strictEqual(res.statusCode, 404)
 })
@@ -753,7 +754,7 @@ test('Enable compression (gzip response)', async t => {
     method: 'POST',
     path: '/hello',
     body: { hello: 'world' }
-  })
+  }, { meta: true })
   t.strictEqual(res.headers?.['content-encoding'], 'gzip')
   t.deepEqual(res.body, { hello: 'world' })
   t.strictEqual(res.statusCode, 200)
@@ -787,7 +788,7 @@ test('Enable compression (deflate response)', async t => {
     method: 'POST',
     path: '/hello',
     body: { hello: 'world' }
-  })
+  }, { meta: true })
   t.strictEqual(res.headers?.['content-encoding'], 'deflate')
   t.deepEqual(res.body, { hello: 'world' })
   t.strictEqual(res.statusCode, 200)
@@ -822,7 +823,7 @@ test('Retry compressed request', async t => {
     method: 'POST',
     path: '/hello',
     body: { hello: 'world' }
-  })
+  }, { meta: true })
   t.strictEqual(res.meta.attempts, 2)
 })
 
@@ -888,7 +889,7 @@ test('Compress stream', async t => {
     method: 'POST',
     path: '/hello',
     body: intoStream(JSON.stringify({ hello: 'world' }))
-  })
+  }, { meta: true })
   t.strictEqual(res.headers?.['content-encoding'], 'gzip')
   t.deepEqual(res.body, { hello: 'world' })
   t.strictEqual(res.statusCode, 200)
@@ -917,7 +918,7 @@ test('Warning header (single)', async t => {
   const res = await transport.request({
     method: 'GET',
     path: '/hello'
-  })
+  }, { meta: true })
   t.deepEqual(res.warnings, [warn])
 })
 
@@ -946,7 +947,7 @@ test('Warning header (multiple)', async t => {
   const res = await transport.request({
     method: 'GET',
     path: '/hello'
-  })
+  }, { meta: true })
   t.deepEqual(res.warnings, [warn1, warn2])
 })
 
@@ -962,7 +963,7 @@ test('No warnings', async t => {
   const res = await transport.request({
     method: 'GET',
     path: '/hello'
-  })
+  }, { meta: true })
   t.strictEqual(res.warnings, null)
 })
 
@@ -988,7 +989,7 @@ test('Custom global headers', async t => {
   const res = await transport.request({
     method: 'GET',
     path: '/hello'
-  })
+  }, { meta: true })
   t.strictEqual(res.statusCode, 200)
 })
 
@@ -1012,7 +1013,8 @@ test('Custom local headers', async t => {
     method: 'GET',
     path: '/hello'
   }, {
-    headers: { 'x-foo': 'bar' }
+    headers: { 'x-foo': 'bar' },
+    meta: true
   })
   t.strictEqual(res.statusCode, 200)
 })
@@ -1044,7 +1046,8 @@ test('Merge local and global headers', async t => {
     headers: {
       'x-foo': 'bar2',
       'x-faz': 'baz'
-    }
+    },
+    meta: true
   })
   t.strictEqual(res.statusCode, 200)
 })
@@ -1071,7 +1074,7 @@ test('Node filter and node selector', async t => {
   const res = await transport.request({
     method: 'GET',
     path: '/hello'
-  })
+  }, { meta: true })
   t.strictEqual(res.statusCode, 200)
 })
 
@@ -1099,7 +1102,7 @@ test('User-Agent header', async t => {
   const res = await transport.request({
     method: 'GET',
     path: '/hello'
-  })
+  }, { meta: true })
   t.strictEqual(res.statusCode, 200)
 })
 
@@ -1113,7 +1116,7 @@ test('generateRequestId', async t => {
     connectionPool: pool,
     generateRequestId (params: TransportRequestParams, options: TransportRequestOptions) {
       t.deepEqual(params, { method: 'GET', path: '/hello' })
-      t.deepEqual(options, { ignore: [404] })
+      t.deepEqual(options, { ignore: [404], meta: true })
       return 42
     }
   })
@@ -1125,7 +1128,7 @@ test('generateRequestId', async t => {
 
   const res = await transport.request(
     { method: 'GET', path: '/hello' },
-    { ignore: [404] }
+    { ignore: [404], meta: true }
   )
   t.strictEqual(res.statusCode, 200)
 })
@@ -1145,7 +1148,7 @@ test('custom request id', async t => {
 
   const res = await transport.request(
     { method: 'GET', path: '/hello' },
-    { id: 42 }
+    { id: 42, meta: true }
   )
   t.strictEqual(res.statusCode, 200)
 })
@@ -1169,7 +1172,7 @@ test('No opaque id by default', async t => {
   const res = await transport.request({
     method: 'GET',
     path: '/hello'
-  })
+  }, { meta: true })
   t.strictEqual(res.statusCode, 200)
 })
 
@@ -1193,7 +1196,8 @@ test('Opaque id', async t => {
     method: 'GET',
     path: '/hello'
   }, {
-    opaqueId: 'foo'
+    opaqueId: 'foo',
+    meta: true
   })
   t.strictEqual(res.statusCode, 200)
 })
@@ -1221,7 +1225,8 @@ test('Opaque id and prefix', async t => {
     method: 'GET',
     path: '/hello'
   }, {
-    opaqueId: 'foo'
+    opaqueId: 'foo',
+    meta: true
   })
   t.strictEqual(res.statusCode, 200)
 })
@@ -1248,7 +1253,7 @@ test('Opaque id prefix', async t => {
   const res = await transport.request({
     method: 'GET',
     path: '/hello'
-  })
+  }, { meta: true })
   t.strictEqual(res.statusCode, 200)
 })
 
@@ -1271,7 +1276,7 @@ test('global context', async t => {
   const res = await transport.request({
     method: 'GET',
     path: '/hello'
-  })
+  }, { meta: true })
   t.strictEqual(res.statusCode, 200)
 })
 
@@ -1292,7 +1297,8 @@ test('local context', async t => {
     method: 'GET',
     path: '/hello'
   }, {
-    context: { hello: 'world' }
+    context: { hello: 'world' },
+    meta: true
   })
   t.strictEqual(res.statusCode, 200)
 })
@@ -1317,7 +1323,8 @@ test('local and global context', async t => {
     method: 'GET',
     path: '/hello'
   }, {
-    context: { hello: 'world2' }
+    context: { hello: 'world2' },
+    meta: true
   })
   t.strictEqual(res.statusCode, 200)
 })
@@ -1412,7 +1419,7 @@ test('Sniff interval', async t => {
   let res = await transport.request({
     method: 'GET',
     path: '/hello'
-  })
+  }, { meta: true })
   t.strictEqual(res.statusCode, 200)
 
   await sleep(80)
@@ -1420,7 +1427,7 @@ test('Sniff interval', async t => {
   res = await transport.request({
     method: 'GET',
     path: '/hello'
-  })
+  }, { meta: true })
   t.strictEqual(res.statusCode, 200)
 
   await sleep(80)
@@ -1428,7 +1435,7 @@ test('Sniff interval', async t => {
   res = await transport.request({
     method: 'GET',
     path: '/hello'
-  })
+  }, { meta: true })
   t.strictEqual(res.statusCode, 200)
 })
 
@@ -1479,6 +1486,51 @@ test('sniffInterval should be false or a positive integer', t => {
   } catch (err) {
     t.true(err instanceof ConfigurationError)
   }
+})
+
+test('No meta', async t => {
+  t.plan(1)
+
+  const pool = new WeightedConnectionPool({ Connection: MockConnection })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({ connectionPool: pool })
+
+  const res = await transport.request({
+    method: 'GET',
+    path: '/hello'
+  })
+  t.deepEqual(res, { hello: 'world' })
+})
+
+test('meta is false', async t => {
+  t.plan(1)
+
+  const pool = new WeightedConnectionPool({ Connection: MockConnection })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({ connectionPool: pool })
+
+  const res = await transport.request({
+    method: 'GET',
+    path: '/hello'
+  }, { meta: false })
+  t.deepEqual(res, { hello: 'world' })
+})
+
+test('meta is true', async t => {
+  t.plan(1)
+
+  const pool = new WeightedConnectionPool({ Connection: MockConnection })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({ connectionPool: pool })
+
+  const res = await transport.request({
+    method: 'GET',
+    path: '/hello'
+  }, { meta: true })
+  t.deepEqual(res.body, { hello: 'world' })
 })
 
 // test('asStream set to true', t => {
