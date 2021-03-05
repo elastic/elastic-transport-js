@@ -94,7 +94,7 @@ export interface TransportOptions {
   sniffOnStart?: boolean
   nodeFilter?: nodeFilterFn
   nodeSelector?: nodeSelectorFn
-  headers?: Record<string, string>
+  headers?: http.IncomingHttpHeaders
   generateRequestId?: generateRequestIdFn
   name?: string
   opaqueIdPrefix?: string
@@ -122,6 +122,26 @@ export interface TransportRequestOptions {
   warnings?: string[]
   opaqueId?: string
   abortController?: AbortController
+  /**
+    * Warning: If you set meta to true the result will no longer be
+    * the response body, but an object containing the body, statusCode,
+    * headers and meta keys.
+    * You can use the destructuring assignment to update your code without
+    * refactoring the entire code base:
+    * From:
+    * ```
+    * const result = await client.method(params)
+    * ```
+    * To:
+    * ```
+    * const {
+    *   body: result,
+    *   statusCode,
+    *   headers,
+    *   meta
+    * } = await client.method(params, { meta: true })
+    * ```
+    */
   meta?: boolean
 }
 
