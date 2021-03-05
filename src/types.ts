@@ -52,7 +52,11 @@ export interface DiagnosticResult<TResponse = unknown, TContext = Context> {
   }
 }
 
-export type TransportResult<TResponse = unknown, TContext = Context> = Required<DiagnosticResult<TResponse, TContext>>
+export interface TransportResult<TResponse = unknown, TContext = Context> extends DiagnosticResult<TResponse, TContext> {
+  body: TResponse
+  statusCode: number
+  headers: http.IncomingHttpHeaders
+}
 
 export declare type agentFn = (opts: ConnectionOptions) => any
 
