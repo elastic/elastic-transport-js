@@ -34,6 +34,14 @@ export interface ResurrectOptions {
   context: any
 }
 
+export interface ResurrectEvent {
+  strategy: string
+  name: string
+  request: { id: string }
+  isAlive: boolean
+  connection: Connection
+}
+
 export default class ClusterConnectionPool extends BaseConnectionPool {
   dead: string[]
   resurrectTimeout: number

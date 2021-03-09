@@ -27,6 +27,11 @@ export type {
   GetConnectionOptions
 } from './BaseConnectionPool'
 
+export type {
+  ResurrectEvent,
+  ResurrectOptions
+} from './ClusterConnectionPool'
+
 export {
   BaseConnectionPool,
   WeightedConnectionPool,

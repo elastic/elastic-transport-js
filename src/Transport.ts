@@ -233,7 +233,10 @@ export default class Transport {
     if (opts.sniffOnStart === true) {
       this.sniff({
         reason: Transport.sniffReasons.SNIFF_ON_START,
-        requestId: `sniff-on-start-${Math.random()}`,
+        requestId: this[kGenerateRequestId](
+          { method: 'GET', path: this[kSniffEndpoint] as string },
+          { context: this[kContext] }
+        ),
         context: this[kContext]
       })
     }
@@ -603,7 +606,7 @@ function roundRobinSelector (): nodeSelectorFn {
   }
 }
 
-function generateRequestId (): generateRequestIdFn {
+export function generateRequestId (): generateRequestIdFn {
   const maxInt = 2147483647
   let nextReqId = 0
   return function genReqId (params, options) {
@@ -611,7 +614,7 @@ function generateRequestId (): generateRequestIdFn {
   }
 }
 
-function lowerCaseHeaders (oldHeaders?: http.IncomingHttpHeaders): http.IncomingHttpHeaders | null {
+export function lowerCaseHeaders (oldHeaders?: http.IncomingHttpHeaders): http.IncomingHttpHeaders | null {
   if (oldHeaders == null) return null
   const newHeaders: Record<string, string> = {}
   for (const header in oldHeaders) {
