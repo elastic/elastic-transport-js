@@ -88,7 +88,11 @@ export class MockConnectionSniff extends BaseConnection {
         connection: 'keep-alive',
         'content-length': '191'
       }
-      process.nextTick(resolve, { body, statusCode, headers })
+      if (params.headers?.timeout != null) {
+        process.nextTick(reject, new TimeoutError('Request timed out'))
+      } else {
+        process.nextTick(resolve, { body, statusCode, headers })
+      }
     })
   }
 }

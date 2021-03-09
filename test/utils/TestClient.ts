@@ -27,7 +27,10 @@ import {
   Diagnostic,
   TransportRequestParams,
   TransportRequestOptions,
-  SniffOptions
+  TransportRequestOptionsWithOutMeta,
+  TransportRequestOptionsWithMeta,
+  SniffOptions,
+  TransportResult
 } from '../..'
 
 class SniffingTransport extends Transport {
@@ -137,7 +140,10 @@ export default class TestClient {
     })
   }
 
-  request (params: TransportRequestParams, options?: TransportRequestOptions) {
-    return this.transport.request(params, options)
+  async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptionsWithOutMeta): Promise<TResponse>
+  async request<TResponse = unknown, TContext = any> (params: TransportRequestParams, options?: TransportRequestOptionsWithMeta): Promise<TransportResult<TResponse, TContext>>
+  async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptions): Promise<TResponse>
+  async request<TResponse = unknown> (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<any> {
+    return await this.transport.request<TResponse>(params, options)
   }
 }
