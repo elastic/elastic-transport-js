@@ -135,8 +135,14 @@ test('resurrect', t => {
       }
       pool.diagnostic.on(events.RESURRECT, (err, meta) => {
         t.true(err instanceof TimeoutError)
-        t.strictEqual(meta, null)
-        t.strictEqual(pool.connections[0].deadCount, 1)
+        t.deepEqual(meta, {
+          strategy: 'ping',
+          name: 'elasticsearch-js',
+          request: { id: 1 },
+          isAlive: false,
+          connection: pool.connections[0]
+        })
+        t.strictEqual(pool.connections[0].deadCount, 2)
         t.true(pool.connections[0].resurrectTimeout > 0)
         t.strictEqual(pool.connections[0].status, BaseConnection.statuses.DEAD)
         t.deepEqual(pool.dead, [href])

@@ -146,4 +146,8 @@ export default class TestClient {
   async request<TResponse = unknown> (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<any> {
     return await this.transport.request<TResponse>(params, options)
   }
+
+  async close (): Promise<void> {
+    await this.connectionPool.empty()
+  }
 }
