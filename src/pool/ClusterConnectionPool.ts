@@ -181,7 +181,14 @@ export default class ClusterConnectionPool extends BaseConnectionPool {
           })
         })
         .catch((err: Error) => {
-          this.diagnostic.emit('resurrect', err, null)
+          this.markDead(connection)
+          this.diagnostic.emit('resurrect', err, {
+            strategy: 'ping',
+            name: opts.name,
+            request: { id: opts.requestId },
+            isAlive: false,
+            connection
+          })
         })
     // optimistic strategy
     } else {
