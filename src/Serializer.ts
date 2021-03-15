@@ -24,8 +24,26 @@ import sjson from 'secure-json-parse'
 import { SerializationError, DeserializationError } from './errors'
 
 const debug = Debug('elasticsearch')
+const kJsonOptions = Symbol('secure json parse options')
+
+export interface SerializerOptions {
+  disablePrototypePoisoningProtection?: boolean | 'proto' | 'constructor'
+}
 
 export default class Serializer {
+  [kJsonOptions]: {
+    protoAction: string
+    constructorAction: string
+  }
+
+  constructor (opts: SerializerOptions = {}) {
+    const disable = opts.disablePrototypePoisoningProtection
+    this[kJsonOptions] = {
+      protoAction: disable === true || disable === 'proto' ? 'ignore' : 'error',
+      constructorAction: disable === true || disable === 'constructor' ? 'ignore' : 'error'
+    }
+  }
+
   serialize (object: Record<string, any>): string {
     debug('Serializing', object)
     let json
@@ -41,7 +59,7 @@ export default class Serializer {
     debug('Deserializing', json)
     let object
     try {
-      object = sjson.parse(json)
+      object = sjson.parse(json, this[kJsonOptions])
     } catch (err) {
       throw new DeserializationError(err.message, json)
     }
