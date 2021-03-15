@@ -20,15 +20,13 @@
 import buildServer from './buildServer'
 import * as connection from './MockConnection'
 import TestClient from './TestClient'
-// const buildCluster = require('./buildCluster')
-// const buildProxy = require('./buildProxy')
-// const connection = require('./MockConnection')
-// const TestClient = require('./TestClient')
+import buildCluster from './buildCluster'
+import * as buildProxy from  './buildProxy'
 
 export {
   buildServer,
   connection,
-  // buildCluster,
-  // buildProxy,
+  buildCluster,
+  buildProxy,
   TestClient
 }
