@@ -22,9 +22,9 @@ import Debug from 'debug'
 // @ts-expect-error
 import sjson from 'secure-json-parse'
 import { SerializationError, DeserializationError } from './errors'
+import { kJsonOptions } from './symbols'
 
 const debug = Debug('elasticsearch')
-const kJsonOptions = Symbol('secure json parse options')
 
 export interface SerializerOptions {
   disablePrototypePoisoningProtection?: boolean | 'proto' | 'constructor'
