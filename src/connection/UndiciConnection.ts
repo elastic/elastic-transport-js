@@ -35,12 +35,12 @@ import {
 } from '../errors'
 import { TlsOptions } from 'tls'
 import { UndiciAgentOptions } from '../types'
+import { kEmitter } from '../symbols'
 
 const debug = Debug('elasticsearch')
 const INVALID_PATH_REGEX = /[^\u0021-\u00ff]/
 const MAX_BUFFER_LENGTH = buffer.constants.MAX_LENGTH
 const MAX_STRING_LENGTH = buffer.constants.MAX_STRING_LENGTH
-const kEmitter = Symbol('event emitter')
 
 export default class Connection extends BaseConnection {
   pool: Pool

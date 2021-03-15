@@ -32,9 +32,7 @@ import {
   agentFn
 } from '../types'
 import { ConfigurationError } from '../errors'
-
-const kStatus = Symbol('status')
-const kDiagnostic = Symbol('diagnostics')
+import { kStatus, kDiagnostic } from '../symbols'
 
 export interface ConnectionOptions {
   url: URL

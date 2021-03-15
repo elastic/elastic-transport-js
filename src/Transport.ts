@@ -51,32 +51,33 @@ import {
   TransportResult,
   Context
 } from './types'
+import {
+  kSniffEnabled,
+  kNextSniff,
+  kIsSniffing,
+  kSniffInterval,
+  kSniffOnConnectionFault,
+  kSniffEndpoint,
+  kRequestTimeout,
+  kCompression,
+  kMaxRetries,
+  kName,
+  kOpaqueIdPrefix,
+  kGenerateRequestId,
+  kContext,
+  kConnectionPool,
+  kSerializer,
+  kDiagnostic,
+  kHeaders,
+  kNodeFilter,
+  kNodeSelector
+} from './symbols'
 
 const { version: clientVersion } = require('../package.json') // eslint-disable-line
 const debug = Debug('elasticsearch')
 const gzip = promisify(zlib.gzip)
 const unzip = promisify(zlib.unzip)
 const { createGzip } = zlib
-
-const kSniffEnabled = Symbol('sniff enabled')
-const kNextSniff = Symbol('next sniff')
-const kIsSniffing = Symbol('is sniffing')
-const kSniffInterval = Symbol('sniff interval')
-const kSniffOnConnectionFault = Symbol('sniff on connection fault')
-const kSniffEndpoint = Symbol('sniff endpoint')
-const kRequestTimeout = Symbol('request timeout')
-const kCompression = Symbol('compression')
-const kMaxRetries = Symbol('max retries')
-const kName = Symbol('name')
-const kOpaqueIdPrefix = Symbol('opaque id prefix')
-const kGenerateRequestId = Symbol('generate request id')
-const kContext = Symbol('context')
-const kConnectionPool = Symbol('connection pool')
-const kSerializer = Symbol('serializer')
-const kDiagnostic = Symbol('diagnostics')
-const kHeaders = Symbol('headers')
-const kNodeFilter = Symbol('node filter')
-const kNodeSelector = Symbol('node selector')
 
 const userAgent = `elastic-transport-js/${clientVersion} (${os.platform()} ${os.release()}-${os.arch()}; Node.js ${process.version})` // eslint-disable-line
 
