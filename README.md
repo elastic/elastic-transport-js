@@ -1,6 +1,6 @@
 <img align="right" width="auto" height="auto" src="https://www.elastic.co/static-res/images/elastic-logo-200.png">
 
-# Elasticsearch Node.js Transport
+# Elastic Node.js Transport
 
 [![js-standard-style](https://img.shields.io/badge/code%20style-standard-brightgreen.svg?style=flat)](http://standardjs.com/) [![Node CI](https://github.com/elastic/elastic-transport-js/actions/workflows/nodejs.yml/badge.svg)](https://github.com/elastic/elastic-transport-js/actions/workflows/nodejs.yml) [![codecov](https://codecov.io/gh/elastic/elastic-transport-js/branch/master/graph/badge.svg?token=4CU5AeB3FW)](https://codecov.io/gh/elastic/elastic-transport-js) [![NPM downloads](https://img.shields.io/npm/dm/@elastic/transport.svg?style=flat)](https://www.npmjs.com/package/@elastic/transport)
 
