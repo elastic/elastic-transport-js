@@ -461,8 +461,8 @@ export default class Transport {
         if (headers['content-type']?.includes('application/json') && !isHead && body !== '') { // eslint-disable-line
           result.body = this[kSerializer].deserialize(body)
         } else {
-          // cast to boolean if the request method was HEAD
-          result.body = isHead ? true : body
+          // cast to boolean if the request method was HEAD and there was no error
+          result.body = isHead && statusCode < 400 ? true : body
         }
 
         // we should ignore the statusCode if the user has configured the `ignore` field with
