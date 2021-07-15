@@ -136,7 +136,8 @@ export default class TestClient {
       generateRequestId: options.generateRequestId,
       name: options.name,
       opaqueIdPrefix: options.opaqueIdPrefix,
-      context: options.context
+      context: options.context,
+      productCheck: 'Elasticsearch'
     })
   }
 

@@ -47,11 +47,16 @@ export default function buildServer (handler: ServerHandler, opts: Options = {})
     ? stoppable(https.createServer(secureOpts))
     : stoppable(http.createServer())
 
-  server.on('request', handler)
+  server.on('request', (req, res) => {
+    res.setHeader('x-elastic-product', 'Elasticsearch')
+    handler(req, res)
+  })
+
   server.on('error', err => {
     console.log('http server error', err)
     process.exit(1)
   })
+
   return new Promise((resolve, reject) => {
     server.listen(0, () => {
       // @ts-expect-error
