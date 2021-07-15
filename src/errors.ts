@@ -98,10 +98,10 @@ export class ResponseError extends ElasticsearchClientError {
     Error.captureStackTrace(this, ResponseError)
     this.name = 'ResponseError'
     // TODO: this is for Elasticsearch
-    if (isObject(meta.body) && meta.body.error && meta.body.error.type) {
+    if (isObject(meta.body) && meta.body.error != null && meta.body.error.type != null) {
       if (Array.isArray(meta.body.error.root_cause)) {
-        this.message = meta.body.error.type + ': '
-        this.message += meta.body.error.root_cause.map((entry: Record<string, string>) => `[${entry.type}] Reason: ${entry.reason}`).join('; ')
+        this.message = meta.body.error.type as string + ': '
+        this.message += meta.body.error.root_cause.map((entry: Record<string, string>) => `[${entry.type}] Reason: ${entry.reason}`).join('; ') as string
       } else {
         this.message = meta.body.error.type
       }
