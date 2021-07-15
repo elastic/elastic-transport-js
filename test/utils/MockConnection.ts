@@ -40,7 +40,8 @@ export class MockConnection extends BaseConnection {
         'content-type': 'application/json;utf=8',
         date: new Date().toISOString(),
         connection: 'keep-alive',
-        'content-length': '17'
+        'content-length': '17',
+        'x-elastic-product': 'Elasticsearch'
       }
       process.nextTick(resolve, { body, statusCode, headers })
     })
@@ -86,7 +87,8 @@ export class MockConnectionSniff extends BaseConnection {
         'content-type': 'application/json;utf=8',
         date: new Date().toISOString(),
         connection: 'keep-alive',
-        'content-length': '191'
+        'content-length': '191',
+        'x-elastic-product': 'Elasticsearch'
       }
       if (params.headers?.timeout != null) {
         process.nextTick(reject, new TimeoutError('Request timed out'))
@@ -116,6 +118,7 @@ export function buildMockConnection (opts: onRequestMock) {
           date: new Date().toISOString(),
           connection: 'keep-alive',
           'content-length': Buffer.byteLength(body) + '',
+          'x-elastic-product': 'Elasticsearch',
           ...headers
         }
         process.nextTick(resolve, { body, statusCode, headers })

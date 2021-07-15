@@ -138,6 +138,17 @@ export class RequestAbortedError extends ElasticsearchClientError {
   }
 }
 
+export class ProductNotSupportedError extends ElasticsearchClientError {
+  meta?: DiagnosticResult
+  constructor (product: string, meta?: DiagnosticResult) {
+    super('Product Not Supported Error')
+    Error.captureStackTrace(this, ProductNotSupportedError)
+    this.name = 'ProductNotSupportedError'
+    this.message = `The client noticed that the server is not ${product} and we do not support this unknown product.`
+    this.meta = meta
+  }
+}
+
 function isObject (obj: any): obj is Record<string, any> {
   return typeof obj === 'object'
 }
