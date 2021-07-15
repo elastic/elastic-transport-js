@@ -19,7 +19,6 @@
 
 import { stringify } from 'querystring'
 import Debug from 'debug'
-// @ts-expect-error
 import sjson from 'secure-json-parse'
 import { SerializationError, DeserializationError } from './errors'
 import { kJsonOptions } from './symbols'
@@ -59,6 +58,7 @@ export default class Serializer {
     debug('Deserializing', json)
     let object
     try {
+      // @ts-expect-error
       object = sjson.parse(json, this[kJsonOptions])
     } catch (err) {
       throw new DeserializationError(err.message, json)

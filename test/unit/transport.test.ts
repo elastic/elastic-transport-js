@@ -726,6 +726,34 @@ test('Should cast to boolean HEAD request (false)', async t => {
   t.strictEqual(res.statusCode, 404)
 })
 
+test('Should not cast to boolean HEAD request in case of error', async t => {
+  t.plan(2)
+
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
+      return {
+        body: { hello: 'world' },
+        statusCode: 400
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({ connectionPool: pool })
+
+  try {
+    await transport.request({
+      method: 'HEAD',
+      path: '/hello'
+    })
+  } catch (err) {
+    t.strictEqual(typeof err.body === 'boolean', false)
+    t.strictEqual(err.statusCode, 400)
+  }
+})
+
 test('Enable compression (gzip response)', async t => {
   t.plan(6)
 
