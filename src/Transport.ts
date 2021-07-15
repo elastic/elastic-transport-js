@@ -29,6 +29,7 @@ import {
   NoLivingConnectionsError,
   ResponseError,
   ConfigurationError,
+  ProductNotSupportedError,
   TimeoutError
 } from './errors'
 import { Connection, ConnectionRequestParams } from './connection'
@@ -70,7 +71,8 @@ import {
   kDiagnostic,
   kHeaders,
   kNodeFilter,
-  kNodeSelector
+  kNodeSelector,
+  kProductCheck
 } from './symbols'
 
 const { version: clientVersion } = require('../package.json') // eslint-disable-line
@@ -100,6 +102,7 @@ export interface TransportOptions {
   name?: string
   opaqueIdPrefix?: string
   context?: Context
+  productCheck?: string
 }
 
 export interface TransportRequestParams {
@@ -185,6 +188,7 @@ export default class Transport {
   [kSniffInterval]: number | boolean
   [kSniffOnConnectionFault]: boolean
   [kSniffEndpoint]: string | null
+  [kProductCheck]: string | null
 
   static sniffReasons = {
     SNIFF_ON_START: 'sniff-on-start',
@@ -230,6 +234,7 @@ export default class Transport {
     this[kIsSniffing] = false
     this[kSniffOnConnectionFault] = opts.sniffOnConnectionFault ?? false
     this[kSniffEndpoint] = opts.sniffEndpoint ?? null
+    this[kProductCheck] = opts.productCheck ?? null
 
     if (opts.sniffOnStart === true) {
       this.sniff({
@@ -437,6 +442,10 @@ export default class Transport {
         result.statusCode = statusCode
         result.headers = headers
 
+        if (this[kProductCheck] != null && headers['x-elastic-product'] !== this[kProductCheck]) {
+          throw new ProductNotSupportedError(this[kProductCheck] as string, result)
+        }
+
         const contentEncoding = (headers['content-encoding'] ?? '').toLowerCase()
         if (contentEncoding.includes('gzip') || contentEncoding.includes('deflate')) {
           body = await unzip(body)
@@ -499,6 +508,7 @@ export default class Transport {
       } catch (error) {
         switch (error.name) {
           // should not retry
+          case 'ProductNotSupportedError':
           case 'NoLivingConnectionsError':
           case 'DeserializationError':
           case 'ResponseError':
