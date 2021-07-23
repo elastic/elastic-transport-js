@@ -25,7 +25,7 @@ const { ConfigurationError } = errors
 
 test('get diagnostic instance', t => {
   const conn = new BaseConnection({ url: new URL('http://localhost:9200') })
-  t.true(conn.diagnostic instanceof Diagnostic)
+  t.ok(conn.diagnostic instanceof Diagnostic)
   t.end()
 })
 
@@ -33,7 +33,7 @@ test('Connection id should not contain credentials', t => {
   const connection = new BaseConnection({
     url: new URL('http://user:password@localhost:9200')
   })
-  t.strictEqual(connection.id, 'http://localhost:9200/')
+  t.equal(connection.id, 'http://localhost:9200/')
   t.end()
 })
 
@@ -43,7 +43,7 @@ test('configure ssl', t => {
     ssl: { host: 'host' }
   })
 
-  t.strictEqual(conn.ssl?.host, 'host')
+  t.equal(conn.ssl?.host, 'host')
   t.end()
 })
 
@@ -53,7 +53,7 @@ test('configure id', t => {
     id: 'id'
   })
 
-  t.strictEqual(conn.id, 'id')
+  t.equal(conn.id, 'id')
   t.end()
 })
 
@@ -63,7 +63,7 @@ test('configure status', t => {
     status: BaseConnection.statuses.DEAD
   })
 
-  t.strictEqual(conn.status, BaseConnection.statuses.DEAD)
+  t.equal(conn.status, BaseConnection.statuses.DEAD)
   t.end()
 })
 
@@ -74,21 +74,21 @@ test('configure diagnostic', t => {
     diagnostic
   })
 
-  t.true(conn.diagnostic === diagnostic)
+  t.ok(conn.diagnostic === diagnostic)
   t.end()
 })
 
 test('get & set status', t => {
   const conn = new BaseConnection({ url: new URL('http://localhost:9200') })
-  t.strictEqual(conn.status, BaseConnection.statuses.ALIVE)
+  t.equal(conn.status, BaseConnection.statuses.ALIVE)
   conn.status = BaseConnection.statuses.DEAD
-  t.strictEqual(conn.status, BaseConnection.statuses.DEAD)
+  t.equal(conn.status, BaseConnection.statuses.DEAD)
 
   try {
     conn.status = 'hello'
     t.fail('Should throw')
   } catch (err) {
-    t.true(err instanceof ConfigurationError)
+    t.ok(err instanceof ConfigurationError)
   }
 
   t.end()
@@ -102,7 +102,7 @@ test('Should throw if the protocol is not http or https', t => {
     t.fail('Should throw')
   } catch (err) {
     t.ok(err instanceof ConfigurationError)
-    t.is(err.message, 'Invalid protocol: \'nope:\'')
+    t.equal(err.message, 'Invalid protocol: \'nope:\'')
   }
   t.end()
 })
@@ -125,7 +125,7 @@ test('Util.inspect Connection class should hide agent, ssl and auth', t => {
       .replace(/(\r\n|\n|\r)/gm, '')
   }
 
-  t.strictEqual(cleanStr(inspect(connection)), cleanStr(`{ url: 'http://localhost:9200/',
+  t.equal(cleanStr(inspect(connection)), cleanStr(`{ url: 'http://localhost:9200/',
   id: 'node-id',
   headers: { foo: 'bar' },
   status: 'alive'}`)
@@ -141,7 +141,7 @@ test('connection.toJSON should hide agent, ssl and auth', t => {
     headers: { foo: 'bar' }
   })
 
-  t.deepEqual(connection.toJSON(), {
+  t.same(connection.toJSON(), {
     url: 'http://localhost:9200/',
     id: 'node-id',
     headers: {
@@ -159,7 +159,7 @@ test('configure basic authentication', t => {
       password: 'pwd'
     }
   })
-  t.deepEqual(conn.headers, {
+  t.same(conn.headers, {
     authorization: 'Basic dXNlcjpwd2Q='
   })
   t.end()
@@ -172,7 +172,7 @@ test('configure apiKey authentication as string', t => {
       apiKey: 'key'
     }
   })
-  t.deepEqual(conn.headers, {
+  t.same(conn.headers, {
     authorization: 'ApiKey key'
   })
   t.end()
@@ -188,7 +188,7 @@ test('configure apiKey authentication as object', t => {
       }
     }
   })
-  t.deepEqual(conn.headers, {
+  t.same(conn.headers, {
     authorization: 'ApiKey aWQ6YXBpX2tleQ=='
   })
   t.end()
@@ -205,7 +205,7 @@ test('do not override authentication', t => {
       password: 'pwd'
     }
   })
-  t.deepEqual(conn.headers, {
+  t.same(conn.headers, {
     authorization: 'hello world'
   })
   t.end()

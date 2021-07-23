@@ -86,9 +86,9 @@ test('Basic', async t => {
     method: 'GET',
     path: '/hello'
   }, { meta: true })
-  t.deepEqual(res.body, { hello: 'world' })
-  t.strictEqual(res.statusCode, 200)
-  t.strictEqual(res.headers?.['content-type'], 'application/json;utf=8')
+  t.same(res.body, { hello: 'world' })
+  t.equal(res.statusCode, 200)
+  t.equal(res.headers?.['content-type'], 'application/json;utf=8')
 })
 
 test('Basic error (TimeoutError)', async t => {
@@ -116,7 +116,7 @@ test('Basic error (TimeoutError)', async t => {
       path: '/hello'
     })
   } catch (err) {
-    t.true(err instanceof TimeoutError)
+    t.ok(err instanceof TimeoutError)
   }
 })
 
@@ -145,7 +145,7 @@ test('Basic error (ConnectionError)', async t => {
       path: '/hello'
     }, { meta: true })
   } catch (err) {
-    t.true(err instanceof ConnectionError)
+    t.ok(err instanceof ConnectionError)
   }
 })
 
@@ -159,9 +159,9 @@ test('Ignore status code', async t => {
     { method: 'GET', path: '/404' },
     { ignore: [404], meta: true }
   )
-  t.deepEqual(res.body, { hello: 'world' })
-  t.strictEqual(res.statusCode, 404)
-  t.strictEqual(res.headers?.['content-type'], 'application/json;utf=8')
+  t.same(res.body, { hello: 'world' })
+  t.equal(res.statusCode, 404)
+  t.equal(res.headers?.['content-type'], 'application/json;utf=8')
 })
 
 test('Send POST (json)', async t => {
@@ -184,9 +184,9 @@ test('Send POST (json)', async t => {
     path: '/hello',
     body: { hello: 'world' }
   }, { meta: true })
-  t.deepEqual(res.body, { hello: 'world' })
-  t.strictEqual(res.statusCode, 200)
-  t.strictEqual(res.headers?.['content-type'], 'application/json;utf=8')
+  t.same(res.body, { hello: 'world' })
+  t.equal(res.statusCode, 200)
+  t.equal(res.headers?.['content-type'], 'application/json;utf=8')
 })
 
 test('Send POST (ndjson)', async t => {
@@ -199,11 +199,11 @@ test('Send POST (ndjson)', async t => {
 
   const Conn = buildMockConnection({
     onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
-      t.strictEqual(opts.headers?.['content-type'], 'application/x-ndjson')
+      t.equal(opts.headers?.['content-type'], 'application/x-ndjson')
       const body = opts.body as string
-      t.strictEqual(body.split('\n')[0], JSON.stringify(bulkBody[0]))
-      t.strictEqual(body.split('\n')[1], JSON.stringify(bulkBody[1]))
-      t.strictEqual(body.split('\n')[2], JSON.stringify(bulkBody[2]))
+      t.equal(body.split('\n')[0], JSON.stringify(bulkBody[0]))
+      t.equal(body.split('\n')[1], JSON.stringify(bulkBody[1]))
+      t.equal(body.split('\n')[2], JSON.stringify(bulkBody[2]))
       return {
         body: { hello: 'world' },
         statusCode: 200
@@ -221,7 +221,7 @@ test('Send POST (ndjson)', async t => {
     path: '/hello',
     bulkBody
   }, { meta: true })
-  t.strictEqual(res.statusCode, 200)
+  t.equal(res.statusCode, 200)
 })
 
 test('Send stream (json)', async t => {
@@ -229,7 +229,7 @@ test('Send stream (json)', async t => {
   const Conn = buildMockConnection({
     onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
       const body = opts.body as Readable
-      t.true(typeof body?.pipe === 'function')
+      t.ok(typeof body?.pipe === 'function')
       return {
         body: { hello: 'world' },
         statusCode: 200
@@ -247,7 +247,7 @@ test('Send stream (json)', async t => {
     path: '/hello',
     body: intoStream(JSON.stringify({ hello: 'world' }))
   }, { meta: true })
-  t.strictEqual(res.statusCode, 200)
+  t.equal(res.statusCode, 200)
 })
 
 test('Send stream (ndjson)', async t => {
@@ -261,7 +261,7 @@ test('Send stream (ndjson)', async t => {
   const Conn = buildMockConnection({
     onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
       const body = opts.body as Readable
-      t.true(typeof body?.pipe === 'function')
+      t.ok(typeof body?.pipe === 'function')
       return {
         body: { hello: 'world' },
         statusCode: 200
@@ -280,7 +280,7 @@ test('Send stream (ndjson)', async t => {
     path: '/hello',
     bulkBody: intoStream(s.ndserialize(bulkBody))
   }, { meta: true })
-  t.strictEqual(res.statusCode, 200)
+  t.equal(res.statusCode, 200)
 })
 
 test('Not JSON payload from server', async t => {
@@ -303,8 +303,8 @@ test('Not JSON payload from server', async t => {
     method: 'GET',
     path: '/hello'
   }, { meta: true })
-  t.strictEqual(res.statusCode, 200)
-  t.strictEqual(res.body, 'hello!')
+  t.equal(res.statusCode, 200)
+  t.equal(res.body, 'hello!')
 })
 
 test('NoLivingConnectionsError', async t => {
@@ -314,7 +314,7 @@ test('NoLivingConnectionsError', async t => {
   const transport = new Transport({
     connectionPool: pool,
     nodeFilter (node: Connection): boolean {
-      t.true(node instanceof UndiciConnection)
+      t.ok(node instanceof UndiciConnection)
       return false
     }
   })
@@ -325,7 +325,7 @@ test('NoLivingConnectionsError', async t => {
       path: '/hello'
     })
   } catch (err) {
-    t.true(err instanceof NoLivingConnectionsError)
+    t.ok(err instanceof NoLivingConnectionsError)
   }
 })
 
@@ -345,7 +345,7 @@ test('SerializationError', async t => {
       body
     })
   } catch (err) {
-    t.true(err instanceof SerializationError)
+    t.ok(err instanceof SerializationError)
   }
 })
 
@@ -365,7 +365,7 @@ test('SerializationError (bulk)', async t => {
       bulkBody: [bulkBody]
     })
   } catch (err) {
-    t.true(err instanceof SerializationError)
+    t.ok(err instanceof SerializationError)
   }
 })
 
@@ -390,7 +390,7 @@ test('DeserializationError', async t => {
       path: '/hello'
     })
   } catch (err) {
-    t.true(err instanceof DeserializationError)
+    t.ok(err instanceof DeserializationError)
   }
 })
 
@@ -419,9 +419,9 @@ test('Retry mechanism', async t => {
     method: 'GET',
     path: '/hello'
   }, { meta: true })
-  t.deepEqual(res.body, { hello: 'world' })
-  t.strictEqual(res.statusCode, 200)
-  t.strictEqual(res.meta.attempts, 2)
+  t.same(res.body, { hello: 'world' })
+  t.equal(res.statusCode, 200)
+  t.equal(res.meta.attempts, 2)
 })
 
 test('Should not retry if the body is a stream', async t => {
@@ -452,10 +452,10 @@ test('Should not retry if the body is a stream', async t => {
       body: intoStream(JSON.stringify({ hello: 'world' }))
     })
   } catch (err) {
-    t.true(err instanceof ResponseError)
-    t.deepEqual(err.body, { hello: 'world' })
-    t.strictEqual(err.statusCode, 502)
-    t.strictEqual(err.meta.meta.attempts, 0)
+    t.ok(err instanceof ResponseError)
+    t.same(err.body, { hello: 'world' })
+    t.equal(err.statusCode, 502)
+    t.equal(err.meta.meta.attempts, 0)
   }
 })
 
@@ -487,10 +487,10 @@ test('Should not retry if the bulkBody is a stream', async t => {
       bulkBody: intoStream(JSON.stringify({ hello: 'world' }))
     })
   } catch (err) {
-    t.true(err instanceof ResponseError)
-    t.deepEqual(err.body, { hello: 'world' })
-    t.strictEqual(err.statusCode, 502)
-    t.strictEqual(err.meta.meta.attempts, 0)
+    t.ok(err instanceof ResponseError)
+    t.same(err.body, { hello: 'world' })
+    t.equal(err.statusCode, 502)
+    t.equal(err.meta.meta.attempts, 0)
   }
 })
 
@@ -521,10 +521,10 @@ test('Disable maxRetries locally', async t => {
       { maxRetries: 0 }
     )
   } catch (err) {
-    t.true(err instanceof ResponseError)
-    t.deepEqual(err.body, { hello: 'world' })
-    t.strictEqual(err.statusCode, 502)
-    t.strictEqual(err.meta.meta.attempts, 0)
+    t.ok(err instanceof ResponseError)
+    t.same(err.body, { hello: 'world' })
+    t.equal(err.statusCode, 502)
+    t.equal(err.meta.meta.attempts, 0)
   }
 })
 
@@ -553,9 +553,9 @@ test('Override global maxRetries', async t => {
     { method: 'GET', path: '/hello' },
     { maxRetries: 3, meta: true }
   )
-  t.deepEqual(res.body, { hello: 'world' })
-  t.strictEqual(res.statusCode, 200)
-  t.strictEqual(res.meta.attempts, 2)
+  t.same(res.body, { hello: 'world' })
+  t.equal(res.statusCode, 200)
+  t.equal(res.meta.attempts, 2)
 })
 
 test('Retry on connection error', async t => {
@@ -572,8 +572,8 @@ test('Retry on connection error', async t => {
       path: '/hello'
     })
   } catch (err) {
-    t.true(err instanceof ConnectionError)
-    t.strictEqual(err.meta.meta.attempts, 3)
+    t.ok(err instanceof ConnectionError)
+    t.equal(err.meta.meta.attempts, 3)
   }
 })
 
@@ -591,8 +591,8 @@ test('Retry on timeout error', async t => {
       path: '/hello'
     })
   } catch (err) {
-    t.true(err instanceof TimeoutError)
-    t.strictEqual(err.meta.meta.attempts, 3)
+    t.ok(err instanceof TimeoutError)
+    t.equal(err.meta.meta.attempts, 3)
   }
 })
 
@@ -619,7 +619,7 @@ test('Abort a request', async t => {
       { abortController }
     )
   } catch (err) {
-    t.true(err instanceof RequestAbortedError)
+    t.ok(err instanceof RequestAbortedError)
   }
 })
 
@@ -628,7 +628,7 @@ test('Serialize querystring', async t => {
 
   const Conn = buildMockConnection({
     onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
-      t.strictEqual(opts.querystring, 'foo=bar&baz=faz')
+      t.equal(opts.querystring, 'foo=bar&baz=faz')
       return {
         body: { hello: 'world' },
         statusCode: 200
@@ -649,7 +649,7 @@ test('Serialize querystring', async t => {
       baz: 'faz'
     }
   }, { meta: true })
-  t.strictEqual(res.statusCode, 200)
+  t.equal(res.statusCode, 200)
 })
 
 test('Serialize querystring (merge with options)', async t => {
@@ -657,7 +657,7 @@ test('Serialize querystring (merge with options)', async t => {
 
   const Conn = buildMockConnection({
     onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
-      t.strictEqual(opts.querystring, 'foo=bar&baz=faz')
+      t.equal(opts.querystring, 'foo=bar&baz=faz')
       return {
         body: { hello: 'world' },
         statusCode: 200
@@ -682,7 +682,7 @@ test('Serialize querystring (merge with options)', async t => {
     },
     meta: true
   })
-  t.strictEqual(res.statusCode, 200)
+  t.equal(res.statusCode, 200)
 })
 
 test('Should cast to boolean HEAD request (true)', async t => {
@@ -697,8 +697,8 @@ test('Should cast to boolean HEAD request (true)', async t => {
     method: 'HEAD',
     path: '/hello'
   }, { meta: true })
-  t.strictEqual(res.body, true)
-  t.strictEqual(res.statusCode, 200)
+  t.equal(res.body, true)
+  t.equal(res.statusCode, 200)
 })
 
 test('Should cast to boolean HEAD request (false)', async t => {
@@ -722,8 +722,8 @@ test('Should cast to boolean HEAD request (false)', async t => {
     method: 'HEAD',
     path: '/hello'
   }, { meta: true })
-  t.strictEqual(res.body, false)
-  t.strictEqual(res.statusCode, 404)
+  t.equal(res.body, false)
+  t.equal(res.statusCode, 404)
 })
 
 test('Should not cast to boolean HEAD request in case of error', async t => {
@@ -749,8 +749,8 @@ test('Should not cast to boolean HEAD request in case of error', async t => {
       path: '/hello'
     })
   } catch (err) {
-    t.strictEqual(typeof err.body === 'boolean', false)
-    t.strictEqual(err.statusCode, 400)
+    t.equal(typeof err.body === 'boolean', false)
+    t.equal(err.statusCode, 400)
   }
 })
 
@@ -759,9 +759,9 @@ test('Enable compression (gzip response)', async t => {
 
   const Conn = buildMockConnection({
     onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
-      t.strictEqual(opts.headers?.['accept-encoding'], 'gzip,deflate')
-      t.strictEqual(opts.headers?.['content-encoding'], 'gzip')
-      t.true(opts.body instanceof Buffer)
+      t.equal(opts.headers?.['accept-encoding'], 'gzip,deflate')
+      t.equal(opts.headers?.['content-encoding'], 'gzip')
+      t.ok(opts.body instanceof Buffer)
       return {
         body: gzipSync(JSON.stringify({ hello: 'world' })),
         statusCode: 200,
@@ -783,9 +783,9 @@ test('Enable compression (gzip response)', async t => {
     path: '/hello',
     body: { hello: 'world' }
   }, { meta: true })
-  t.strictEqual(res.headers?.['content-encoding'], 'gzip')
-  t.deepEqual(res.body, { hello: 'world' })
-  t.strictEqual(res.statusCode, 200)
+  t.equal(res.headers?.['content-encoding'], 'gzip')
+  t.same(res.body, { hello: 'world' })
+  t.equal(res.statusCode, 200)
 })
 
 test('Enable compression (deflate response)', async t => {
@@ -793,9 +793,9 @@ test('Enable compression (deflate response)', async t => {
 
   const Conn = buildMockConnection({
     onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
-      t.strictEqual(opts.headers?.['accept-encoding'], 'gzip,deflate')
-      t.strictEqual(opts.headers?.['content-encoding'], 'gzip')
-      t.true(opts.body instanceof Buffer)
+      t.equal(opts.headers?.['accept-encoding'], 'gzip,deflate')
+      t.equal(opts.headers?.['content-encoding'], 'gzip')
+      t.ok(opts.body instanceof Buffer)
       return {
         body: deflateSync(JSON.stringify({ hello: 'world' })),
         statusCode: 200,
@@ -817,9 +817,9 @@ test('Enable compression (deflate response)', async t => {
     path: '/hello',
     body: { hello: 'world' }
   }, { meta: true })
-  t.strictEqual(res.headers?.['content-encoding'], 'deflate')
-  t.deepEqual(res.body, { hello: 'world' })
-  t.strictEqual(res.statusCode, 200)
+  t.equal(res.headers?.['content-encoding'], 'deflate')
+  t.same(res.body, { hello: 'world' })
+  t.equal(res.statusCode, 200)
 })
 
 test('Retry compressed request', async t => {
@@ -829,9 +829,9 @@ test('Retry compressed request', async t => {
   const Conn = buildMockConnection({
     onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
       count += 1
-      t.strictEqual(opts.headers?.['accept-encoding'], 'gzip,deflate')
-      t.strictEqual(opts.headers?.['content-encoding'], 'gzip')
-      t.true(opts.body instanceof Buffer)
+      t.equal(opts.headers?.['accept-encoding'], 'gzip,deflate')
+      t.equal(opts.headers?.['content-encoding'], 'gzip')
+      t.ok(opts.body instanceof Buffer)
       return {
         body: { hello: 'world' },
         statusCode: count > 2 ? 200 : 502
@@ -852,7 +852,7 @@ test('Retry compressed request', async t => {
     path: '/hello',
     body: { hello: 'world' }
   }, { meta: true })
-  t.strictEqual(res.meta.attempts, 2)
+  t.equal(res.meta.attempts, 2)
 })
 
 test('Broken compression', async t => {
@@ -893,10 +893,10 @@ test('Compress stream', async t => {
 
   const Conn = buildMockConnection({
     onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
-      t.strictEqual(opts.headers?.['accept-encoding'], 'gzip,deflate')
-      t.strictEqual(opts.headers?.['content-encoding'], 'gzip')
+      t.equal(opts.headers?.['accept-encoding'], 'gzip,deflate')
+      t.equal(opts.headers?.['content-encoding'], 'gzip')
       const body = opts.body as Readable
-      t.true(typeof body?.pipe === 'function')
+      t.ok(typeof body?.pipe === 'function')
       return {
         body: gzipSync(JSON.stringify({ hello: 'world' })),
         statusCode: 200,
@@ -918,9 +918,9 @@ test('Compress stream', async t => {
     path: '/hello',
     body: intoStream(JSON.stringify({ hello: 'world' }))
   }, { meta: true })
-  t.strictEqual(res.headers?.['content-encoding'], 'gzip')
-  t.deepEqual(res.body, { hello: 'world' })
-  t.strictEqual(res.statusCode, 200)
+  t.equal(res.headers?.['content-encoding'], 'gzip')
+  t.same(res.body, { hello: 'world' })
+  t.equal(res.statusCode, 200)
 })
 
 test('Warning header (single)', async t => {
@@ -947,7 +947,7 @@ test('Warning header (single)', async t => {
     method: 'GET',
     path: '/hello'
   }, { meta: true })
-  t.deepEqual(res.warnings, [warn])
+  t.same(res.warnings, [warn])
 })
 
 test('Warning header (multiple)', async t => {
@@ -976,7 +976,7 @@ test('Warning header (multiple)', async t => {
     method: 'GET',
     path: '/hello'
   }, { meta: true })
-  t.deepEqual(res.warnings, [warn1, warn2])
+  t.same(res.warnings, [warn1, warn2])
 })
 
 test('No warnings', async t => {
@@ -992,13 +992,13 @@ test('No warnings', async t => {
     method: 'GET',
     path: '/hello'
   }, { meta: true })
-  t.strictEqual(res.warnings, null)
+  t.equal(res.warnings, null)
 })
 
 test('Custom global headers', async t => {
   const Conn = buildMockConnection({
     onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
-      t.strictEqual(opts.headers?.['x-foo'], 'bar')
+      t.equal(opts.headers?.['x-foo'], 'bar')
       return {
         body: { hello: 'world' },
         statusCode: 200
@@ -1018,13 +1018,13 @@ test('Custom global headers', async t => {
     method: 'GET',
     path: '/hello'
   }, { meta: true })
-  t.strictEqual(res.statusCode, 200)
+  t.equal(res.statusCode, 200)
 })
 
 test('Custom local headers', async t => {
   const Conn = buildMockConnection({
     onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
-      t.strictEqual(opts.headers?.['x-foo'], 'bar')
+      t.equal(opts.headers?.['x-foo'], 'bar')
       return {
         body: { hello: 'world' },
         statusCode: 200
@@ -1044,14 +1044,14 @@ test('Custom local headers', async t => {
     headers: { 'x-foo': 'bar' },
     meta: true
   })
-  t.strictEqual(res.statusCode, 200)
+  t.equal(res.statusCode, 200)
 })
 
 test('Merge local and global headers', async t => {
   const Conn = buildMockConnection({
     onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
-      t.strictEqual(opts.headers?.['x-foo'], 'bar2')
-      t.strictEqual(opts.headers?.['x-faz'], 'baz')
+      t.equal(opts.headers?.['x-foo'], 'bar2')
+      t.equal(opts.headers?.['x-faz'], 'baz')
       return {
         body: { hello: 'world' },
         statusCode: 200
@@ -1077,7 +1077,7 @@ test('Merge local and global headers', async t => {
     },
     meta: true
   })
-  t.strictEqual(res.statusCode, 200)
+  t.equal(res.statusCode, 200)
 })
 
 test('Node filter and node selector', async t => {
@@ -1089,12 +1089,12 @@ test('Node filter and node selector', async t => {
   const transport = new Transport({
     connectionPool: pool,
     nodeFilter (connection: Connection): boolean {
-      t.true(connection instanceof MockConnection)
+      t.ok(connection instanceof MockConnection)
       return true
     },
     nodeSelector (connections: Connection[]): Connection {
-      t.true(Array.isArray(connections))
-      t.true(connections[0] instanceof MockConnection)
+      t.ok(Array.isArray(connections))
+      t.ok(connections[0] instanceof MockConnection)
       return connections[0]
     }
   })
@@ -1103,7 +1103,7 @@ test('Node filter and node selector', async t => {
     method: 'GET',
     path: '/hello'
   }, { meta: true })
-  t.strictEqual(res.statusCode, 200)
+  t.equal(res.statusCode, 200)
 })
 
 test('User-Agent header', async t => {
@@ -1111,7 +1111,7 @@ test('User-Agent header', async t => {
 
   const Conn = buildMockConnection({
     onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
-      t.strictEqual(opts.headers?.['user-agent'], userAgent)
+      t.equal(opts.headers?.['user-agent'], userAgent)
       return {
         body: { hello: 'world' },
         statusCode: 200
@@ -1131,7 +1131,7 @@ test('User-Agent header', async t => {
     method: 'GET',
     path: '/hello'
   }, { meta: true })
-  t.strictEqual(res.statusCode, 200)
+  t.equal(res.statusCode, 200)
 })
 
 test('generateRequestId', async t => {
@@ -1143,22 +1143,22 @@ test('generateRequestId', async t => {
   const transport = new Transport({
     connectionPool: pool,
     generateRequestId (params: TransportRequestParams, options: TransportRequestOptions) {
-      t.deepEqual(params, { method: 'GET', path: '/hello' })
-      t.deepEqual(options, { ignore: [404], meta: true })
+      t.same(params, { method: 'GET', path: '/hello' })
+      t.same(options, { ignore: [404], meta: true })
       return 42
     }
   })
 
   transport.diagnostic.on(events.REQUEST, (err, meta) => {
     t.error(err)
-    t.strictEqual(meta?.meta.request.id, 42)
+    t.equal(meta?.meta.request.id, 42)
   })
 
   const res = await transport.request(
     { method: 'GET', path: '/hello' },
     { ignore: [404], meta: true }
   )
-  t.strictEqual(res.statusCode, 200)
+  t.equal(res.statusCode, 200)
 })
 
 test('custom request id', async t => {
@@ -1171,20 +1171,20 @@ test('custom request id', async t => {
 
   transport.diagnostic.on(events.REQUEST, (err, meta) => {
     t.error(err)
-    t.strictEqual(meta?.meta.request.id, 42)
+    t.equal(meta?.meta.request.id, 42)
   })
 
   const res = await transport.request(
     { method: 'GET', path: '/hello' },
     { id: 42, meta: true }
   )
-  t.strictEqual(res.statusCode, 200)
+  t.equal(res.statusCode, 200)
 })
 
 test('No opaque id by default', async t => {
   const Conn = buildMockConnection({
     onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
-      t.strictEqual(opts.headers?.['x-opaque-id'], undefined)
+      t.equal(opts.headers?.['x-opaque-id'], undefined)
       return {
         body: { hello: 'world' },
         statusCode: 200
@@ -1201,13 +1201,13 @@ test('No opaque id by default', async t => {
     method: 'GET',
     path: '/hello'
   }, { meta: true })
-  t.strictEqual(res.statusCode, 200)
+  t.equal(res.statusCode, 200)
 })
 
 test('Opaque id', async t => {
   const Conn = buildMockConnection({
     onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
-      t.strictEqual(opts.headers?.['x-opaque-id'], 'foo')
+      t.equal(opts.headers?.['x-opaque-id'], 'foo')
       return {
         body: { hello: 'world' },
         statusCode: 200
@@ -1227,13 +1227,13 @@ test('Opaque id', async t => {
     opaqueId: 'foo',
     meta: true
   })
-  t.strictEqual(res.statusCode, 200)
+  t.equal(res.statusCode, 200)
 })
 
 test('Opaque id and prefix', async t => {
   const Conn = buildMockConnection({
     onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
-      t.strictEqual(opts.headers?.['x-opaque-id'], 'bar-foo')
+      t.equal(opts.headers?.['x-opaque-id'], 'bar-foo')
       return {
         body: { hello: 'world' },
         statusCode: 200
@@ -1256,13 +1256,13 @@ test('Opaque id and prefix', async t => {
     opaqueId: 'foo',
     meta: true
   })
-  t.strictEqual(res.statusCode, 200)
+  t.equal(res.statusCode, 200)
 })
 
 test('Opaque id prefix', async t => {
   const Conn = buildMockConnection({
     onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
-      t.strictEqual(opts.headers?.['x-opaque-id'], undefined)
+      t.equal(opts.headers?.['x-opaque-id'], undefined)
       return {
         body: { hello: 'world' },
         statusCode: 200
@@ -1282,7 +1282,7 @@ test('Opaque id prefix', async t => {
     method: 'GET',
     path: '/hello'
   }, { meta: true })
-  t.strictEqual(res.statusCode, 200)
+  t.equal(res.statusCode, 200)
 })
 
 test('global context', async t => {
@@ -1298,14 +1298,14 @@ test('global context', async t => {
 
   transport.diagnostic.on(events.REQUEST, (err, meta) => {
     t.error(err)
-    t.deepEqual(meta?.meta.context, { hello: 'world' })
+    t.same(meta?.meta.context, { hello: 'world' })
   })
 
   const res = await transport.request({
     method: 'GET',
     path: '/hello'
   }, { meta: true })
-  t.strictEqual(res.statusCode, 200)
+  t.equal(res.statusCode, 200)
 })
 
 test('local context', async t => {
@@ -1318,7 +1318,7 @@ test('local context', async t => {
 
   transport.diagnostic.on(events.REQUEST, (err, meta) => {
     t.error(err)
-    t.deepEqual(meta?.meta.context, { hello: 'world' })
+    t.same(meta?.meta.context, { hello: 'world' })
   })
 
   const res = await transport.request({
@@ -1328,7 +1328,7 @@ test('local context', async t => {
     context: { hello: 'world' },
     meta: true
   })
-  t.strictEqual(res.statusCode, 200)
+  t.equal(res.statusCode, 200)
 })
 
 test('local and global context', async t => {
@@ -1344,7 +1344,7 @@ test('local and global context', async t => {
 
   transport.diagnostic.on(events.REQUEST, (err, meta) => {
     t.error(err)
-    t.deepEqual(meta?.meta.context, { hello: 'world2' })
+    t.same(meta?.meta.context, { hello: 'world2' })
   })
 
   const res = await transport.request({
@@ -1354,7 +1354,7 @@ test('local and global context', async t => {
     context: { hello: 'world2' },
     meta: true
   })
-  t.strictEqual(res.statusCode, 200)
+  t.equal(res.statusCode, 200)
 })
 
 test('Calls the sniff method on connection error', async t => {
@@ -1362,7 +1362,7 @@ test('Calls the sniff method on connection error', async t => {
 
   class MyTransport extends Transport {
     sniff (opts: SniffOptions): void {
-      t.strictEqual(opts.reason, Transport.sniffReasons.SNIFF_ON_CONNECTION_FAULT)
+      t.equal(opts.reason, Transport.sniffReasons.SNIFF_ON_CONNECTION_FAULT)
     }
   }
   const pool = new WeightedConnectionPool({ Connection: MockConnectionError })
@@ -1379,8 +1379,8 @@ test('Calls the sniff method on connection error', async t => {
       path: '/hello'
     })
   } catch (err) {
-    t.true(err instanceof ConnectionError)
-    t.strictEqual(err.meta.meta.attempts, 3)
+    t.ok(err instanceof ConnectionError)
+    t.equal(err.meta.meta.attempts, 3)
   }
 })
 
@@ -1389,7 +1389,7 @@ test('Calls the sniff method on timeout error', async t => {
 
   class MyTransport extends Transport {
     sniff (opts: SniffOptions): void {
-      t.strictEqual(opts.reason, Transport.sniffReasons.SNIFF_ON_CONNECTION_FAULT)
+      t.equal(opts.reason, Transport.sniffReasons.SNIFF_ON_CONNECTION_FAULT)
     }
   }
   const pool = new WeightedConnectionPool({ Connection: MockConnectionTimeout })
@@ -1406,8 +1406,8 @@ test('Calls the sniff method on timeout error', async t => {
       path: '/hello'
     })
   } catch (err) {
-    t.true(err instanceof TimeoutError)
-    t.strictEqual(err.meta.meta.attempts, 3)
+    t.ok(err instanceof TimeoutError)
+    t.equal(err.meta.meta.attempts, 3)
   }
 })
 
@@ -1416,7 +1416,7 @@ test('Sniff on start', async t => {
 
   class MyTransport extends Transport {
     sniff (opts: SniffOptions): void {
-      t.strictEqual(opts.reason, Transport.sniffReasons.SNIFF_ON_START)
+      t.equal(opts.reason, Transport.sniffReasons.SNIFF_ON_START)
     }
   }
   const pool = new WeightedConnectionPool({ Connection: MockConnection })
@@ -1433,7 +1433,7 @@ test('Sniff interval', async t => {
 
   class MyTransport extends Transport {
     sniff (opts: SniffOptions): void {
-      t.strictEqual(opts.reason, Transport.sniffReasons.SNIFF_INTERVAL)
+      t.equal(opts.reason, Transport.sniffReasons.SNIFF_INTERVAL)
     }
   }
   const pool = new WeightedConnectionPool({ Connection: MockConnection })
@@ -1448,7 +1448,7 @@ test('Sniff interval', async t => {
     method: 'GET',
     path: '/hello'
   }, { meta: true })
-  t.strictEqual(res.statusCode, 200)
+  t.equal(res.statusCode, 200)
 
   await sleep(80)
 
@@ -1456,7 +1456,7 @@ test('Sniff interval', async t => {
     method: 'GET',
     path: '/hello'
   }, { meta: true })
-  t.strictEqual(res.statusCode, 200)
+  t.equal(res.statusCode, 200)
 
   await sleep(80)
 
@@ -1464,7 +1464,7 @@ test('Sniff interval', async t => {
     method: 'GET',
     path: '/hello'
   }, { meta: true })
-  t.strictEqual(res.statusCode, 200)
+  t.equal(res.statusCode, 200)
 })
 
 test('No connection pool', t => {
@@ -1473,7 +1473,7 @@ test('No connection pool', t => {
     // @ts-expect-error
     new Transport({})
   } catch (err) {
-    t.true(err instanceof ConfigurationError)
+    t.ok(err instanceof ConfigurationError)
   }
 })
 
@@ -1488,7 +1488,7 @@ test('Negative maxRetries is not valid', t => {
       maxRetries: -1
     })
   } catch (err) {
-    t.true(err instanceof ConfigurationError)
+    t.ok(err instanceof ConfigurationError)
   }
 })
 
@@ -1503,7 +1503,7 @@ test('sniffInterval should be false or a positive integer', t => {
       sniffInterval: true
     })
   } catch (err) {
-    t.true(err instanceof ConfigurationError)
+    t.ok(err instanceof ConfigurationError)
   }
 
   try {
@@ -1512,7 +1512,7 @@ test('sniffInterval should be false or a positive integer', t => {
       sniffInterval: -1
     })
   } catch (err) {
-    t.true(err instanceof ConfigurationError)
+    t.ok(err instanceof ConfigurationError)
   }
 })
 
@@ -1528,7 +1528,7 @@ test('No meta', async t => {
     method: 'GET',
     path: '/hello'
   })
-  t.deepEqual(res, { hello: 'world' })
+  t.same(res, { hello: 'world' })
 })
 
 test('meta is false', async t => {
@@ -1543,7 +1543,7 @@ test('meta is false', async t => {
     method: 'GET',
     path: '/hello'
   }, { meta: false })
-  t.deepEqual(res, { hello: 'world' })
+  t.same(res, { hello: 'world' })
 })
 
 test('meta is true', async t => {
@@ -1558,7 +1558,7 @@ test('meta is true', async t => {
     method: 'GET',
     path: '/hello'
   }, { meta: true })
-  t.deepEqual(res.body, { hello: 'world' })
+  t.same(res.body, { hello: 'world' })
 })
 
 test('Support mapbox vector tile', async t => {
@@ -1648,7 +1648,7 @@ test('Compressed mapbox vector tile', async t => {
 //       body.on('data', chunk => { payload += chunk })
 //       body.on('error', err => t.fail(err))
 //       body.on('end', () => {
-//         t.deepEqual(JSON.parse(payload), { hello: 'world' })
+//         t.same(JSON.parse(payload), { hello: 'world' })
 //         server.stop()
 //       })
 //     })
@@ -1681,8 +1681,8 @@ test('Compressed mapbox vector tile', async t => {
 //         method: 'GET',
 //         path: '/hello'
 //       }, (err, { body }) => {
-//         t.true(err instanceof DeserializationError)
-//         t.is(err.message, 'Object contains forbidden prototype property')
+//         t.ok(err instanceof DeserializationError)
+//         t.equal(err.message, 'Object contains forbidden prototype property')
 //         server.stop()
 //       })
 //     })
@@ -1713,8 +1713,8 @@ test('Compressed mapbox vector tile', async t => {
 //         method: 'GET',
 //         path: '/hello'
 //       }, (err, { body }) => {
-//         t.true(err instanceof DeserializationError)
-//         t.is(err.message, 'Object contains forbidden prototype property')
+//         t.ok(err instanceof DeserializationError)
+//         t.equal(err.message, 'Object contains forbidden prototype property')
 //         server.stop()
 //       })
 //     })
@@ -1727,7 +1727,7 @@ test('Compressed mapbox vector tile', async t => {
 //   t.plan(4)
 //   const { lowerCaseHeaders } = Transport.internals
 
-//   t.deepEqual(lowerCaseHeaders({
+//   t.same(lowerCaseHeaders({
 //     Foo: 'bar',
 //     Faz: 'baz',
 //     'X-Hello': 'world'
@@ -1737,7 +1737,7 @@ test('Compressed mapbox vector tile', async t => {
 //     'x-hello': 'world'
 //   })
 
-//   t.deepEqual(lowerCaseHeaders({
+//   t.same(lowerCaseHeaders({
 //     Foo: 'bar',
 //     faz: 'baz',
 //     'X-hello': 'world'
@@ -1747,7 +1747,7 @@ test('Compressed mapbox vector tile', async t => {
 //     'x-hello': 'world'
 //   })
 
-//   t.strictEqual(lowerCaseHeaders(null), null)
+//   t.equal(lowerCaseHeaders(null), null)
 
-//   t.strictEqual(lowerCaseHeaders(undefined), undefined)
+//   t.equal(lowerCaseHeaders(undefined), undefined)
 // })

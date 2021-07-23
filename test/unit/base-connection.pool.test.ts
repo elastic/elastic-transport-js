@@ -33,7 +33,7 @@ test('configure diagnostic', t => {
   const diagnostic = new Diagnostic()
   const pool = new BaseConnectionPool({ Connection: HttpConnection, diagnostic })
 
-  t.true(pool.diagnostic === diagnostic)
+  t.ok(pool.diagnostic === diagnostic)
   t.end()
 })
 
@@ -43,7 +43,7 @@ test('API', t => {
     const href = 'http://localhost:9200/'
     pool.addConnection(href)
     t.ok(pool.connections.find(c => c.id === href) instanceof HttpConnection)
-    t.strictEqual(pool.connections.find(c => c.id === href)?.status, BaseConnection.statuses.ALIVE)
+    t.equal(pool.connections.find(c => c.id === href)?.status, BaseConnection.statuses.ALIVE)
     t.end()
   })
 
@@ -52,7 +52,7 @@ test('API', t => {
     const href = 'http://localhost:9200/'
     pool.addConnection(href)
     t.ok(pool.connections.find(c => c.id === href) instanceof HttpConnection)
-    t.deepEqual(pool.connections.find(c => c.id === href)?.headers, { authorization: 'Basic Zm9vOmJhcg==' })
+    t.same(pool.connections.find(c => c.id === href)?.headers, { authorization: 'Basic Zm9vOmJhcg==' })
     t.end()
   })
 
@@ -64,7 +64,7 @@ test('API', t => {
       pool.addConnection(href)
       t.fail('Should throw')
     } catch (err) {
-      t.is(err.message, `Connection with id '${href}' is already present`)
+      t.equal(err.message, `Connection with id '${href}' is already present`)
     }
     t.end()
   })
@@ -74,9 +74,9 @@ test('API', t => {
     const href = 'http://us"er:p@assword@localhost:9200/'
     pool.addConnection(href)
     const conn = pool.connections[0]
-    t.strictEqual(conn.url.username, 'us%22er')
-    t.strictEqual(conn.url.password, 'p%40assword')
-    t.strictEqual(conn.headers.authorization, 'Basic ' + Buffer.from('us"er:p@assword').toString('base64'))
+    t.equal(conn.url.username, 'us%22er')
+    t.equal(conn.url.password, 'p%40assword')
+    t.equal(conn.headers.authorization, 'Basic ' + Buffer.from('us"er:p@assword').toString('base64'))
     t.end()
   })
 
@@ -89,7 +89,7 @@ test('API', t => {
       pool.getConnection()
       t.fail('Should fail')
     } catch (err) {
-      t.true(err instanceof ConfigurationError)
+      t.ok(err instanceof ConfigurationError)
     }
     t.end()
   })
@@ -99,7 +99,7 @@ test('API', t => {
     const href = 'http://localhost:9200/'
     pool.addConnection(href)
     pool.removeConnection(pool.connections[0])
-    t.strictEqual(pool.size, 0)
+    t.equal(pool.size, 0)
     t.end()
   })
 
@@ -109,13 +109,13 @@ test('API', t => {
     pool.addConnection('http://localhost:9200/')
     pool.addConnection('http://localhost:9201/')
     await pool.empty()
-    t.strictEqual(pool.size, 0)
+    t.equal(pool.size, 0)
   })
 
   t.test('urlToHost', t => {
     const pool = new BaseConnectionPool({ Connection: HttpConnection })
     const url = 'http://localhost:9200'
-    t.deepEqual(
+    t.same(
       pool.urlToHost(url),
       { url: new URL(url) }
     )
@@ -140,7 +140,7 @@ test('API', t => {
         }
       }
 
-      t.deepEqual(pool.nodesToHost(nodes, 'http:'), [{
+      t.same(pool.nodesToHost(nodes, 'http:'), [{
         url: new URL('http://127.0.0.1:9200'),
         id: 'a1'
       }, {
@@ -148,8 +148,8 @@ test('API', t => {
         id: 'a2'
       }])
 
-      t.strictEqual(pool.nodesToHost(nodes, 'http:')[0].url.host, '127.0.0.1:9200')
-      t.strictEqual(pool.nodesToHost(nodes, 'http:')[1].url.host, '127.0.0.1:9201')
+      t.equal(pool.nodesToHost(nodes, 'http:')[0].url.host, '127.0.0.1:9200')
+      t.equal(pool.nodesToHost(nodes, 'http:')[1].url.host, '127.0.0.1:9201')
       t.end()
     })
 
@@ -170,7 +170,7 @@ test('API', t => {
         }
       }
 
-      t.deepEqual(pool.nodesToHost(nodes, 'http:'), [{
+      t.same(pool.nodesToHost(nodes, 'http:'), [{
         url: new URL('http://[::1]:9200'),
         id: 'a1'
       }, {
@@ -178,8 +178,8 @@ test('API', t => {
         id: 'a2'
       }])
 
-      t.strictEqual(pool.nodesToHost(nodes, 'http:')[0].url.host, '[::1]:9200')
-      t.strictEqual(pool.nodesToHost(nodes, 'http:')[1].url.host, '[::1]:9201')
+      t.equal(pool.nodesToHost(nodes, 'http:')[0].url.host, '[::1]:9200')
+      t.equal(pool.nodesToHost(nodes, 'http:')[1].url.host, '[::1]:9201')
       t.end()
     })
 
@@ -200,7 +200,7 @@ test('API', t => {
         }
       }
 
-      t.deepEqual(pool.nodesToHost(nodes, 'http:'), [{
+      t.same(pool.nodesToHost(nodes, 'http:'), [{
         url: new URL('http://example.com:9200'),
         id: 'a1'
       }, {
@@ -208,8 +208,8 @@ test('API', t => {
         id: 'a2'
       }])
 
-      t.strictEqual(pool.nodesToHost(nodes, 'http:')[0].url.host, 'example.com:9200')
-      t.strictEqual(pool.nodesToHost(nodes, 'http:')[1].url.host, 'example.com:9201')
+      t.equal(pool.nodesToHost(nodes, 'http:')[0].url.host, 'example.com:9200')
+      t.equal(pool.nodesToHost(nodes, 'http:')[1].url.host, 'example.com:9201')
       t.end()
     })
 
@@ -230,7 +230,7 @@ test('API', t => {
         }
       }
 
-      t.deepEqual(pool.nodesToHost(nodes, 'http:'), [{
+      t.same(pool.nodesToHost(nodes, 'http:'), [{
         url: new URL('http://example.com:9200'),
         id: 'a1'
       }, {
@@ -238,8 +238,8 @@ test('API', t => {
         id: 'a2'
       }])
 
-      t.strictEqual(pool.nodesToHost(nodes, 'http:')[0].url.host, 'example.com:9200')
-      t.strictEqual(pool.nodesToHost(nodes, 'http:')[1].url.host, 'example.com:9201')
+      t.equal(pool.nodesToHost(nodes, 'http:')[0].url.host, 'example.com:9200')
+      t.equal(pool.nodesToHost(nodes, 'http:')[1].url.host, 'example.com:9201')
       t.end()
     })
 
@@ -260,8 +260,8 @@ test('API', t => {
         }
       }
 
-      t.strictEqual(pool.nodesToHost(nodes, 'https:')[0].url.protocol, 'https:')
-      t.strictEqual(pool.nodesToHost(nodes, 'http:')[1].url.protocol, 'http:')
+      t.equal(pool.nodesToHost(nodes, 'https:')[0].url.protocol, 'https:')
+      t.equal(pool.nodesToHost(nodes, 'http:')[1].url.protocol, 'http:')
       t.end()
     })
 
@@ -292,8 +292,8 @@ test('API', t => {
         timeout: 100
       }])
 
-      t.strictEqual(pool.connections.find(c => c.id === 'a1')?.timeout, 42)
-      t.strictEqual(pool.connections.find(c => c.id === 'a2')?.timeout, 42)
+      t.equal(pool.connections.find(c => c.id === 'a1')?.timeout, 42)
+      t.equal(pool.connections.find(c => c.id === 'a2')?.timeout, 42)
     })
 
     t.test('Should not update existing connections (mark alive)', t => {
@@ -330,8 +330,8 @@ test('API', t => {
         timeout: 100
       }])
 
-      t.strictEqual(pool.connections.find(c => c.id === 'a1')?.timeout, 42)
-      t.strictEqual(pool.connections.find(c => c.id === 'a2')?.timeout, 42)
+      t.equal(pool.connections.find(c => c.id === 'a1')?.timeout, 42)
+      t.equal(pool.connections.find(c => c.id === 'a2')?.timeout, 42)
     })
 
     t.test('Should not update existing connections (same url, different id)', t => {
@@ -356,8 +356,8 @@ test('API', t => {
 
       // roles will never be updated, we only use it to do
       // a dummy check to see if the connection has been updated
-      t.strictEqual(pool.connections.find(c => c.id === 'a1')?.timeout, 42)
-      t.strictEqual(pool.connections.find(c => c.id === 'http://127.0.0.1:9200/'), undefined)
+      t.equal(pool.connections.find(c => c.id === 'a1')?.timeout, 42)
+      t.equal(pool.connections.find(c => c.id === 'http://127.0.0.1:9200/'), undefined)
       t.end()
     })
 
@@ -379,7 +379,7 @@ test('API', t => {
         timeout: 100
       }])
 
-      t.strictEqual(pool.connections.find(c => c.id === 'a1')?.timeout, 42)
+      t.equal(pool.connections.find(c => c.id === 'a1')?.timeout, 42)
       t.ok(pool.connections.find(c => c.id === 'a2'))
       t.end()
     })
@@ -399,9 +399,9 @@ test('API', t => {
         id: 'a3'
       }])
 
-      t.false(pool.connections.find(c => c.id === 'a1'))
-      t.true(pool.connections.find(c => c.id === 'a2'))
-      t.true(pool.connections.find(c => c.id === 'a3'))
+      t.notOk(pool.connections.find(c => c.id === 'a1'))
+      t.ok(pool.connections.find(c => c.id === 'a2'))
+      t.ok(pool.connections.find(c => c.id === 'a3'))
       t.end()
     })
 
@@ -416,7 +416,7 @@ test('API', t => {
       pool.createConnection('http://localhost:9200')
       t.fail('Should throw')
     } catch (err) {
-      t.is(err.message, 'Connection with id \'http://localhost:9200/\' is already present')
+      t.equal(err.message, 'Connection with id \'http://localhost:9200/\' is already present')
     }
     t.end()
   })

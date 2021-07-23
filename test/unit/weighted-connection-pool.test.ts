@@ -39,10 +39,10 @@ test('API', t => {
     pool.addConnection('http://localhost:9201/')
 
     pool.markDead(pool.connections[0])
-    t.strictEqual(pool.connections[0].weight, 491)
-    t.strictEqual(pool.connections[0].status, BaseConnection.statuses.DEAD)
-    t.strictEqual(pool.maxWeight, 500)
-    t.strictEqual(pool.greatestCommonDivisor, 1)
+    t.equal(pool.connections[0].weight, 491)
+    t.equal(pool.connections[0].status, BaseConnection.statuses.DEAD)
+    t.equal(pool.maxWeight, 500)
+    t.equal(pool.greatestCommonDivisor, 1)
     t.end()
   })
 
@@ -54,10 +54,10 @@ test('API', t => {
     pool.markDead(pool.connections[0])
     pool.markAlive(pool.connections[0])
 
-    t.strictEqual(pool.connections[0].weight, 500)
-    t.strictEqual(pool.maxWeight, 500)
-    t.strictEqual(pool.greatestCommonDivisor, 500)
-    t.strictEqual(pool.connections[0].status, BaseConnection.statuses.ALIVE)
+    t.equal(pool.connections[0].weight, 500)
+    t.equal(pool.maxWeight, 500)
+    t.equal(pool.greatestCommonDivisor, 500)
+    t.equal(pool.connections[0].status, BaseConnection.statuses.ALIVE)
 
     t.end()
   })
@@ -181,7 +181,7 @@ test('API', t => {
         const arr = []
         for (let i = 0; i < 9; i++) arr.push(pool.getConnection(opts)?.id)
 
-        t.deepEqual(arr, ['A', 'A', 'B', 'A', 'B', 'C', 'A', 'B', 'C'])
+        t.same(arr, ['A', 'A', 'B', 'A', 'B', 'C', 'A', 'B', 'C'])
 
         t.end()
       })
@@ -199,7 +199,7 @@ test('API', t => {
 
       const filter = (node: Connection): boolean => false
 
-      t.strictEqual(pool.getConnection({ ...opts, filter }), null)
+      t.equal(pool.getConnection({ ...opts, filter }), null)
 
       t.end()
     })
@@ -211,7 +211,7 @@ test('API', t => {
       pool.addConnection([href1, href2])
 
       const filter = (node: Connection): boolean => node.id === href2
-      t.strictEqual(pool.getConnection({ ...opts, filter })?.id, href2)
+      t.equal(pool.getConnection({ ...opts, filter })?.id, href2)
       t.end()
     })
 
@@ -238,8 +238,8 @@ test('API', t => {
       pool.markDead(pool.connections[0])
 
       const filter = (node: Connection): boolean => {
-        t.strictEqual(node.id, href2)
-        t.strictEqual(node.weight, 500)
+        t.equal(node.id, href2)
+        t.equal(node.weight, 500)
         return true
       }
       pool.getConnection({ ...opts, filter })
@@ -253,12 +253,12 @@ test('API', t => {
     pool.addConnection('http://localhost:9200/')
     pool.addConnection('http://localhost:9201/')
     await pool.empty()
-    t.deepEqual(pool.connections, [])
-    t.strictEqual(pool.size, 0)
-    t.strictEqual(pool.maxWeight, 0)
-    t.strictEqual(pool.greatestCommonDivisor, 0)
-    t.strictEqual(pool.index, -1)
-    t.strictEqual(pool.currentWeight, 0)
+    t.same(pool.connections, [])
+    t.equal(pool.size, 0)
+    t.equal(pool.maxWeight, 0)
+    t.equal(pool.greatestCommonDivisor, 0)
+    t.equal(pool.index, -1)
+    t.equal(pool.currentWeight, 0)
     t.end()
   })
 
@@ -269,9 +269,9 @@ test('Single node behavior', t => {
   const pool = new WeightedConnectionPool({ Connection: HttpConnection })
   pool.addConnection('http://localhost:9200/')
   pool.markDead(pool.connections[0])
-  t.strictEqual(pool.connections[0].weight, 1000)
+  t.equal(pool.connections[0].weight, 1000)
   pool.markAlive(pool.connections[0])
-  t.strictEqual(pool.connections[0].weight, 1000)
+  t.equal(pool.connections[0].weight, 1000)
 
   t.end()
 })

@@ -41,9 +41,9 @@ test('markDead', t => {
   pool.addConnection(href)
   const connection = pool.connections.find(c => c.id === href) as Connection
   pool.markDead(connection)
-  t.strictEqual(connection.deadCount, 1)
-  t.true(connection.resurrectTimeout > 0)
-  t.deepEqual(pool.dead, [href])
+  t.equal(connection.deadCount, 1)
+  t.ok(connection.resurrectTimeout > 0)
+  t.same(pool.dead, [href])
   t.end()
 })
 
@@ -56,7 +56,7 @@ test('markDead should sort the dead queue by deadTimeout', t => {
   pool.markDead(pool.connections[1])
   setTimeout(() => {
     pool.markDead(pool.connections[0])
-    t.deepEqual(pool.dead, [href2, href1])
+    t.same(pool.dead, [href2, href1])
     t.end()
   }, 10)
 })
@@ -66,7 +66,7 @@ test('markDead should ignore connections that no longer exists', t => {
   pool.addConnection('http://localhost:9200/')
   const conn = pool.createConnection('http://localhost:9201')
   pool.markDead(conn)
-  t.deepEqual(pool.dead, [])
+  t.same(pool.dead, [])
   t.end()
 })
 
@@ -77,10 +77,10 @@ test('markAlive', t => {
   const connection = pool.connections.find(c => c.id === href) as Connection
   pool.markDead(connection)
   pool.markAlive(connection)
-  t.strictEqual(connection.deadCount, 0)
-  t.strictEqual(connection.resurrectTimeout, 0)
-  t.strictEqual(connection.status, BaseConnection.statuses.ALIVE)
-  t.deepEqual(pool.dead, [])
+  t.equal(connection.deadCount, 0)
+  t.equal(connection.resurrectTimeout, 0)
+  t.equal(connection.status, BaseConnection.statuses.ALIVE)
+  t.same(pool.dead, [])
   t.end()
 })
 
@@ -103,17 +103,17 @@ test('resurrect', t => {
       }
       pool.diagnostic.on(events.RESURRECT, (err, meta) => {
         t.error(err)
-        t.deepEqual(meta, {
+        t.same(meta, {
           strategy: 'ping',
           name: opts.name,
           request: { id: opts.requestId },
           isAlive: true,
           connection: pool.connections[0]
         })
-        t.strictEqual(pool.connections[0].deadCount, 0)
-        t.strictEqual(pool.connections[0].resurrectTimeout, 0)
-        t.strictEqual(pool.connections[0].status, BaseConnection.statuses.ALIVE)
-        t.deepEqual(pool.dead, [])
+        t.equal(pool.connections[0].deadCount, 0)
+        t.equal(pool.connections[0].resurrectTimeout, 0)
+        t.equal(pool.connections[0].status, BaseConnection.statuses.ALIVE)
+        t.same(pool.dead, [])
       })
       pool.resurrect(opts)
     })
@@ -134,18 +134,18 @@ test('resurrect', t => {
         context: null
       }
       pool.diagnostic.on(events.RESURRECT, (err, meta) => {
-        t.true(err instanceof TimeoutError)
-        t.deepEqual(meta, {
+        t.ok(err instanceof TimeoutError)
+        t.same(meta, {
           strategy: 'ping',
           name: 'elasticsearch-js',
           request: { id: 1 },
           isAlive: false,
           connection: pool.connections[0]
         })
-        t.strictEqual(pool.connections[0].deadCount, 2)
-        t.true(pool.connections[0].resurrectTimeout > 0)
-        t.strictEqual(pool.connections[0].status, BaseConnection.statuses.DEAD)
-        t.deepEqual(pool.dead, [href])
+        t.equal(pool.connections[0].deadCount, 2)
+        t.ok(pool.connections[0].resurrectTimeout > 0)
+        t.equal(pool.connections[0].status, BaseConnection.statuses.DEAD)
+        t.same(pool.dead, [href])
       })
       pool.resurrect(opts)
     })
@@ -175,17 +175,17 @@ test('resurrect', t => {
       }
       pool.diagnostic.on(events.RESURRECT, (err, meta) => {
         t.error(err)
-        t.deepEqual(meta, {
+        t.same(meta, {
           strategy: 'ping',
           name: opts.name,
           request: { id: opts.requestId },
           isAlive: false,
           connection: pool.connections[0]
         })
-        t.strictEqual(pool.connections[0].deadCount, 2)
-        t.true(pool.connections[0].resurrectTimeout > 0)
-        t.strictEqual(pool.connections[0].status, BaseConnection.statuses.DEAD)
-        t.deepEqual(pool.dead, [href])
+        t.equal(pool.connections[0].deadCount, 2)
+        t.ok(pool.connections[0].resurrectTimeout > 0)
+        t.equal(pool.connections[0].status, BaseConnection.statuses.DEAD)
+        t.same(pool.dead, [href])
       })
       pool.resurrect(opts)
     })
@@ -210,17 +210,17 @@ test('resurrect', t => {
     }
     pool.diagnostic.on(events.RESURRECT, (err, meta) => {
       t.error(err)
-      t.deepEqual(meta, {
+      t.same(meta, {
         strategy: 'optimistic',
         name: opts.name,
         request: { id: opts.requestId },
         isAlive: true,
         connection: pool.connections[0]
       })
-      t.strictEqual(pool.connections[0].deadCount, 1)
-      t.true(pool.connections[0].resurrectTimeout > 0)
-      t.strictEqual(pool.connections[0].status, BaseConnection.statuses.ALIVE)
-      t.deepEqual(pool.dead, [])
+      t.equal(pool.connections[0].deadCount, 1)
+      t.ok(pool.connections[0].resurrectTimeout > 0)
+      t.equal(pool.connections[0].status, BaseConnection.statuses.ALIVE)
+      t.same(pool.dead, [])
     })
     pool.resurrect(opts)
   })
@@ -244,10 +244,10 @@ test('resurrect', t => {
       t.fail('should not be called')
     })
     pool.resurrect(opts)
-    t.strictEqual(pool.connections[0].deadCount, 1)
-    t.true(pool.connections[0].resurrectTimeout > 0)
-    t.strictEqual(pool.connections[0].status, BaseConnection.statuses.DEAD)
-    t.deepEqual(pool.dead, [href])
+    t.equal(pool.connections[0].deadCount, 1)
+    t.ok(pool.connections[0].resurrectTimeout > 0)
+    t.equal(pool.connections[0].status, BaseConnection.statuses.DEAD)
+    t.same(pool.dead, [href])
   })
 
   t.test('nothing to resurrect yet', t => {
@@ -270,10 +270,10 @@ test('resurrect', t => {
       t.fail('should not be called')
     })
     pool.resurrect(opts)
-    t.strictEqual(pool.connections[0].deadCount, 1)
-    t.true(pool.connections[0].resurrectTimeout > 0)
-    t.strictEqual(pool.connections[0].status, BaseConnection.statuses.DEAD)
-    t.deepEqual(pool.dead, [href])
+    t.equal(pool.connections[0].deadCount, 1)
+    t.ok(pool.connections[0].resurrectTimeout > 0)
+    t.equal(pool.connections[0].status, BaseConnection.statuses.DEAD)
+    t.same(pool.dead, [href])
   })
 
   t.end()
@@ -302,7 +302,7 @@ test('getConnection', t => {
     pool.addConnection([href1, href2])
 
     const filter = (node: Connection): boolean => node.id === href1
-    t.strictEqual(pool.getConnection({ ...opts, filter })?.id, href1)
+    t.equal(pool.getConnection({ ...opts, filter })?.id, href1)
     t.end()
   })
 
@@ -330,7 +330,7 @@ test('getConnection', t => {
     pool.markDead(pool.connections[0])
 
     const filter = (node: Connection): boolean => {
-      t.strictEqual(node.status, BaseConnection.statuses.ALIVE)
+      t.equal(node.status, BaseConnection.statuses.ALIVE)
       return true
     }
     pool.getConnection({ ...opts, filter })
@@ -347,7 +347,7 @@ test('getConnection', t => {
     const filter = (node: Connection): boolean => {
       return false
     }
-    t.strictEqual(pool.getConnection({ ...opts, filter }), null)
+    t.equal(pool.getConnection({ ...opts, filter }), null)
   })
 
   t.test('selector', t => {
@@ -359,10 +359,10 @@ test('getConnection', t => {
     pool.addConnection(href2)
 
     const selector = (nodes: Connection[]): Connection => {
-      t.strictEqual(nodes.length, 2)
+      t.equal(nodes.length, 2)
       return nodes[0]
     }
-    t.strictEqual(pool.getConnection({ ...opts, selector })?.id, href1)
+    t.equal(pool.getConnection({ ...opts, selector })?.id, href1)
   })
 
   t.test('If all connections are marked as dead, getConnection should return a dead connection', t => {
@@ -375,7 +375,7 @@ test('getConnection', t => {
     pool.markDead(pool.connections[1])
     const conn = pool.getConnection(opts)
     t.ok(conn instanceof HttpConnection)
-    t.is(conn?.status, BaseConnection.statuses.DEAD)
+    t.equal(conn?.status, BaseConnection.statuses.DEAD)
     t.end()
   })
 
@@ -387,8 +387,8 @@ test('empty should reset dead list', async t => {
   const href = 'http://localhost:9200/'
   pool.addConnection(href)
   pool.markDead(pool.connections[0])
-  t.deepEqual(pool.dead, [href])
+  t.same(pool.dead, [href])
   await pool.empty()
-  t.deepEqual(pool.dead, [])
+  t.same(pool.dead, [])
 })
 

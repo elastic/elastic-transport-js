@@ -46,8 +46,8 @@ test('on', t => {
   const d = new Diagnostic()
 
   d.on(events.REQUEST, (err, meta) => {
-    t.true(err instanceof ConnectionError)
-    t.deepEqual(meta, mmeta)
+    t.ok(err instanceof ConnectionError)
+    t.same(meta, mmeta)
   })
 
   d.emit(events.REQUEST, new ConnectionError('kaboom'), mmeta)
@@ -59,8 +59,8 @@ test('once', t => {
   const d = new Diagnostic()
 
   d.once(events.REQUEST, (err, meta) => {
-    t.true(err instanceof ConnectionError)
-    t.deepEqual(meta, mmeta)
+    t.ok(err instanceof ConnectionError)
+    t.same(meta, mmeta)
   })
 
   d.emit(events.REQUEST, new ConnectionError('kaboom'), mmeta)
@@ -72,8 +72,8 @@ test('off', t => {
   const d = new Diagnostic()
 
   function handler (err: errors.ElasticsearchClientError | null, meta: DiagnosticResult | null) {
-    t.true(err instanceof ConnectionError)
-    t.deepEqual(meta, mmeta)
+    t.ok(err instanceof ConnectionError)
+    t.same(meta, mmeta)
   }
 
   d.on(events.REQUEST, handler)
@@ -91,11 +91,11 @@ test('on', t => {
   try {
     // @ts-expect-error
     d.on('foobar', (err, meta) => {
-      t.true(err instanceof ConnectionError)
-      t.deepEqual(meta, mmeta)
+      t.ok(err instanceof ConnectionError)
+      t.same(meta, mmeta)
     })
   } catch (err) {
-    t.true(err instanceof ConfigurationError)
+    t.ok(err instanceof ConfigurationError)
   }
 })
 
