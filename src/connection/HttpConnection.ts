@@ -114,6 +114,7 @@ export default class HttpConnection extends BaseConnection {
 
         const contentEncoding = (response.headers['content-encoding'] ?? '').toLowerCase()
         const isCompressed = contentEncoding.includes('gzip') || contentEncoding.includes('deflate')
+        const isVectorTile = (response.headers['content-type'] ?? '').includes('application/vnd.mapbox-vector-tile')
 
         /* istanbul ignore else */
         if (response.headers['content-length'] !== undefined) {
@@ -133,8 +134,8 @@ export default class HttpConnection extends BaseConnection {
 
         // if the response is compressed, we must handle it
         // as buffer for allowing decompression later
-        let payload = isCompressed ? new Array<Buffer>() : ''
-        const onData = isCompressed
+        let payload = isCompressed || isVectorTile ? new Array<Buffer>() : ''
+        const onData = isCompressed || isVectorTile
           ? (chunk: Buffer) => { (payload as Buffer[]).push(chunk) }
           : (chunk: string) => { payload = `${payload as string}${chunk}` }
         const onEnd = (err: Error): void => {
@@ -148,7 +149,7 @@ export default class HttpConnection extends BaseConnection {
           }
 
           resolve({
-            body: isCompressed ? Buffer.concat(payload as Buffer[]) : payload as string,
+            body: isCompressed || isVectorTile ? Buffer.concat(payload as Buffer[]) : payload as string,
             statusCode: response.statusCode as number,
             headers: response.headers
           })
@@ -159,7 +160,7 @@ export default class HttpConnection extends BaseConnection {
           onEnd(new Error('Response aborted while reading the body'))
         }
 
-        if (!isCompressed) {
+        if (!isCompressed && !isVectorTile) {
           response.setEncoding('utf8')
         }
 

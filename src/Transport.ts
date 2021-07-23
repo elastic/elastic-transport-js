@@ -451,7 +451,8 @@ export default class Transport {
           body = await unzip(body)
         }
 
-        if (Buffer.isBuffer(body)) {
+        const isVectorTile = (headers['content-type'] ?? '').includes('application/vnd.mapbox-vector-tile')
+        if (Buffer.isBuffer(body) && !isVectorTile) {
           body = body.toString()
         }
 
@@ -468,7 +469,7 @@ export default class Transport {
         //    - the request is not a HEAD request
         //    - the payload is not an empty string
         if (headers['content-type']?.includes('application/json') && !isHead && body !== '') { // eslint-disable-line
-          result.body = this[kSerializer].deserialize(body)
+          result.body = this[kSerializer].deserialize(body as string)
         } else {
           // cast to boolean if the request method was HEAD and there was no error
           result.body = isHead && statusCode < 400 ? true : body

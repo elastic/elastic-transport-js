@@ -1561,6 +1561,63 @@ test('meta is true', async t => {
   t.deepEqual(res.body, { hello: 'world' })
 })
 
+test('Support mapbox vector tile', async t => {
+   t.plan(1)
+   const mvtContent = 'GoMCCgRtZXRhEikSFAAAAQACAQMBBAAFAgYDBwAIBAkAGAMiDwkAgEAagEAAAP8//z8ADxoOX3NoYXJkcy5mYWlsZWQaD19zaGFyZHMuc2tpcHBlZBoSX3NoYXJkcy5zdWNjZXNzZnVsGg1fc2hhcmRzLnRvdGFsGhlhZ2dyZWdhdGlvbnMuX2NvdW50LmNvdW50GhdhZ2dyZWdhdGlvbnMuX2NvdW50LnN1bRoTaGl0cy50b3RhbC5yZWxhdGlvbhoQaGl0cy50b3RhbC52YWx1ZRoJdGltZWRfb3V0GgR0b29rIgIwACICMAIiCRkAAAAAAAAAACIECgJlcSICOAAogCB4Ag=='
+
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams) {
+      return {
+        body: Buffer.from(mvtContent, 'base64'),
+        statusCode: 200,
+        headers: {
+          'content-type': 'application/vnd.mapbox-vector-tile'
+        }
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({ connectionPool: pool })
+
+  const body = await transport.request<Buffer>({
+    method: 'GET',
+    path: '/_mvt'
+  })
+  t.same(body.toString('base64'), Buffer.from(mvtContent, 'base64').toString('base64'))
+})
+
+test('Compressed mapbox vector tile', async t => {
+   t.plan(1)
+   const mvtContent = 'GoMCCgRtZXRhEikSFAAAAQACAQMBBAAFAgYDBwAIBAkAGAMiDwkAgEAagEAAAP8//z8ADxoOX3NoYXJkcy5mYWlsZWQaD19zaGFyZHMuc2tpcHBlZBoSX3NoYXJkcy5zdWNjZXNzZnVsGg1fc2hhcmRzLnRvdGFsGhlhZ2dyZWdhdGlvbnMuX2NvdW50LmNvdW50GhdhZ2dyZWdhdGlvbnMuX2NvdW50LnN1bRoTaGl0cy50b3RhbC5yZWxhdGlvbhoQaGl0cy50b3RhbC52YWx1ZRoJdGltZWRfb3V0GgR0b29rIgIwACICMAIiCRkAAAAAAAAAACIECgJlcSICOAAogCB4Ag=='
+
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams) {
+      return {
+        body: gzipSync(Buffer.from(mvtContent, 'base64')),
+        statusCode: 200,
+        headers: {
+          'content-type': 'application/vnd.mapbox-vector-tile',
+          'content-encoding': 'gzip'
+        }
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({ connectionPool: pool })
+
+  const body = await transport.request<Buffer>({
+    method: 'GET',
+    path: '/_mvt'
+  })
+  t.same(body.toString('base64'), Buffer.from(mvtContent, 'base64').toString('base64'))
+})
+
 // test('asStream set to true', t => {
 //   t.plan(3)
 //   function handler (req, res) {
