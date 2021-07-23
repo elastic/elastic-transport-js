@@ -128,6 +128,7 @@ export default class Connection extends BaseConnection {
 
     const contentEncoding = (response.headers['content-encoding'] ?? '').toLowerCase()
     const isCompressed = contentEncoding.includes('gzip') || contentEncoding.includes('deflate')
+    const isVectorTile = (response.headers['content-type'] ?? '').includes('application/vnd.mapbox-vector-tile')
 
     /* istanbul ignore else */
     if (response.headers['content-length'] !== undefined) {
@@ -143,7 +144,7 @@ export default class Connection extends BaseConnection {
 
     this.diagnostic.emit('deserialization', null, options)
     try {
-      if (isCompressed) {
+      if (isCompressed || isVectorTile) {
         const payload: Buffer[] = []
         for await (const chunk of response.body) {
           payload.push(chunk)
