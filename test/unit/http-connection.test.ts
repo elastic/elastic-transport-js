@@ -945,3 +945,25 @@ test('Throw if detects undici agent options', async t => {
     t.true(err instanceof ConfigurationError)
   }
 })
+
+test('Support mapbox vector tile', async t => {
+  t.plan(1)
+
+  const mvtContent = 'GoMCCgRtZXRhEikSFAAAAQACAQMBBAAFAgYDBwAIBAkAGAMiDwkAgEAagEAAAP8//z8ADxoOX3NoYXJkcy5mYWlsZWQaD19zaGFyZHMuc2tpcHBlZBoSX3NoYXJkcy5zdWNjZXNzZnVsGg1fc2hhcmRzLnRvdGFsGhlhZ2dyZWdhdGlvbnMuX2NvdW50LmNvdW50GhdhZ2dyZWdhdGlvbnMuX2NvdW50LnN1bRoTaGl0cy50b3RhbC5yZWxhdGlvbhoQaGl0cy50b3RhbC52YWx1ZRoJdGltZWRfb3V0GgR0b29rIgIwACICMAIiCRkAAAAAAAAAACIECgJlcSICOAAogCB4Ag=='
+
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+    res.setHeader('Content-Type', 'application/vnd.mapbox-vector-tile')
+    res.end(Buffer.from(mvtContent, 'base64'))
+  }
+
+  const [{ port }, server] = await buildServer(handler)
+  const connection = new HttpConnection({
+    url: new URL(`http://localhost:${port}`)
+  })
+  const res = await connection.request({
+    path: '/_mvt',
+    method: 'GET',
+  }, options)
+  t.strictEqual(res.body.toString('base64'), Buffer.from(mvtContent, 'base64').toString('base64'))
+  server.stop()
+})
