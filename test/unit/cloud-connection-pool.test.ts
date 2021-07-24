@@ -45,5 +45,5 @@ test('pool.empty should reset cloudConnection', async t => {
   pool.addConnection('http://localhost:9200/')
   t.ok(pool.cloudConnection instanceof HttpConnection)
   await pool.empty()
-  t.strictEqual(pool.cloudConnection, null)
+  t.equal(pool.cloudConnection, null)
 })

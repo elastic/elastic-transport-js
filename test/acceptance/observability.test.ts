@@ -33,7 +33,7 @@ test('Request id', t => {
     t.type(genReqId, 'function')
 
     for (let i = 1; i <= 10; i++) {
-      t.strictEqual(genReqId({ method: 'GET', path: '/' }, {}), i)
+      t.equal(genReqId({ method: 'GET', path: '/' }, {}), i)
     }
 
     t.end()
@@ -48,9 +48,7 @@ test('Request id', t => {
       node: 'http://localhost:9200',
       Connection: MockConnection,
       generateRequestId: function (params: TransportRequestParams, opts: TransportRequestOptions) {
-        // @ts-expect-error
         t.match(params, { method: 'GET', path: '/' })
-        // @ts-expect-error
         t.match(opts, options)
         return 'custom-id'
       }
@@ -58,12 +56,12 @@ test('Request id', t => {
 
     client.diagnostic.on(events.REQUEST, (err, event) => {
       t.error(err)
-      t.strictEqual(event?.meta.request.id, 'custom-id')
+      t.equal(event?.meta.request.id, 'custom-id')
     })
 
     client.diagnostic.on(events.RESPONSE, (err, event) => {
       t.error(err)
-      t.strictEqual(event?.meta.request.id, 'custom-id')
+      t.equal(event?.meta.request.id, 'custom-id')
     })
 
     client.request({ method: 'GET', path: '/' }, options)
@@ -81,12 +79,12 @@ test('Request id', t => {
 
     client.diagnostic.on(events.REQUEST, (err, event) => {
       t.error(err)
-      t.strictEqual(event?.meta.request.id, 'custom-id')
+      t.equal(event?.meta.request.id, 'custom-id')
     })
 
     client.diagnostic.on(events.RESPONSE, (err, event) => {
       t.error(err)
-      t.strictEqual(event?.meta.request.id, 'custom-id')
+      t.equal(event?.meta.request.id, 'custom-id')
     })
 
     client.request({ method: 'GET', path: '/' }, { id: 'custom-id' })
@@ -106,7 +104,7 @@ test('Request id', t => {
 
       client.diagnostic.on(events.SNIFF, (err, event) => {
         t.error(err)
-        t.strictEqual(event?.meta.request.id, 1)
+        t.equal(event?.meta.request.id, 1)
       })
     })
 
@@ -121,15 +119,15 @@ test('Request id', t => {
       })
 
       client.diagnostic.on(events.REQUEST, (e, event) => {
-        t.strictEqual(event?.meta.request.id, 'custom')
+        t.equal(event?.meta.request.id, 'custom')
       })
 
       client.diagnostic.on(events.RESPONSE, (e, event) => {
-        t.strictEqual(event?.meta.request.id, 'custom')
+        t.equal(event?.meta.request.id, 'custom')
       })
 
       client.diagnostic.on(events.SNIFF, (e, event) => {
-        t.strictEqual(event?.meta.request.id, 'custom')
+        t.equal(event?.meta.request.id, 'custom')
       })
 
       client.request({ method: 'GET', path: '/500' }, { id: 'custom', headers: { timeout: 'true' } })
@@ -152,7 +150,7 @@ test('Request id', t => {
 
     client.diagnostic.on(events.RESURRECT, (err, meta) => {
       t.error(err)
-      t.strictEqual(meta?.request.id, 'custom')
+      t.equal(meta?.request.id, 'custom')
       clock.uninstall()
     })
 
@@ -184,12 +182,12 @@ test('Request context', t => {
 
     client.diagnostic.on(events.REQUEST, (err, event) => {
       t.error(err)
-      t.strictEqual(event?.meta.context, null)
+      t.equal(event?.meta.context, null)
     })
 
     client.diagnostic.on(events.RESPONSE, (err, event) => {
       t.error(err)
-      t.strictEqual(event?.meta.context, null)
+      t.equal(event?.meta.context, null)
     })
 
     client.request({ method: 'GET', path: '/' })
@@ -207,12 +205,12 @@ test('Request context', t => {
 
     client.diagnostic.on(events.REQUEST, (err, event) => {
       t.error(err)
-      t.deepEqual(event?.meta.context, { winter: 'is coming' })
+      t.same(event?.meta.context, { winter: 'is coming' })
     })
 
     client.diagnostic.on(events.RESPONSE, (err, event) => {
       t.error(err)
-      t.deepEqual(event?.meta.context, { winter: 'is coming' })
+      t.same(event?.meta.context, { winter: 'is coming' })
     })
 
     client.request({ method: 'GET', path: '/' }, { context: { winter: 'is coming' } })
@@ -231,12 +229,12 @@ test('Request context', t => {
 
     client.diagnostic.on(events.REQUEST, (err, event) => {
       t.error(err)
-      t.deepEqual(event?.meta.context, { winter: 'is coming' })
+      t.same(event?.meta.context, { winter: 'is coming' })
     })
 
     client.diagnostic.on(events.RESPONSE, (err, event) => {
       t.error(err)
-      t.deepEqual(event?.meta.context, { winter: 'is coming' })
+      t.same(event?.meta.context, { winter: 'is coming' })
     })
 
     client.request({ method: 'GET', path: '/' })
@@ -255,12 +253,12 @@ test('Request context', t => {
 
     client.diagnostic.on(events.REQUEST, (err, event) => {
       t.error(err)
-      t.deepEqual(event?.meta.context, { winter: 'has come' })
+      t.same(event?.meta.context, { winter: 'has come' })
     })
 
     client.diagnostic.on(events.RESPONSE, (err, event) => {
       t.error(err)
-      t.deepEqual(event?.meta.context, { winter: 'has come' })
+      t.same(event?.meta.context, { winter: 'has come' })
     })
 
     client.request({ method: 'GET', path: '/' }, { context: { winter: 'has come' } })
@@ -277,7 +275,7 @@ test('Client name', t => {
       node: 'http://localhost:9200',
       name: 'cluster'
     })
-    t.strictEqual(client.name, 'cluster')
+    t.equal(client.name, 'cluster')
     t.end()
   })
 
@@ -291,16 +289,16 @@ test('Client name', t => {
 
     client.diagnostic.on(events.REQUEST, (err, event) => {
       t.error(err)
-      t.strictEqual(event?.meta.name, 'cluster')
+      t.equal(event?.meta.name, 'cluster')
     })
 
     client.diagnostic.on(events.RESPONSE, (err, event) => {
       t.error(err)
-      t.strictEqual(event?.meta.name, 'cluster')
+      t.equal(event?.meta.name, 'cluster')
     })
 
     client.request({ method: 'GET', path: '/' }, { meta: true })
-      .then(({ meta }) => t.strictEqual(meta.name, 'cluster'))
+      .then(({ meta }) => t.equal(meta.name, 'cluster'))
       .catch(err => t.fail(err))
   })
 
@@ -315,16 +313,16 @@ test('Client name', t => {
 
     client.diagnostic.on(events.REQUEST, (err, event) => {
       t.error(err)
-      t.strictEqual(event?.meta.name, symbol)
+      t.equal(event?.meta.name, symbol)
     })
 
     client.diagnostic.on(events.RESPONSE, (err, event) => {
       t.error(err)
-      t.strictEqual(event?.meta.name, symbol)
+      t.equal(event?.meta.name, symbol)
     })
 
     client.request({ method: 'GET', path: '/' }, { meta: true })
-      .then(({ meta }) => t.strictEqual(meta.name, symbol))
+      .then(({ meta }) => t.equal(meta.name, symbol))
       .catch(err => t.fail(err))
   })
 
@@ -340,7 +338,7 @@ test('Client name', t => {
 
       client.diagnostic.on(events.SNIFF, (err, event) => {
         t.error(err)
-        t.strictEqual(event?.meta.name, 'elasticsearch-js')
+        t.equal(event?.meta.name, 'elasticsearch-js')
       })
     })
 
@@ -355,15 +353,15 @@ test('Client name', t => {
       })
 
       client.diagnostic.on(events.REQUEST, (e, event) => {
-        t.strictEqual(event?.meta.name, 'elasticsearch-js')
+        t.equal(event?.meta.name, 'elasticsearch-js')
       })
 
       client.diagnostic.on(events.RESPONSE, (e, event) => {
-        t.strictEqual(event?.meta.name, 'elasticsearch-js')
+        t.equal(event?.meta.name, 'elasticsearch-js')
       })
 
       client.diagnostic.on(events.SNIFF, (e, event) => {
-        t.strictEqual(event?.meta.name, 'elasticsearch-js')
+        t.equal(event?.meta.name, 'elasticsearch-js')
       })
 
       client.request({ method: 'GET', path: '/500' }, { id: 'custom', headers: { timeout: 'true' } })
@@ -396,7 +394,7 @@ test('Client name', t => {
 
     client.diagnostic.on(events.RESURRECT, (err, event) => {
       t.error(err)
-      t.strictEqual(event?.name, 'elasticsearch-js')
+      t.equal(event?.name, 'elasticsearch-js')
       clock.uninstall()
     })
 

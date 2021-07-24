@@ -55,11 +55,11 @@ test('Should execute the recurrect API with the ping strategy', async t => {
 
   client.diagnostic.on(events.RESURRECT, (err, meta) => {
     t.ok(err instanceof ConnectionError)
-    t.strictEqual(meta?.strategy, 'ping')
-    t.false(meta?.isAlive)
-    t.strictEqual(meta?.connection.id, 'node0')
-    t.strictEqual(meta?.name, 'elasticsearch-js')
-    t.deepEqual(meta?.request, { id: 2 })
+    t.equal(meta?.strategy, 'ping')
+    t.notOk(meta?.isAlive)
+    t.equal(meta?.connection.id, 'node0')
+    t.equal(meta?.name, 'elasticsearch-js')
+    t.same(meta?.request, { id: 2 })
   })
 
   await cluster.kill('node0')
@@ -106,14 +106,14 @@ test('Resurrect a node and handle 502/3/4 status code', async t => {
   let idCount = 2
   client.diagnostic.on(events.RESURRECT, (err, meta) => {
     t.error(err)
-    t.strictEqual(meta?.strategy, 'ping')
-    t.strictEqual(meta?.connection.id, 'node0')
-    t.strictEqual(meta?.name, 'elasticsearch-js')
-    t.deepEqual(meta?.request, { id: idCount++ })
+    t.equal(meta?.strategy, 'ping')
+    t.equal(meta?.connection.id, 'node0')
+    t.equal(meta?.name, 'elasticsearch-js')
+    t.same(meta?.request, { id: idCount++ })
     if (count < 4) {
-      t.false(meta?.isAlive)
+      t.notOk(meta?.isAlive)
     } else {
-      t.true(meta?.isAlive)
+      t.ok(meta?.isAlive)
     }
   })
 
@@ -155,11 +155,11 @@ test('Should execute the recurrect API with the optimistic strategy', async t =>
 
   client.diagnostic.on(events.RESURRECT, (err, meta) => {
     t.error(err)
-    t.strictEqual(meta?.strategy, 'optimistic')
-    t.true(meta?.isAlive)
-    t.strictEqual(meta?.connection.id, 'node0')
-    t.strictEqual(meta?.name, 'elasticsearch-js')
-    t.deepEqual(meta?.request, { id: 2 })
+    t.equal(meta?.strategy, 'optimistic')
+    t.ok(meta?.isAlive)
+    t.equal(meta?.connection.id, 'node0')
+    t.equal(meta?.name, 'elasticsearch-js')
+    t.same(meta?.request, { id: 2 })
   })
 
   await cluster.kill('node0')

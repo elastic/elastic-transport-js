@@ -64,7 +64,7 @@ test('Basic (http)', async t => {
     }
   }, options)
   t.match(res.headers, { connection: /keep-alive/ })
-  t.strictEqual(res.body, 'ok')
+  t.equal(res.body, 'ok')
   server.stop()
 })
 
@@ -91,7 +91,7 @@ test('Basic (https)', async t => {
     }
   }, options)
   t.match(res.headers, { connection: /keep-alive/ })
-  t.strictEqual(res.body, 'ok')
+  t.equal(res.body, 'ok')
   server.stop()
 })
 
@@ -119,7 +119,7 @@ test('Basic (https with ssl agent)', async t => {
     }
   }, options)
   t.match(res.headers, { connection: /keep-alive/ })
-  t.strictEqual(res.body, 'ok')
+  t.equal(res.body, 'ok')
   server.stop()
 })
 
@@ -142,7 +142,7 @@ test('Timeout support / 1', async t => {
       method: 'GET'
     }, options)
   } catch (err) {
-    t.true(err instanceof TimeoutError)
+    t.ok(err instanceof TimeoutError)
   }
   server.stop()
 })
@@ -167,7 +167,7 @@ test('Timeout support / 2', async t => {
     }, options)
   } catch (err) {
     t.ok(err instanceof TimeoutError)
-    t.is(err.message, 'Request timed out')
+    t.equal(err.message, 'Request timed out')
   }
   server.stop()
 })
@@ -192,7 +192,7 @@ test('Timeout support / 3', async t => {
     }, options)
   } catch (err) {
     t.ok(err instanceof TimeoutError)
-    t.is(err.message, 'Request timed out')
+    t.equal(err.message, 'Request timed out')
   }
   server.stop()
 })
@@ -219,7 +219,7 @@ test('Timeout support / 4', async t => {
     }, options)
   } catch (err) {
     t.ok(err instanceof TimeoutError)
-    t.is(err.message, 'Request timed out')
+    t.equal(err.message, 'Request timed out')
   }
   server.stop()
 })
@@ -240,7 +240,7 @@ test('Timeout support / 5', async t => {
     method: 'GET',
     timeout: 50
   }, options)
-  t.strictEqual(res.body, 'ok')
+  t.equal(res.body, 'ok')
   server.stop()
 })
 
@@ -248,7 +248,7 @@ test('Should concatenate the querystring', async t => {
   t.plan(1)
 
   function handler (req: http.IncomingMessage, res: http.ServerResponse) {
-    t.strictEqual(req.url, '/hello?hello=world&you_know=for%20search')
+    t.equal(req.url, '/hello?hello=world&you_know=for%20search')
     res.end('ok')
   }
 
@@ -274,7 +274,7 @@ test('Body request', async t => {
     req.on('data', chunk => { payload += chunk })
     req.on('error', t.fail)
     req.on('end', () => {
-      t.strictEqual(payload, 'hello')
+      t.equal(payload, 'hello')
       res.end('ok')
     })
   }
@@ -301,7 +301,7 @@ test('Send body as buffer', async t => {
     req.on('data', chunk => { payload += chunk })
     req.on('error', t.fail)
     req.on('end', () => {
-      t.strictEqual(payload, 'hello')
+      t.equal(payload, 'hello')
       res.end('ok')
     })
   }
@@ -328,7 +328,7 @@ test('Send body as stream', async t => {
     req.on('data', chunk => { payload += chunk })
     req.on('error', t.fail)
     req.on('end', () => {
-      t.strictEqual(payload, 'hello')
+      t.equal(payload, 'hello')
       res.end('ok')
     })
   }
@@ -364,7 +364,7 @@ test('Should not close a connection if there are open requests', async t => {
     path: '/hello',
     method: 'GET'
   }, options)
-  t.strictEqual(res.body, 'ok')
+  t.equal(res.body, 'ok')
 
   server.stop()
 })
@@ -373,7 +373,7 @@ test('Url with auth', async t => {
   t.plan(1)
 
   function handler (req: http.IncomingMessage, res: http.ServerResponse) {
-    t.strictEqual(req.headers.authorization, 'Basic Zm9vOmJhcg==')
+    t.equal(req.headers.authorization, 'Basic Zm9vOmJhcg==')
     res.end('ok')
   }
 
@@ -417,7 +417,7 @@ test('Custom headers for connection', async t => {
   }, options)
 
   // should not update the default
-  t.deepEqual(connection.headers, { 'x-foo': 'bar' })
+  t.same(connection.headers, { 'x-foo': 'bar' })
   server.stop()
 })
 
@@ -445,7 +445,7 @@ test('Custom headers for connection', async t => {
 //       res.on('data', chunk => { payload += chunk })
 //       res.on('error', err => t.fail(err))
 //       res.on('end', () => {
-//         t.strictEqual(payload, 'ok')
+//         t.equal(payload, 'ok')
 //         server.stop()
 //       })
 //     })
@@ -465,7 +465,7 @@ test('Should disallow two-byte characters in URL path', async t => {
       method: 'GET'
     }, options)
   } catch (err) {
-    t.strictEqual(
+    t.equal(
       err.message,
       'ERR_UNESCAPED_CHARACTERS: /thisisinvalid\uffe2'
     )
@@ -584,7 +584,7 @@ test('Bad content length', async t => {
     }, options)
   } catch (err) {
     t.ok(err instanceof ConnectionError)
-    t.is(err.message, 'other side closed')
+    t.equal(err.message, 'other side closed')
   }
   server.stop()
 })
@@ -613,7 +613,7 @@ test('Socket destryed while reading the body', async t => {
     }, options)
   } catch (err) {
     t.ok(err instanceof ConnectionError)
-    t.is(err.message, 'other side closed')
+    t.equal(err.message, 'other side closed')
   }
   server.stop()
 })
@@ -653,7 +653,7 @@ test('Content length too big (buffer)', async t => {
     }, options)
   } catch (err) {
     t.ok(err instanceof RequestAbortedError)
-    t.is(err.message, `The content length (${buffer.constants.MAX_LENGTH + 10}) is bigger than the maximum allowed buffer (${buffer.constants.MAX_LENGTH})`)
+    t.equal(err.message, `The content length (${buffer.constants.MAX_LENGTH + 10}) is bigger than the maximum allowed buffer (${buffer.constants.MAX_LENGTH})`)
   }
 })
 
@@ -692,7 +692,7 @@ test('Content length too big (string)', async t => {
     }, options)
   } catch (err) {
     t.ok(err instanceof RequestAbortedError)
-    t.is(err.message, `The content length (${buffer.constants.MAX_STRING_LENGTH + 10}) is bigger than the maximum allowed string (${buffer.constants.MAX_STRING_LENGTH})`)
+    t.equal(err.message, `The content length (${buffer.constants.MAX_STRING_LENGTH + 10}) is bigger than the maximum allowed string (${buffer.constants.MAX_STRING_LENGTH})`)
   }
 })
 
@@ -722,7 +722,7 @@ test('Compressed responsed should return a buffer as body (gzip)', async t => {
       'accept-encoding': 'gzip,deflate'
     }
   }, options)
-  t.true(res.body instanceof Buffer)
+  t.ok(res.body instanceof Buffer)
   server.stop()
 })
 
@@ -752,7 +752,7 @@ test('Compressed responsed should return a buffer as body (deflate)', async t =>
       'accept-encoding': 'gzip,deflate'
     }
   }, options)
-  t.true(res.body instanceof Buffer)
+  t.ok(res.body instanceof Buffer)
   server.stop()
 })
 
@@ -769,7 +769,7 @@ test('Connection error', async t => {
       method: 'GET'
     }, options)
   } catch (err) {
-    t.true(err instanceof ConnectionError)
+    t.ok(err instanceof ConnectionError)
   }
 })
 
@@ -784,7 +784,7 @@ test('Throw if detects http agent options', async t => {
       }
     })
   } catch (err) {
-    t.true(err instanceof ConfigurationError)
+    t.ok(err instanceof ConfigurationError)
   }
 
   try {
@@ -793,7 +793,7 @@ test('Throw if detects http agent options', async t => {
       agent: () => new http.Agent()
     })
   } catch (err) {
-    t.true(err instanceof ConfigurationError)
+    t.ok(err instanceof ConfigurationError)
   }
 
   try {
@@ -802,7 +802,7 @@ test('Throw if detects http agent options', async t => {
       agent: false
     })
   } catch (err) {
-    t.true(err instanceof ConfigurationError)
+    t.ok(err instanceof ConfigurationError)
   }
 })
 
@@ -815,7 +815,7 @@ test('Throw if detects proxy option', async t => {
       proxy: new URL('http://localhost:9201')
     })
   } catch (err) {
-    t.true(err instanceof ConfigurationError)
+    t.ok(err instanceof ConfigurationError)
   }
 })
 
@@ -837,6 +837,6 @@ test('Support mapbox vector tile', async t => {
     path: '/_mvt',
     method: 'GET',
   }, options)
-  t.strictEqual(res.body.toString('base64'), Buffer.from(mvtContent, 'base64').toString('base64'))
+  t.equal(res.body.toString('base64'), Buffer.from(mvtContent, 'base64').toString('base64'))
   server.stop()
 })

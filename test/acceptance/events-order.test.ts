@@ -68,26 +68,26 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
 
       client.diagnostic.on(events.SERIALIZATION, (err, request) => {
         t.error(err)
-        t.strictEqual(order.shift(), events.SERIALIZATION)
+        t.equal(order.shift(), events.SERIALIZATION)
       })
 
       client.diagnostic.on(events.REQUEST, (err, request) => {
         t.error(err)
-        t.strictEqual(order.shift(), events.REQUEST)
+        t.equal(order.shift(), events.REQUEST)
       })
 
       client.diagnostic.on(events.DESERIALIZATION, (err, request) => {
         t.error(err)
-        t.strictEqual(order.shift(), events.DESERIALIZATION)
+        t.equal(order.shift(), events.DESERIALIZATION)
       })
 
       client.diagnostic.on(events.RESPONSE, (err, request) => {
         t.error(err)
-        t.strictEqual(order.shift(), events.RESPONSE)
+        t.equal(order.shift(), events.RESPONSE)
       })
 
       await client.request({ method: 'GET', path: '/' })
-      t.strictEqual(order.length, 0)
+      t.equal(order.length, 0)
       server.stop()
     })
 
@@ -109,12 +109,12 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
 
       client.diagnostic.on(events.SERIALIZATION, (err, request) => {
         t.error(err)
-        t.strictEqual(order.shift(), events.SERIALIZATION)
+        t.equal(order.shift(), events.SERIALIZATION)
       })
 
       client.diagnostic.on(events.REQUEST, (err, request) => {
         t.error(err)
-        t.strictEqual(order.shift(), events.REQUEST)
+        t.equal(order.shift(), events.REQUEST)
       })
 
       client.diagnostic.on(events.DESERIALIZATION, (_err, request) => {
@@ -123,14 +123,14 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
 
       client.diagnostic.on(events.RESPONSE, (err, request) => {
         t.ok(err instanceof ConnectionError)
-        t.strictEqual(order.shift(), events.RESPONSE)
+        t.equal(order.shift(), events.RESPONSE)
       })
 
       try {
         await client.request({ method: 'GET', path: '/' })
       } catch (err) {
         t.ok(err instanceof ConnectionError)
-        t.strictEqual(order.length, 0)
+        t.equal(order.length, 0)
       }
     })
 
@@ -163,12 +163,12 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
 
       client.diagnostic.on(events.SERIALIZATION, (err, request) => {
         t.error(err)
-        t.strictEqual(order.shift(), events.SERIALIZATION)
+        t.equal(order.shift(), events.SERIALIZATION)
       })
 
       client.diagnostic.on(events.REQUEST, (err, request) => {
         t.error(err)
-        t.strictEqual(order.shift(), events.REQUEST)
+        t.equal(order.shift(), events.REQUEST)
       })
 
       client.diagnostic.on(events.DESERIALIZATION, (_err, request) => {
@@ -177,14 +177,14 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
 
       client.diagnostic.on(events.RESPONSE, (err, request) => {
         t.ok(err instanceof TimeoutError)
-        t.strictEqual(order.shift(), events.RESPONSE)
+        t.equal(order.shift(), events.RESPONSE)
       })
 
       try {
         await client.request({ method: 'GET', path: '/' })
       } catch (err) {
         t.ok(err instanceof TimeoutError)
-        t.strictEqual(order.length, 0)
+        t.equal(order.length, 0)
       }
       server.close()
     })
@@ -217,12 +217,12 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
 
       client.diagnostic.on(events.SERIALIZATION, (err, request) => {
         t.error(err)
-        t.strictEqual(order.shift(), events.SERIALIZATION)
+        t.equal(order.shift(), events.SERIALIZATION)
       })
 
       client.diagnostic.on(events.REQUEST, (err, request) => {
         t.error(err)
-        t.strictEqual(order.shift(), events.REQUEST)
+        t.equal(order.shift(), events.REQUEST)
       })
 
       client.diagnostic.on(events.DESERIALIZATION, (_err, request) => {
@@ -231,7 +231,7 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
 
       client.diagnostic.on(events.RESPONSE, (err, request) => {
         t.ok(err instanceof RequestAbortedError)
-        t.strictEqual(order.shift(), events.RESPONSE)
+        t.equal(order.shift(), events.RESPONSE)
       })
 
       const abortController = new AbortController()
@@ -240,7 +240,7 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
         await client.request({ method: 'GET', path: '/' }, { abortController })
       } catch (err) {
         t.ok(err instanceof RequestAbortedError)
-        t.strictEqual(order.length, 0)
+        t.equal(order.length, 0)
       }
       server.stop()
     })
@@ -272,29 +272,29 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
 
       client.diagnostic.on(events.SERIALIZATION, (err, request) => {
         t.error(err)
-        t.strictEqual(order.shift(), events.SERIALIZATION)
+        t.equal(order.shift(), events.SERIALIZATION)
       })
 
       client.diagnostic.on(events.REQUEST, (err, request) => {
         t.error(err)
-        t.strictEqual(order.shift(), events.REQUEST)
+        t.equal(order.shift(), events.REQUEST)
       })
 
       client.diagnostic.on(events.DESERIALIZATION, (err, request) => {
         t.error(err)
-        t.strictEqual(order.shift(), events.DESERIALIZATION)
+        t.equal(order.shift(), events.DESERIALIZATION)
       })
 
       client.diagnostic.on(events.RESPONSE, (err, request) => {
         t.ok(err instanceof ResponseError)
-        t.strictEqual(order.shift(), events.RESPONSE)
+        t.equal(order.shift(), events.RESPONSE)
       })
 
       try {
         await client.request({ method: 'GET', path: '/' })
       } catch (err) {
         t.ok(err instanceof ResponseError)
-        t.strictEqual(order.length, 0)
+        t.equal(order.length, 0)
       }
       server.stop()
     })
@@ -328,29 +328,29 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
 
       client.diagnostic.on(events.SERIALIZATION, (err, request) => {
         t.error(err)
-        t.strictEqual(order.shift(), events.SERIALIZATION)
+        t.equal(order.shift(), events.SERIALIZATION)
       })
 
       client.diagnostic.on(events.REQUEST, (err, request) => {
         t.error(err)
-        t.strictEqual(order.shift(), events.REQUEST)
+        t.equal(order.shift(), events.REQUEST)
       })
 
       client.diagnostic.on(events.DESERIALIZATION, (err, request) => {
         t.error(err)
-        t.strictEqual(order.shift(), events.DESERIALIZATION)
+        t.equal(order.shift(), events.DESERIALIZATION)
       })
 
       client.diagnostic.on(events.RESPONSE, (err, request) => {
         t.ok(err instanceof ResponseError)
-        t.strictEqual(order.shift(), events.RESPONSE)
+        t.equal(order.shift(), events.RESPONSE)
       })
 
       try {
         await client.request({ method: 'GET', path: '/' })
       } catch (err) {
         t.ok(err instanceof ResponseError)
-        t.strictEqual(order.length, 0)
+        t.equal(order.length, 0)
       }
       server.stop()
     })
@@ -378,12 +378,12 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
 
       client.diagnostic.on(events.SERIALIZATION, (err, request) => {
         t.error(err)
-        t.strictEqual(order.shift(), events.SERIALIZATION)
+        t.equal(order.shift(), events.SERIALIZATION)
       })
 
       client.diagnostic.on(events.REQUEST, (err, request) => {
         t.ok(err instanceof SerializationError)
-        t.strictEqual(order.shift(), events.REQUEST)
+        t.equal(order.shift(), events.REQUEST)
       })
 
       client.diagnostic.on(events.DESERIALIZATION, (_err, request) => {
@@ -401,7 +401,7 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
         await client.request({ method: 'POST', path: '/', body })
       } catch (err) {
         t.ok(err instanceof SerializationError)
-        t.strictEqual(order.length, 0)
+        t.equal(order.length, 0)
       }
       server.stop()
     })
@@ -431,29 +431,29 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
 
       client.diagnostic.on(events.SERIALIZATION, (err, request) => {
         t.error(err)
-        t.strictEqual(order.shift(), events.SERIALIZATION)
+        t.equal(order.shift(), events.SERIALIZATION)
       })
 
       client.diagnostic.on(events.REQUEST, (err, request) => {
         t.error(err)
-        t.strictEqual(order.shift(), events.REQUEST)
+        t.equal(order.shift(), events.REQUEST)
       })
 
       client.diagnostic.on(events.DESERIALIZATION, (err, request) => {
         t.error(err)
-        t.strictEqual(order.shift(), events.DESERIALIZATION)
+        t.equal(order.shift(), events.DESERIALIZATION)
       })
 
       client.diagnostic.on(events.RESPONSE, (err, request) => {
         t.ok(err instanceof DeserializationError)
-        t.strictEqual(order.shift(), events.RESPONSE)
+        t.equal(order.shift(), events.RESPONSE)
       })
 
       try {
         await client.request({ method: 'GET', path: '/' })
       } catch (err) {
         t.ok(err instanceof DeserializationError)
-        t.strictEqual(order.length, 0)
+        t.equal(order.length, 0)
       }
       server.stop()
     })
@@ -489,29 +489,29 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
 
       client.diagnostic.on(events.SERIALIZATION, (err, request) => {
         t.error(err)
-        t.strictEqual(order.shift(), events.SERIALIZATION)
+        t.equal(order.shift(), events.SERIALIZATION)
       })
 
       client.diagnostic.on(events.REQUEST, (err, request) => {
         t.error(err)
-        t.strictEqual(order.shift(), events.REQUEST)
+        t.equal(order.shift(), events.REQUEST)
       })
 
       client.diagnostic.on(events.DESERIALIZATION, (err, request) => {
         t.error(err)
-        t.strictEqual(order.shift(), events.DESERIALIZATION)
+        t.equal(order.shift(), events.DESERIALIZATION)
       })
 
       client.diagnostic.on(events.RESPONSE, (err, request) => {
         t.ok(err instanceof ConnectionError)
-        t.strictEqual(order.shift(), events.RESPONSE)
+        t.equal(order.shift(), events.RESPONSE)
       })
 
       try {
         await client.request({ method: 'GET', path: '/' })
       } catch (err) {
         t.ok(err instanceof ConnectionError)
-        t.strictEqual(order.length, 0)
+        t.equal(order.length, 0)
       }
       server.stop()
     })
