@@ -33,7 +33,6 @@ import {
   ConnectionError,
   TimeoutError
 } from '../errors'
-import { TlsOptions } from 'tls'
 import { UndiciAgentOptions } from '../types'
 import { kEmitter } from '../symbols'
 
@@ -63,7 +62,7 @@ export default class Connection extends BaseConnection {
 
     this[kEmitter] = new EventEmitter()
     this.pool = new Pool(this.url.toString(), {
-      tls: this.ssl as TlsOptions,
+      connect: { ...this.ssl },
       keepAliveTimeout: 4000,
       keepAliveMaxTimeout: 600e3,
       keepAliveTimeoutThreshold: 1000,
@@ -71,7 +70,6 @@ export default class Connection extends BaseConnection {
       maxHeaderSize: 16384,
       connections: 256,
       headersTimeout: this.timeout,
-      // @ts-expect-error
       bodyTimeout: this.timeout,
       ...opts.agent
     })
@@ -112,6 +110,7 @@ export default class Connection extends BaseConnection {
     debug('Starting a new request', params)
     let response
     try {
+      // @ts-expect-error the `origin` option should not be required
       response = await this.pool.request(requestParams)
       if (timeoutId != null) clearTimeout(timeoutId)
     } catch (err) {
