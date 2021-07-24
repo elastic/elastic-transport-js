@@ -214,7 +214,7 @@ export default class Transport {
     this[kNodeFilter] = opts.nodeFilter ?? defaultNodeFilter
     this[kNodeSelector] = opts.nodeSelector ?? roundRobinSelector()
     this[kHeaders] = Object.assign({},
-      { 'user-agent': userAgent },
+      { 'user-agent': userAgent, accept: 'application/vnd.elasticsearch+json; compatible-with=8' },
       opts.compression === true ? { 'accept-encoding': 'gzip,deflate' } : null,
       lowerCaseHeaders(opts.headers)
     )
@@ -356,7 +356,7 @@ export default class Transport {
       }
 
       if (params.body !== '') {
-        headers['content-type'] = headers['content-type'] ?? 'application/json'
+        headers['content-type'] = headers['content-type'] ?? 'application/vnd.elasticsearch+json; compatible-with=8'
       }
 
     // handle ndjson body
@@ -373,7 +373,7 @@ export default class Transport {
       }
 
       if (connectionParams.body !== '') {
-        headers['content-type'] = headers['content-type'] ?? 'application/x-ndjson'
+        headers['content-type'] = headers['content-type'] ?? 'application/vnd.elasticsearch+x-ndjson; compatible-with=8'
       }
     }
 
@@ -468,7 +468,10 @@ export default class Transport {
         //    - a `content-type` is defined and is equal to `application/json`
         //    - the request is not a HEAD request
         //    - the payload is not an empty string
-        if (headers['content-type']?.includes('application/json') && !isHead && body !== '') { // eslint-disable-line
+        if (headers['content-type'] !== undefined &&
+            (headers['content-type']?.includes('application/json') ||
+             headers['content-type']?.includes('application/vnd.elasticsearch+json')) &&
+             !isHead && body !== '') { // eslint-disable-line
           result.body = this[kSerializer].deserialize(body as string)
         } else {
           // cast to boolean if the request method was HEAD and there was no error

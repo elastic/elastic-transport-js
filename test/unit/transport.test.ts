@@ -165,8 +165,11 @@ test('Ignore status code', async t => {
 })
 
 test('Send POST (json)', async t => {
+  t.plan(5)
   const Conn = buildMockConnection({
     onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
+      t.equal(opts.headers?.accept, 'application/vnd.elasticsearch+json; compatible-with=8')
+      t.equal(opts.headers?.['content-type'], 'application/vnd.elasticsearch+json; compatible-with=8')
       return {
         body: JSON.parse(opts.body as string),
         statusCode: 200
@@ -190,7 +193,7 @@ test('Send POST (json)', async t => {
 })
 
 test('Send POST (ndjson)', async t => {
-  t.plan(5)
+  t.plan(6)
   const bulkBody = [
     { hello: 'world' },
     { winter: 'is coming' },
@@ -199,7 +202,8 @@ test('Send POST (ndjson)', async t => {
 
   const Conn = buildMockConnection({
     onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
-      t.equal(opts.headers?.['content-type'], 'application/x-ndjson')
+      t.equal(opts.headers?.accept, 'application/vnd.elasticsearch+json; compatible-with=8')
+      t.equal(opts.headers?.['content-type'], 'application/vnd.elasticsearch+x-ndjson; compatible-with=8')
       const body = opts.body as string
       t.equal(body.split('\n')[0], JSON.stringify(bulkBody[0]))
       t.equal(body.split('\n')[1], JSON.stringify(bulkBody[1]))
