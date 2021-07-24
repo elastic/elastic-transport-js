@@ -92,6 +92,10 @@ export interface BasicAuth {
   password: string
 }
 
+export interface BearerAuth {
+  bearer: string
+}
+
 export type nodeSelectorFn = (connections: Connection[]) => Connection
 
 export type nodeFilterFn = (connection: Connection) => boolean

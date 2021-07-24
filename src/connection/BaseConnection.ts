@@ -27,6 +27,7 @@ import Diagnostic from '../Diagnostic'
 import {
   ApiKeyAuth,
   BasicAuth,
+  BearerAuth,
   HttpAgentOptions,
   UndiciAgentOptions,
   agentFn
@@ -40,7 +41,7 @@ export interface ConnectionOptions {
   id?: string
   headers?: http.IncomingHttpHeaders
   status?: string
-  auth?: BasicAuth | ApiKeyAuth
+  auth?: BasicAuth | ApiKeyAuth | BearerAuth
   diagnostic?: Diagnostic
   timeout?: number
   agent?: HttpAgentOptions | UndiciAgentOptions | agentFn | boolean
@@ -173,7 +174,7 @@ function stripAuth (url: string): string {
   return url.slice(0, url.indexOf('//') + 2) + url.slice(url.indexOf('@') + 1)
 }
 
-function prepareHeaders (headers: http.IncomingHttpHeaders = {}, auth?: BasicAuth | ApiKeyAuth): http.IncomingHttpHeaders {
+function prepareHeaders (headers: http.IncomingHttpHeaders = {}, auth?: BasicAuth | ApiKeyAuth | BearerAuth): http.IncomingHttpHeaders {
   if (auth != null && headers.authorization == null) {
     /* istanbul ignore else */
     if (isApiKeyAuth(auth)) {
@@ -182,6 +183,8 @@ function prepareHeaders (headers: http.IncomingHttpHeaders = {}, auth?: BasicAut
       } else {
         headers.authorization = `ApiKey ${auth.apiKey}`
       }
+    } else if (isBearerAuth(auth)) {
+      headers.authorization = `Bearer ${auth.bearer}`
     } else if (auth.username != null && auth.password != null) {
       headers.authorization = 'Basic ' + Buffer.from(`${auth.username}:${auth.password}`).toString('base64')
     }
@@ -191,4 +194,8 @@ function prepareHeaders (headers: http.IncomingHttpHeaders = {}, auth?: BasicAut
 
 function isApiKeyAuth (auth: Record<string, any>): auth is ApiKeyAuth {
   return auth.apiKey != null
+}
+
+function isBearerAuth (auth: Record<string, any>): auth is BearerAuth {
+  return auth.bearer != null
 }

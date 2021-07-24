@@ -194,6 +194,19 @@ test('configure apiKey authentication as object', t => {
   t.end()
 })
 
+test('configure bearer authentication', t => {
+  const conn = new BaseConnection({
+    url: new URL('http://localhost:9200'),
+    auth: {
+      bearer: 'token'
+    }
+  })
+  t.same(conn.headers, {
+    authorization: 'Bearer token'
+  })
+  t.end()
+})
+
 test('do not override authentication', t => {
   const conn = new BaseConnection({
     url: new URL('http://localhost:9200'),

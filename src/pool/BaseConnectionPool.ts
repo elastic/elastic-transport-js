@@ -32,6 +32,7 @@ import {
   agentFn,
   ApiKeyAuth,
   BasicAuth,
+  BearerAuth,
   nodeFilterFn,
   nodeSelectorFn
 } from '../types'
@@ -44,7 +45,7 @@ export interface ConnectionPoolOptions {
   ssl?: TlsConnectionOptions
   agent?: HttpAgentOptions | UndiciAgentOptions | agentFn
   proxy?: string | URL
-  auth?: BasicAuth | ApiKeyAuth
+  auth?: BasicAuth | ApiKeyAuth | BearerAuth
   diagnostic?: Diagnostic
   Connection: typeof BaseConnection
   pingTimeout?: number
@@ -65,7 +66,7 @@ export default class BaseConnectionPool {
   size: number
   Connection: typeof BaseConnection
   diagnostic: Diagnostic
-  auth?: BasicAuth | ApiKeyAuth
+  auth?: BasicAuth | ApiKeyAuth | BearerAuth
   _agent?: HttpAgentOptions | UndiciAgentOptions | agentFn
   _proxy?: string | URL
   _ssl?: TlsConnectionOptions
