@@ -69,6 +69,7 @@
     "ts": true,
     "jsx": false,
     "flow": false,
-    "coverage": false
+    "coverage": false,
+    "check-coverage": false
   }
 }
