@@ -26,7 +26,7 @@ import { kJsonOptions } from './symbols'
 const debug = Debug('elasticsearch')
 
 export interface SerializerOptions {
-  disablePrototypePoisoningProtection?: boolean | 'proto' | 'constructor'
+  enablePrototypePoisoningProtection?: boolean | 'proto' | 'constructor'
 }
 
 export default class Serializer {
@@ -36,10 +36,10 @@ export default class Serializer {
   }
 
   constructor (opts: SerializerOptions = {}) {
-    const disable = opts.disablePrototypePoisoningProtection
+    const enabled = opts.enablePrototypePoisoningProtection ?? false
     this[kJsonOptions] = {
-      protoAction: disable === true || disable === 'proto' ? 'ignore' : 'error',
-      constructorAction: disable === true || disable === 'constructor' ? 'ignore' : 'error'
+      protoAction: enabled === true || enabled === 'proto' ? 'error' : 'ignore',
+      constructorAction: enabled === true || enabled === 'constructor' ? 'error' : 'ignore'
     }
   }
 
