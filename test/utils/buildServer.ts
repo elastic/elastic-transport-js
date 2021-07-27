@@ -18,6 +18,7 @@
  */
 
 import { readFileSync } from 'fs'
+import crypto from 'crypto'
 import { join } from 'path'
 import https from 'https'
 import http from 'http'
@@ -34,9 +35,16 @@ const secureOpts = {
   cert: readFileSync(join(__dirname, '..', 'fixtures', 'https.cert'), 'utf8')
 }
 
+const caFingerprint = getFingerprint(secureOpts.cert
+  .split('\n')
+  .slice(1, -1)
+  .map(line => line.trim())
+  .join('')
+)
+
 export type ServerHandler = (req: http.IncomingMessage, res: http.ServerResponse) => void
 interface Options { secure?: boolean }
-type Server = [{ key: string, cert: string, port: number }, StoppableServer]
+type Server = [{ key: string, cert: string, port: number, caFingerprint: string }, StoppableServer]
 
 let id = 0
 export default function buildServer (handler: ServerHandler, opts: Options = {}): Promise<Server> {
@@ -62,7 +70,20 @@ export default function buildServer (handler: ServerHandler, opts: Options = {})
       // @ts-expect-error
       const port = server.address().port
       debug(`Server '${serverId}' booted on port ${port}`)
-      resolve([Object.assign({}, secureOpts, { port }), server])
+      resolve([Object.assign({}, secureOpts, { port, caFingerprint }), server])
     })
   })
+}
+
+function getFingerprint (content: string, inputEncoding = 'base64', outputEncoding = 'hex'): string {
+  const shasum = crypto.createHash('sha256')
+  // @ts-expect-error
+  shasum.update(content, inputEncoding)
+  // @ts-expect-error
+  const res = shasum.digest(outputEncoding)
+  const arr = res.toUpperCase().match(/.{1,2}/g)
+  if (arr == null) {
+    throw new Error('Should produce a match')
+  }
+  return arr.join(':')
 }

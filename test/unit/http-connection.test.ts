@@ -967,3 +967,48 @@ test('Support mapbox vector tile', async t => {
   t.equal(res.body.toString('base64'), Buffer.from(mvtContent, 'base64').toString('base64'))
   server.stop()
 })
+
+test('Check server fingerprint (success)', async t => {
+  t.plan(1)
+
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+    res.end('ok')
+  }
+
+  const [{ port, caFingerprint }, server] = await buildServer(handler, { secure: true })
+  const connection = new HttpConnection({
+    url: new URL(`https://localhost:${port}`),
+    caFingerprint
+  })
+  const res = await connection.request({
+    path: '/hello',
+    method: 'GET'
+  }, options)
+  t.equal(res.body, 'ok')
+  server.stop()
+})
+
+test('Check server fingerprint (failure)', async t => {
+  t.plan(2)
+
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+    res.end('ok')
+  }
+
+  const [{ port }, server] = await buildServer(handler, { secure: true })
+  const connection = new HttpConnection({
+    url: new URL(`https://localhost:${port}`),
+    caFingerprint: 'FO:OB:AR'
+  })
+  try {
+    await connection.request({
+      path: '/hello',
+      method: 'GET'
+    }, options)
+    t.fail('Should throw')
+  } catch (err) {
+    t.ok(err instanceof ConnectionError)
+    t.equal(err.message, 'Fingerprint does not match')
+  }
+  server.stop()
+})
