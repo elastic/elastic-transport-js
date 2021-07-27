@@ -20,13 +20,16 @@
 import { EventEmitter } from 'events'
 import Debug from 'debug'
 import buffer from 'buffer'
+import { TLSSocket } from 'tls'
+import { Socket } from 'net'
 import BaseConnection, {
   ConnectionOptions,
   ConnectionRequestParams,
   ConnectionRequestOptions,
-  ConnectionRequestResponse
+  ConnectionRequestResponse,
+  getIssuerCertificate
 } from './BaseConnection'
-import { Pool } from 'undici'
+import { Pool, Connector } from 'undici'
 import {
   ConfigurationError,
   RequestAbortedError,
@@ -34,7 +37,7 @@ import {
   TimeoutError
 } from '../errors'
 import { UndiciAgentOptions } from '../types'
-import { kEmitter } from '../symbols'
+import { kCaFingerprint, kEmitter } from '../symbols'
 
 const debug = Debug('elasticsearch')
 const INVALID_PATH_REGEX = /[^\u0021-\u00ff]/
@@ -61,8 +64,7 @@ export default class Connection extends BaseConnection {
     }
 
     this[kEmitter] = new EventEmitter()
-    this.pool = new Pool(this.url.toString(), {
-      connect: { ...this.ssl },
+    const undiciOptions: Pool.Options = {
       keepAliveTimeout: 4000,
       keepAliveMaxTimeout: 600e3,
       keepAliveTimeoutThreshold: 1000,
@@ -72,7 +74,30 @@ export default class Connection extends BaseConnection {
       headersTimeout: this.timeout,
       bodyTimeout: this.timeout,
       ...opts.agent
-    })
+    }
+
+    if (this[kCaFingerprint] !== null) {
+      const caFingerprint = this[kCaFingerprint]
+      const connector = new Connector((this.ssl ?? {}) as Connector.Options)
+      undiciOptions.connect = function (opts: Connector.ConnectOptions, cb: Connector.connectCallback) {
+        connector.connect(opts, (err, socket) => {
+          if (err != null) {
+            return cb(err, null)
+          }
+          if (caFingerprint !== null && isTlsSocket(opts, socket)) {
+            if (getIssuerCertificate(socket).fingerprint256 !== caFingerprint) {
+              socket.destroy()
+              return cb(new Error('Fingerprint does not match'), null)
+            }
+          }
+          return cb(null, socket)
+        })
+      }
+    } else if (this.ssl !== null) {
+      undiciOptions.connect = this.ssl as Connector.Options
+    }
+
+    this.pool = new Pool(this.url.toString(), undiciOptions)
   }
 
   async request (params: ConnectionRequestParams, options: ConnectionRequestOptions): Promise<ConnectionRequestResponse> {
@@ -110,7 +135,6 @@ export default class Connection extends BaseConnection {
     debug('Starting a new request', params)
     let response
     try {
-      // @ts-expect-error the `origin` option should not be required
       response = await this.pool.request(requestParams)
       if (timeoutId != null) clearTimeout(timeoutId)
     } catch (err) {
@@ -185,4 +209,8 @@ function isUndiciAgentOptions (opts: Record<string, any>): opts is UndiciAgentOp
   if (opts.scheduling != null) return false
   if (opts.proxy != null) return false
   return true
+}
+
+function isTlsSocket (opts: Connector.ConnectOptions, socket: Socket | TLSSocket | null): socket is TLSSocket {
+  return socket !== null && opts.protocol === 'https:'
 }

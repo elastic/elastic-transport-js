@@ -20,7 +20,7 @@
 import { inspect } from 'util'
 import * as http from 'http'
 import { URL } from 'url'
-import { ConnectionOptions as TlsConnectionOptions } from 'tls'
+import { ConnectionOptions as TlsConnectionOptions, TLSSocket, DetailedPeerCertificate } from 'tls'
 import { Readable as ReadableStream } from 'stream'
 import AbortController from 'node-abort-controller'
 import Diagnostic from '../Diagnostic'
@@ -33,7 +33,7 @@ import {
   agentFn
 } from '../types'
 import { ConfigurationError } from '../errors'
-import { kStatus, kDiagnostic } from '../symbols'
+import { kStatus, kDiagnostic, kCaFingerprint } from '../symbols'
 
 export interface ConnectionOptions {
   url: URL
@@ -46,6 +46,7 @@ export interface ConnectionOptions {
   timeout?: number
   agent?: HttpAgentOptions | UndiciAgentOptions | agentFn | boolean
   proxy?: string | URL
+  caFingerprint?: string
 }
 
 export interface ConnectionRequestParams {
@@ -82,6 +83,7 @@ export default class BaseConnection {
   _openRequests: number
   weight: number
   [kStatus]: string
+  [kCaFingerprint]: string | null
   [kDiagnostic]: Diagnostic
 
   static statuses = {
@@ -101,6 +103,7 @@ export default class BaseConnection {
     this._openRequests = 0
     this[kStatus] = opts.status ?? BaseConnection.statuses.ALIVE
     this[kDiagnostic] = opts.diagnostic ?? new Diagnostic()
+    this[kCaFingerprint] = opts.caFingerprint ?? null
 
     if (!['http:', 'https:'].includes(this.url.protocol)) {
       throw new ConfigurationError(`Invalid protocol: '${this.url.protocol}'`)
@@ -198,4 +201,20 @@ function isApiKeyAuth (auth: Record<string, any>): auth is ApiKeyAuth {
 
 function isBearerAuth (auth: Record<string, any>): auth is BearerAuth {
   return auth.bearer != null
+}
+
+export function getIssuerCertificate (socket: TLSSocket): DetailedPeerCertificate {
+  let certificate = socket.getPeerCertificate(true)
+  while (certificate != null && Object.keys(certificate).length > 0) {
+    if (certificate.issuerCertificate !== undefined) {
+      // For self-signed certificates, `issuerCertificate` may be a circular reference.
+      if (certificate.fingerprint256 === certificate.issuerCertificate.fingerprint256) {
+        break
+      }
+      certificate = certificate.issuerCertificate
+    } else {
+      break
+    }
+  }
+  return certificate
 }

@@ -21,6 +21,7 @@ import { URL } from 'url'
 import { ConnectionOptions as TlsConnectionOptions } from 'tls'
 import Debug from 'debug'
 import Diagnostic from '../Diagnostic'
+import { kCaFingerprint } from '../symbols'
 import {
   Connection,
   ConnectionOptions,
@@ -50,6 +51,7 @@ export interface ConnectionPoolOptions {
   Connection: typeof BaseConnection
   pingTimeout?: number
   resurrectStrategy?: 'none' | 'ping' | 'optimistic'
+  caFingerprint?: string
 }
 
 export interface GetConnectionOptions {
@@ -70,6 +72,7 @@ export default class BaseConnectionPool {
   _agent?: HttpAgentOptions | UndiciAgentOptions | agentFn
   _proxy?: string | URL
   _ssl?: TlsConnectionOptions
+  [kCaFingerprint]?: string
 
   constructor (opts: ConnectionPoolOptions) {
     // list of nodes and weights
@@ -82,6 +85,7 @@ export default class BaseConnectionPool {
     this._ssl = opts.ssl
     this._agent = opts.agent
     this._proxy = opts.proxy
+    this[kCaFingerprint] = opts.caFingerprint
   }
 
   markAlive (connection: Connection): this {
@@ -123,6 +127,8 @@ export default class BaseConnectionPool {
     if (opts.proxy == null) opts.proxy = this._proxy
     /* istanbul ignore else */
     if (opts.diagnostic == null) opts.diagnostic = this.diagnostic
+    /* istanbul ignore else */
+    if (opts.caFingerprint == null) opts.caFingerprint = this[kCaFingerprint]
 
     const connection = new this.Connection(opts)
 
