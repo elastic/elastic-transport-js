@@ -29,7 +29,7 @@ import BaseConnection, {
   ConnectionRequestResponse,
   getIssuerCertificate
 } from './BaseConnection'
-import { Pool, Connector } from 'undici'
+import { Pool, buildConnector } from 'undici'
 import {
   ConfigurationError,
   RequestAbortedError,
@@ -78,9 +78,9 @@ export default class Connection extends BaseConnection {
 
     if (this[kCaFingerprint] !== null) {
       const caFingerprint = this[kCaFingerprint]
-      const connector = new Connector((this.ssl ?? {}) as Connector.Options)
-      undiciOptions.connect = function (opts: Connector.ConnectOptions, cb: Connector.connectCallback) {
-        connector.connect(opts, (err, socket) => {
+      const connector = buildConnector((this.ssl ?? {}) as buildConnector.BuildOptions)
+      undiciOptions.connect = function (opts: buildConnector.Options, cb: buildConnector.Callback) {
+        connector(opts, (err, socket) => {
           if (err != null) {
             return cb(err, null)
           }
@@ -94,7 +94,7 @@ export default class Connection extends BaseConnection {
         })
       }
     } else if (this.ssl !== null) {
-      undiciOptions.connect = this.ssl as Connector.Options
+      undiciOptions.connect = this.ssl as buildConnector.BuildOptions
     }
 
     this.pool = new Pool(this.url.toString(), undiciOptions)
@@ -211,6 +211,6 @@ function isUndiciAgentOptions (opts: Record<string, any>): opts is UndiciAgentOp
   return true
 }
 
-function isTlsSocket (opts: Connector.ConnectOptions, socket: Socket | TLSSocket | null): socket is TLSSocket {
+function isTlsSocket (opts: buildConnector.Options, socket: Socket | TLSSocket | null): socket is TLSSocket {
   return socket !== null && opts.protocol === 'https:'
 }
