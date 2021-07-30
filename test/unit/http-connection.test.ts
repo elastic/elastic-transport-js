@@ -1008,7 +1008,7 @@ test('Check server fingerprint (failure)', async t => {
     t.fail('Should throw')
   } catch (err) {
     t.ok(err instanceof ConnectionError)
-    t.equal(err.message, 'Fingerprint does not match')
+    t.equal(err.message, 'Server certificate CA fingerprint does not match the value configured in caFingerprint')
   }
   server.stop()
 })
