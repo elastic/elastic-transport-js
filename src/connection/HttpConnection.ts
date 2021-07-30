@@ -200,9 +200,18 @@ export default class HttpConnection extends BaseConnection {
         /* istanbul ignore else */
         if (!socket.isSessionReused()) {
           socket.once('secureConnect', () => {
+            const issuerCertificate = getIssuerCertificate(socket)
+            /* istanbul ignore next */
+            if (issuerCertificate == null) {
+              onError(new Error('Invalid or malformed certificate'))
+              request.once('error', () => {}) // we need to catch the request aborted error
+              return request.abort()
+            }
+
             // Check if fingerprint matches
-            if (this[kCaFingerprint] !== getIssuerCertificate(socket).fingerprint256) {
-              onError(new Error('Fingerprint does not match'))
+            /* istanbul ignore else */
+            if (this[kCaFingerprint] !== issuerCertificate.fingerprint256) {
+              onError(new Error('Server certificate CA fingerprint does not match the value configured in caFingerprint'))
               request.once('error', () => {}) // we need to catch the request aborted error
               return request.abort()
             }

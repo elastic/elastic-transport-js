@@ -85,9 +85,18 @@ export default class Connection extends BaseConnection {
             return cb(err, null)
           }
           if (caFingerprint !== null && isTlsSocket(opts, socket)) {
-            if (getIssuerCertificate(socket).fingerprint256 !== caFingerprint) {
+            const issuerCertificate = getIssuerCertificate(socket)
+            /* istanbul ignore next */
+            if (issuerCertificate == null) {
               socket.destroy()
-              return cb(new Error('Fingerprint does not match'), null)
+              return cb(new Error('Invalid or malformed certificate'), null)
+            }
+
+            // Check if fingerprint matches
+            /* istanbul ignore else */
+            if (caFingerprint !== issuerCertificate.fingerprint256) {
+              socket.destroy()
+              return cb(new Error('Server certificate CA fingerprint does not match the value configured in caFingerprint'), null)
             }
           }
           return cb(null, socket)

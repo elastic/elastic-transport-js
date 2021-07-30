@@ -203,18 +203,22 @@ function isBearerAuth (auth: Record<string, any>): auth is BearerAuth {
   return auth.bearer != null
 }
 
-export function getIssuerCertificate (socket: TLSSocket): DetailedPeerCertificate {
+export function getIssuerCertificate (socket: TLSSocket): DetailedPeerCertificate | null {
   let certificate = socket.getPeerCertificate(true)
-  while (certificate != null && Object.keys(certificate).length > 0) {
-    if (certificate.issuerCertificate !== undefined) {
-      // For self-signed certificates, `issuerCertificate` may be a circular reference.
-      if (certificate.fingerprint256 === certificate.issuerCertificate.fingerprint256) {
-        break
-      }
-      certificate = certificate.issuerCertificate
-    } else {
+  while (certificate !== null && Object.keys(certificate).length > 0) {
+    // invalid certificate
+    if (certificate.issuerCertificate == null) {
+      return null
+    }
+
+    // We have reached the root certificate.
+    // In case of self-signed certificates, `issuerCertificate` may be a circular reference.
+    if (certificate.fingerprint256 === certificate.issuerCertificate.fingerprint256) {
       break
     }
+
+    // continue the loop
+    certificate = certificate.issuerCertificate
   }
   return certificate
 }
