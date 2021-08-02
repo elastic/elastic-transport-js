@@ -105,8 +105,10 @@ export class ResponseError extends ElasticsearchClientError {
       } else {
         this.message = meta.body.error.type
       }
+    } else if (typeof meta.body === 'object' && meta.body != null) {
+      this.message = JSON.stringify(meta.body)
     } else {
-      this.message = 'Response Error'
+      this.message = meta.body as string ?? 'Response Error'
     }
     this.meta = meta
   }
