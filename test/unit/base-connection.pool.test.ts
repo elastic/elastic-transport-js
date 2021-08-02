@@ -27,6 +27,7 @@ import {
   Diagnostic,
   errors
 } from '../../'
+import { kCaFingerprint } from '../../lib/symbols'
 const { ConfigurationError } = errors
 
 test('configure diagnostic', t => {
@@ -423,3 +424,11 @@ test('API', t => {
 
   t.end()
 })
+
+test('configure caFingerprint', t => {
+  const pool = new BaseConnectionPool({ Connection: HttpConnection, caFingerprint: 'FO:OB:AR' })
+  const conn = pool.createConnection('http://localhost:9200')
+  t.equal(conn[kCaFingerprint], 'FO:OB:AR')
+  t.end()
+})
+

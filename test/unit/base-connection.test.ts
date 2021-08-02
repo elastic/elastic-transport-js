@@ -19,8 +19,10 @@
 
 import { test } from 'tap'
 import { inspect } from 'util'
+import { TLSSocket, DetailedPeerCertificate } from 'tls'
 import { URL } from 'url'
 import { BaseConnection, Diagnostic, errors } from '../../'
+import { getIssuerCertificate } from '../../src/connection/BaseConnection'
 const { ConfigurationError } = errors
 
 test('get diagnostic instance', t => {
@@ -222,4 +224,87 @@ test('do not override authentication', t => {
     authorization: 'hello world'
   })
   t.end()
+})
+
+test('getIssuerCertificate returns the root CA', t => {
+  t.plan(2)
+  const issuerCertificate: Partial<DetailedPeerCertificate> = {
+    fingerprint256: 'BA:ZF:AZ',
+    subject: {
+      C: '1',
+      ST: '1',
+      L: '1',
+      O: '1',
+      OU: '1',
+      CN: '1'
+    },
+    issuer: {
+      C: '1',
+      ST: '1',
+      L: '1',
+      O: '1',
+      OU: '1',
+      CN: '1'
+    }
+  }
+  // @ts-expect-error
+  issuerCertificate.issuerCertificate = issuerCertificate
+
+  const socket = {
+    getPeerCertificate (bool: boolean): Partial<DetailedPeerCertificate> {
+      t.ok(bool)
+      return {
+        fingerprint256: 'FO:OB:AR',
+        subject: {
+          C: '1',
+          ST: '1',
+          L: '1',
+          O: '1',
+          OU: '1',
+          CN: '1'
+        },
+        issuer: {
+          C: '2',
+          ST: '2',
+          L: '2',
+          O: '2',
+          OU: '2',
+          CN: '2'
+        },
+        // @ts-expect-error
+        issuerCertificate
+      }
+    }
+  }
+  t.same(getIssuerCertificate(socket as TLSSocket), issuerCertificate)
+})
+
+test('getIssuerCertificate detects invalid/malformed certificates', t => {
+  t.plan(2)
+  const socket = {
+    getPeerCertificate (bool: boolean): Partial<DetailedPeerCertificate> {
+      t.ok(bool)
+      return {
+        fingerprint256: 'FO:OB:AR',
+        subject: {
+          C: '1',
+          ST: '1',
+          L: '1',
+          O: '1',
+          OU: '1',
+          CN: '1'
+        },
+        issuer: {
+          C: '2',
+          ST: '2',
+          L: '2',
+          O: '2',
+          OU: '2',
+          CN: '2'
+        }
+        // missing issuerCertificate
+      }
+    }
+  }
+  t.equal(getIssuerCertificate(socket as TLSSocket), null)
 })

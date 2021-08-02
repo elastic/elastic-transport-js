@@ -23,12 +23,15 @@ import https from 'https'
 import Debug from 'debug'
 import buffer from 'buffer'
 import { promisify } from 'util'
+import { TLSSocket } from 'tls'
 import BaseConnection, {
   ConnectionOptions,
   ConnectionRequestParams,
   ConnectionRequestOptions,
-  ConnectionRequestResponse
+  ConnectionRequestResponse,
+  getIssuerCertificate
 } from './BaseConnection'
+import { kCaFingerprint } from '../symbols'
 import { Readable as ReadableStream, pipeline } from 'stream'
 import {
   ConfigurationError,
@@ -193,10 +196,36 @@ export default class HttpConnection extends BaseConnection {
         reject(new RequestAbortedError('Request aborted'))
       }
 
+      const onSocket = (socket: TLSSocket): void => {
+        /* istanbul ignore else */
+        if (!socket.isSessionReused()) {
+          socket.once('secureConnect', () => {
+            const issuerCertificate = getIssuerCertificate(socket)
+            /* istanbul ignore next */
+            if (issuerCertificate == null) {
+              onError(new Error('Invalid or malformed certificate'))
+              request.once('error', () => {}) // we need to catch the request aborted error
+              return request.abort()
+            }
+
+            // Check if fingerprint matches
+            /* istanbul ignore else */
+            if (this[kCaFingerprint] !== issuerCertificate.fingerprint256) {
+              onError(new Error('Server certificate CA fingerprint does not match the value configured in caFingerprint'))
+              request.once('error', () => {}) // we need to catch the request aborted error
+              return request.abort()
+            }
+          })
+        }
+      }
+
       request.on('response', onResponse)
       request.on('timeout', onTimeout)
       request.on('error', onError)
       request.on('abort', onAbort)
+      if (this[kCaFingerprint] != null && requestParams.protocol === 'https:') {
+        request.on('socket', onSocket)
+      }
 
       // Disables the Nagle algorithm
       request.setNoDelay(true)
@@ -222,6 +251,7 @@ export default class HttpConnection extends BaseConnection {
         request.removeListener('timeout', onTimeout)
         request.removeListener('error', onError)
         request.removeListener('abort', onAbort)
+        request.removeListener('socket', onSocket)
         cleanedListeners = true
       }
     })
