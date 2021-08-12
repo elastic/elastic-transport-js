@@ -62,7 +62,7 @@ export interface ConnectionRequestParams {
 
 export interface ConnectionRequestOptions {
   requestId: string | number
-  name: string
+  name: string | symbol
   context: any
 }
 
@@ -177,7 +177,7 @@ function stripAuth (url: string): string {
   return url.slice(0, url.indexOf('//') + 2) + url.slice(url.indexOf('@') + 1)
 }
 
-function prepareHeaders (headers: http.IncomingHttpHeaders = {}, auth?: BasicAuth | ApiKeyAuth | BearerAuth): http.IncomingHttpHeaders {
+export function prepareHeaders (headers: http.IncomingHttpHeaders = {}, auth?: BasicAuth | ApiKeyAuth | BearerAuth): http.IncomingHttpHeaders {
   if (auth != null && headers.authorization == null) {
     /* istanbul ignore else */
     if (isApiKeyAuth(auth)) {

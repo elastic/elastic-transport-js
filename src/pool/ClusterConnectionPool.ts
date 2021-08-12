@@ -30,13 +30,13 @@ const debug = Debug('elasticsearch')
 export interface ResurrectOptions {
   now: number
   requestId: string | number
-  name: string
+  name: string | symbol
   context: any
 }
 
 export interface ResurrectEvent {
   strategy: string
-  name: string
+  name: string | symbol
   request: { id: string }
   isAlive: boolean
   connection: Connection

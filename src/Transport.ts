@@ -89,7 +89,6 @@ export interface TransportOptions {
   serializer?: Serializer
   maxRetries?: number
   requestTimeout?: number | string
-  suggestCompression?: boolean
   compression?: boolean
   sniffInterval?: number | boolean
   sniffOnConnectionFault?: boolean
@@ -99,7 +98,7 @@ export interface TransportOptions {
   nodeSelector?: nodeSelectorFn
   headers?: http.IncomingHttpHeaders
   generateRequestId?: generateRequestIdFn
-  name?: string
+  name?: string | symbol
   opaqueIdPrefix?: string
   context?: Context
   productCheck?: string
@@ -178,7 +177,7 @@ export default class Transport {
   [kContext]: Context
   [kGenerateRequestId]: generateRequestIdFn
   [kOpaqueIdPrefix]: string | null
-  [kName]: string
+  [kName]: string | symbol
   [kMaxRetries]: number
   [kCompression]: boolean
   [kRequestTimeout]: number
