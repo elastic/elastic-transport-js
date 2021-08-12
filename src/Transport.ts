@@ -37,12 +37,7 @@ import Diagnostic from './Diagnostic'
 import Serializer from './Serializer'
 import AbortController from 'node-abort-controller'
 import { Readable as ReadableStream } from 'stream'
-import {
-  ClusterConnectionPool,
-  CloudConnectionPool,
-  WeightedConnectionPool,
-  BaseConnectionPool
-} from './pool'
+import { BaseConnectionPool } from './pool'
 import {
   nodeFilterFn,
   nodeSelectorFn,
@@ -85,7 +80,7 @@ const userAgent = `elastic-transport-js/${clientVersion} (${os.platform()} ${os.
 
 export interface TransportOptions {
   diagnostic?: Diagnostic
-  connectionPool: ClusterConnectionPool | CloudConnectionPool | WeightedConnectionPool
+  connectionPool: BaseConnectionPool
   serializer?: Serializer
   maxRetries?: number
   requestTimeout?: number | string
@@ -172,7 +167,7 @@ export default class Transport {
   [kNodeSelector]: nodeSelectorFn
   [kHeaders]: http.IncomingHttpHeaders
   [kDiagnostic]: Diagnostic
-  [kConnectionPool]: ClusterConnectionPool | CloudConnectionPool | WeightedConnectionPool
+  [kConnectionPool]: BaseConnectionPool
   [kSerializer]: Serializer
   [kContext]: Context
   [kGenerateRequestId]: generateRequestIdFn
