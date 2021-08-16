@@ -144,6 +144,7 @@ export default class Connection extends BaseConnection {
     debug('Starting a new request', params)
     let response
     try {
+      // @ts-expect-error method it's fine as string
       response = await this.pool.request(requestParams)
       if (timeoutId != null) clearTimeout(timeoutId)
     } catch (err) {
