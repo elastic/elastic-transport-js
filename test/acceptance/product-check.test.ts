@@ -132,3 +132,83 @@ test('Errors v8', async t => {
     t.equal(err.message, 'The client noticed that the server is not Elasticsearch and we do not support this unknown product.')
   }
 })
+
+test('401', async t => {
+  t.plan(2)
+
+  const MockConnection = buildMockConnection({
+    onRequest (params) {
+      return {
+        statusCode: 401,
+        headers: {
+          'x-elastic-product': undefined
+        },
+        body: { error: true }
+      }
+    }
+  })
+
+  const client = new TestClient({
+    node: 'http://localhost:9200',
+    Connection: MockConnection
+  })
+
+  client.diagnostic.on(events.RESPONSE, (err, event) => {
+    t.ok(err instanceof errors.ResponseError)
+  })
+
+  try {
+    await client.request({
+      path: '/foo/_search',
+      method: 'POST',
+      body: {
+        query: {
+          match_all: {}
+        }
+      }
+    })
+    t.fail('Should throw')
+  } catch (err) {
+    t.equal(err.statusCode, 401)
+  }
+})
+
+test('403', async t => {
+  t.plan(2)
+
+  const MockConnection = buildMockConnection({
+    onRequest (params) {
+      return {
+        statusCode: 403,
+        headers: {
+          'x-elastic-product': undefined
+        },
+        body: { error: true }
+      }
+    }
+  })
+
+  const client = new TestClient({
+    node: 'http://localhost:9200',
+    Connection: MockConnection
+  })
+
+  client.diagnostic.on(events.RESPONSE, (err, event) => {
+    t.ok(err instanceof errors.ResponseError)
+  })
+
+  try {
+    await client.request({
+      path: '/foo/_search',
+      method: 'POST',
+      body: {
+        query: {
+          match_all: {}
+        }
+      }
+    })
+    t.fail('Should throw')
+  } catch (err) {
+    t.equal(err.statusCode, 403)
+  }
+})
