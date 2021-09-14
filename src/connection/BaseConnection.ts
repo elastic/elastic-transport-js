@@ -64,6 +64,8 @@ export interface ConnectionRequestOptions {
   requestId: string | number
   name: string | symbol
   context: any
+  maxResponseSize?: number
+  maxCompressedResponseSize?: number
 }
 
 export interface ConnectionRequestResponse {

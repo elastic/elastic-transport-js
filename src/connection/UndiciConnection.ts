@@ -110,6 +110,8 @@ export default class Connection extends BaseConnection {
   }
 
   async request (params: ConnectionRequestParams, options: ConnectionRequestOptions): Promise<ConnectionRequestResponse> {
+    const maxResponseSize = options.maxResponseSize ?? MAX_STRING_LENGTH
+    const maxCompressedResponseSize = options.maxCompressedResponseSize ?? MAX_BUFFER_LENGTH
     const requestParams = {
       method: params.method,
       path: params.path + (params.querystring == null || params.querystring === '' ? '' : `?${params.querystring}`),
@@ -144,7 +146,6 @@ export default class Connection extends BaseConnection {
     debug('Starting a new request', params)
     let response
     try {
-      // @ts-expect-error method it's fine as string
       response = await this.pool.request(requestParams)
       if (timeoutId != null) clearTimeout(timeoutId)
     } catch (err) {
@@ -166,12 +167,12 @@ export default class Connection extends BaseConnection {
     /* istanbul ignore else */
     if (response.headers['content-length'] !== undefined) {
       const contentLength = Number(response.headers['content-length'])
-      if (isCompressed && contentLength > MAX_BUFFER_LENGTH) {
+      if (isCompressed && contentLength > maxCompressedResponseSize) {
         response.body.destroy()
-        throw new RequestAbortedError(`The content length (${contentLength}) is bigger than the maximum allowed buffer (${MAX_BUFFER_LENGTH})`)
-      } else if (contentLength > MAX_STRING_LENGTH) {
+        throw new RequestAbortedError(`The content length (${contentLength}) is bigger than the maximum allowed buffer (${maxCompressedResponseSize})`)
+      } else if (contentLength > maxResponseSize) {
         response.body.destroy()
-        throw new RequestAbortedError(`The content length (${contentLength}) is bigger than the maximum allowed string (${MAX_STRING_LENGTH})`)
+        throw new RequestAbortedError(`The content length (${contentLength}) is bigger than the maximum allowed string (${maxResponseSize})`)
       }
     }
 
