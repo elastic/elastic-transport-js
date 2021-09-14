@@ -64,7 +64,7 @@ test('API', t => {
     try {
       pool.addConnection(href)
       t.fail('Should throw')
-    } catch (err) {
+    } catch (err: any) {
       t.equal(err.message, `Connection with id '${href}' is already present`)
     }
     t.end()
@@ -89,7 +89,7 @@ test('API', t => {
       // @ts-expect-error
       pool.getConnection()
       t.fail('Should fail')
-    } catch (err) {
+    } catch (err: any) {
       t.ok(err instanceof ConfigurationError)
     }
     t.end()
@@ -416,7 +416,7 @@ test('API', t => {
     try {
       pool.createConnection('http://localhost:9200')
       t.fail('Should throw')
-    } catch (err) {
+    } catch (err: any) {
       t.equal(err.message, 'Connection with id \'http://localhost:9200/\' is already present')
     }
     t.end()

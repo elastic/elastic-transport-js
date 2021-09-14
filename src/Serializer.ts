@@ -48,7 +48,7 @@ export default class Serializer {
     let json
     try {
       json = JSON.stringify(object)
-    } catch (err) {
+    } catch (err: any) {
       throw new SerializationError(err.message, object)
     }
     return json
@@ -60,7 +60,7 @@ export default class Serializer {
     try {
       // @ts-expect-error
       object = sjson.parse(json, this[kJsonOptions])
-    } catch (err) {
+    } catch (err: any) {
       throw new DeserializationError(err.message, json)
     }
     return object

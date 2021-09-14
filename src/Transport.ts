@@ -362,7 +362,7 @@ export default class Transport {
       if (shouldSerialize(params.body)) {
         try {
           connectionParams.body = this[kSerializer].serialize(params.body)
-        } catch (err) {
+        } catch (err: any) {
           this[kDiagnostic].emit('request', err, result)
           throw err
         }
@@ -379,7 +379,7 @@ export default class Transport {
       if (shouldSerialize(params.bulkBody)) {
         try {
           connectionParams.body = this[kSerializer].ndserialize(params.bulkBody as Array<Record<string, any>>)
-        } catch (err) {
+        } catch (err: any) {
           this[kDiagnostic].emit('request', err, result)
           throw err
         }
@@ -419,7 +419,7 @@ export default class Transport {
       } else if (compression) {
         try {
           connectionParams.body = await gzip(connectionParams.body)
-        } catch (err) {
+        } catch (err: any) {
           /* istanbul ignore next */
           this[kDiagnostic].emit('request', err, result)
           /* istanbul ignore next */
@@ -526,7 +526,7 @@ export default class Transport {
           this[kDiagnostic].emit('response', null, result)
           return returnMeta ? result : result.body
         }
-      } catch (error) {
+      } catch (error: any) {
         switch (error.name) {
           // should not retry
           case 'ProductNotSupportedError':

@@ -128,7 +128,7 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
 
       try {
         await client.request({ method: 'GET', path: '/' })
-      } catch (err) {
+      } catch (err: any) {
         t.ok(err instanceof ConnectionError)
         t.equal(order.length, 0)
       }
@@ -182,7 +182,7 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
 
       try {
         await client.request({ method: 'GET', path: '/' })
-      } catch (err) {
+      } catch (err: any) {
         t.ok(err instanceof TimeoutError)
         t.equal(order.length, 0)
       }
@@ -238,7 +238,7 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
       setImmediate(() => abortController.abort())
       try {
         await client.request({ method: 'GET', path: '/' }, { abortController })
-      } catch (err) {
+      } catch (err: any) {
         t.ok(err instanceof RequestAbortedError)
         t.equal(order.length, 0)
       }
@@ -292,7 +292,7 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
 
       try {
         await client.request({ method: 'GET', path: '/' })
-      } catch (err) {
+      } catch (err: any) {
         t.ok(err instanceof ResponseError)
         t.equal(order.length, 0)
       }
@@ -348,7 +348,7 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
 
       try {
         await client.request({ method: 'GET', path: '/' })
-      } catch (err) {
+      } catch (err: any) {
         t.ok(err instanceof ResponseError)
         t.equal(order.length, 0)
       }
@@ -399,7 +399,7 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
       body.o = body
       try {
         await client.request({ method: 'POST', path: '/', body })
-      } catch (err) {
+      } catch (err: any) {
         t.ok(err instanceof SerializationError)
         t.equal(order.length, 0)
       }
@@ -451,7 +451,7 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
 
       try {
         await client.request({ method: 'GET', path: '/' })
-      } catch (err) {
+      } catch (err: any) {
         t.ok(err instanceof DeserializationError)
         t.equal(order.length, 0)
       }
@@ -509,7 +509,7 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
 
       try {
         await client.request({ method: 'GET', path: '/' })
-      } catch (err) {
+      } catch (err: any) {
         t.ok(err instanceof ConnectionError)
         t.equal(order.length, 0)
       }
