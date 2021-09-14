@@ -18,7 +18,7 @@
  */
 
 import { test } from 'tap'
-// import buffer from 'buffer'
+import buffer from 'buffer'
 // import { URL } from 'url'
 // import FakeTimers from '@sinonjs/fake-timers'
 import { promisify } from 'util'
@@ -1620,6 +1620,233 @@ test('Compressed mapbox vector tile', async t => {
     path: '/_mvt'
   })
   t.same(body.toString('base64'), Buffer.from(mvtContent, 'base64').toString('base64'))
+})
+
+test('maxResponseSize request option', async t => {
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
+      return {
+        body: '',
+        statusCode: 200,
+        headers: {
+          'content-length': '1100'
+        }
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool,
+    compression: true
+  })
+
+  try {
+    await transport.request({
+      method: 'GET',
+      path: '/hello'
+    }, { maxResponseSize: 1000 })
+  } catch (err) {
+    t.ok(err)
+  }
+})
+
+test('maxCompressedResponseSize request option', async t => {
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
+      return {
+        body: '',
+        statusCode: 200,
+        headers: {
+          'content-encoding': 'gzip',
+          'content-length': '1100'
+        }
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool,
+    compression: true
+  })
+
+  try {
+    await transport.request({
+      method: 'GET',
+      path: '/hello'
+    }, { maxCompressedResponseSize: 1000 })
+  } catch (err) {
+    t.ok(err)
+  }
+})
+
+test('maxResponseSize constructor option', async t => {
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
+      return {
+        body: '',
+        statusCode: 200,
+        headers: {
+          'content-length': '1100'
+        }
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool,
+    compression: true,
+    maxResponseSize: 1000
+  })
+
+  try {
+    await transport.request({
+      method: 'GET',
+      path: '/hello'
+    })
+  } catch (err) {
+    t.ok(err)
+  }
+})
+
+test('maxCompressedResponseSize constructor option', async t => {
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
+      return {
+        body: '',
+        statusCode: 200,
+        headers: {
+          'content-encoding': 'gzip',
+          'content-length': '1100'
+        }
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool,
+    compression: true,
+    maxCompressedResponseSize: 1000
+  })
+
+  try {
+    await transport.request({
+      method: 'GET',
+      path: '/hello'
+    })
+  } catch (err) {
+    t.ok(err)
+  }
+})
+
+test('maxResponseSize constructor option override', async t => {
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
+      return {
+        body: '',
+        statusCode: 200,
+        headers: {
+          'content-length': '1100'
+        }
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool,
+    compression: true,
+    maxResponseSize: 2000
+  })
+
+  try {
+    await transport.request({
+      method: 'GET',
+      path: '/hello'
+    }, { maxResponseSize: 1000 })
+  } catch (err) {
+    t.ok(err)
+  }
+})
+
+test('maxCompressedResponseSize constructor option override', async t => {
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
+      return {
+        body: '',
+        statusCode: 200,
+        headers: {
+          'content-encoding': 'gzip',
+          'content-length': '1100'
+        }
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool,
+    compression: true,
+    maxCompressedResponseSize: 2000
+  })
+
+  try {
+    await transport.request({
+      method: 'GET',
+      path: '/hello'
+    }, { maxCompressedResponseSize: 1000 })
+  } catch (err) {
+    t.ok(err)
+  }
+})
+
+test('Should throw on bad maxResponseSize', t => {
+  const pool = new WeightedConnectionPool({ Connection: UndiciConnection })
+  pool.addConnection('http://localhost:9200')
+
+  try {
+    new Transport({ // eslint-disable-line // eslint-disable-line
+      connectionPool: pool,
+      maxResponseSize: buffer.constants.MAX_STRING_LENGTH + 10
+    })
+    t.fail('Should throw')
+  } catch (err) {
+    t.ok(err instanceof ConfigurationError)
+    t.equal(err.message, `The maxResponseSize cannot be bigger than ${buffer.constants.MAX_STRING_LENGTH}`)
+  }
+  t.end()
+})
+
+test('Should throw on bad maxCompressedResponseSize', t => {
+  const pool = new WeightedConnectionPool({ Connection: UndiciConnection })
+  pool.addConnection('http://localhost:9200')
+
+  try {
+    new Transport({ // eslint-disable-line
+      connectionPool: pool,
+      maxCompressedResponseSize: buffer.constants.MAX_LENGTH + 10
+    })
+    t.fail('Should throw')
+  } catch (err) {
+    t.ok(err instanceof ConfigurationError)
+    t.equal(err.message, `The maxCompressedResponseSize cannot be bigger than ${buffer.constants.MAX_LENGTH}`)
+  }
+  t.end()
 })
 
 // test('asStream set to true', t => {

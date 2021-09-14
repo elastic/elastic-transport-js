@@ -696,6 +696,84 @@ test('Content length too big (string)', async t => {
   }
 })
 
+test('Content length too big custom option (buffer)', async t => {
+  t.plan(2)
+
+  class MyConnection extends UndiciConnection {
+    constructor (opts: ConnectionOptions) {
+      super(opts)
+      this.pool = {
+        // @ts-expect-error
+        request () {
+          const stream = intoStream(JSON.stringify({ hello: 'world' }))
+          const statusCode = 200
+          const headers = {
+            'content-type': 'application/json;utf=8',
+            'content-encoding': 'gzip',
+            'content-length': 1100,
+            connection: 'keep-alive',
+            date: new Date().toISOString()
+          }
+          return { body: stream, statusCode, headers }
+        }
+      }
+    }
+  }
+
+  const connection = new MyConnection({
+    url: new URL('http://localhost:9200')
+  })
+
+  try {
+    await connection.request({
+      method: 'GET',
+      path: '/'
+    }, { ...options, maxCompressedResponseSize: 1000 })
+  } catch (err) {
+    t.ok(err instanceof RequestAbortedError)
+    t.equal(err.message, 'The content length (1100) is bigger than the maximum allowed buffer (1000)')
+  }
+})
+
+test('Content length too big custom option (string)', async t => {
+  t.plan(2)
+
+  class MyConnection extends UndiciConnection {
+    constructor (opts: ConnectionOptions) {
+      super(opts)
+      this.pool = {
+        // @ts-expect-error
+        request () {
+          const stream = intoStream(JSON.stringify({ hello: 'world' }))
+          const statusCode = 200
+          const headers = {
+            'content-type': 'application/json;utf=8',
+            'content-encoding': 'gzip',
+            'content-length': 1100,
+            connection: 'keep-alive',
+            date: new Date().toISOString()
+          }
+          return { body: stream, statusCode, headers }
+        }
+      }
+    }
+  }
+
+  const connection = new MyConnection({
+    url: new URL('http://localhost:9200')
+  })
+
+  try {
+    await connection.request({
+      method: 'GET',
+      path: '/'
+    }, { ...options, maxResponseSize: 1000 })
+  } catch (err) {
+    t.ok(err instanceof RequestAbortedError)
+    t.equal(err.message, 'The content length (1100) is bigger than the maximum allowed string (1000)')
+  }
+})
+
 test('Compressed responsed should return a buffer as body (gzip)', async t => {
   t.plan(2)
 
