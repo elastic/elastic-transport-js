@@ -139,7 +139,7 @@ test('SerializationError', t => {
   try {
     s.serialize(obj)
     t.fail('Should fail')
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof SerializationError)
   }
 })
@@ -151,7 +151,7 @@ test('SerializationError ndserialize', t => {
     // @ts-expect-error
     s.ndserialize({ hello: 'world' })
     t.fail('Should fail')
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof SerializationError)
   }
 })
@@ -163,7 +163,7 @@ test('DeserializationError', t => {
   try {
     s.deserialize(json)
     t.fail('Should fail')
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof DeserializationError)
   }
 })
@@ -174,14 +174,14 @@ test('prototype poisoning protection enabled', t => {
    try {
      s.deserialize('{"__proto__":{"foo":"bar"}}')
      t.fail('Should fail')
-   } catch (err) {
+   } catch (err: any) {
      t.ok(err instanceof DeserializationError)
    }
 
    try {
      s.deserialize('{"constructor":{"prototype":{"foo":"bar"}}}')
      t.fail('Should fail')
-   } catch (err) {
+   } catch (err: any) {
      t.ok(err instanceof DeserializationError)
    }
  })
@@ -192,14 +192,14 @@ test('prototype poisoning protection enabled', t => {
    try {
      s.deserialize('{"__proto__":{"foo":"bar"}}')
      t.pass('Should not fail')
-   } catch (err) {
+   } catch (err: any) {
      t.fail(err)
    }
 
    try {
      s.deserialize('{"constructor":{"prototype":{"foo":"bar"}}}')
      t.pass('Should not fail')
-   } catch (err) {
+   } catch (err: any) {
      t.fail(err)
    }
  })
@@ -210,14 +210,14 @@ test('prototype poisoning protection enabled', t => {
    try {
      s.deserialize('{"__proto__":{"foo":"bar"}}')
      t.fail('Should fail')
-   } catch (err) {
+   } catch (err: any) {
      t.ok(err instanceof DeserializationError)
    }
 
    try {
      s.deserialize('{"constructor":{"prototype":{"foo":"bar"}}}')
      t.pass('Should not fail')
-   } catch (err) {
+   } catch (err: any) {
      t.fail(err)
    }
  })
@@ -228,14 +228,14 @@ test('prototype poisoning protection enabled', t => {
    try {
      s.deserialize('{"__proto__":{"foo":"bar"}}')
      t.pass('Should not fail')
-   } catch (err) {
+   } catch (err: any) {
      t.fail(err)
    }
 
    try {
      s.deserialize('{"constructor":{"prototype":{"foo":"bar"}}}')
      t.fail('Should fail')
-   } catch (err) {
+   } catch (err: any) {
      t.ok(err instanceof DeserializationError)
    }
  })

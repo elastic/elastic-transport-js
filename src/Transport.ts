@@ -21,6 +21,7 @@ import Debug from 'debug'
 import os from 'os'
 import * as http from 'http'
 import zlib from 'zlib'
+import buffer from 'buffer'
 import { promisify } from 'util'
 import ms from 'ms'
 import {
@@ -67,7 +68,9 @@ import {
   kHeaders,
   kNodeFilter,
   kNodeSelector,
-  kProductCheck
+  kProductCheck,
+  kMaxResponseSize,
+  kMaxCompressedResponseSize
 } from './symbols'
 
 const { version: clientVersion } = require('../package.json') // eslint-disable-line
@@ -97,6 +100,8 @@ export interface TransportOptions {
   opaqueIdPrefix?: string
   context?: Context
   productCheck?: string
+  maxResponseSize?: number
+  maxCompressedResponseSize?: number
 }
 
 export interface TransportRequestParams {
@@ -120,6 +125,8 @@ export interface TransportRequestOptions {
   warnings?: string[]
   opaqueId?: string
   abortController?: AbortController
+  maxResponseSize?: number
+  maxCompressedResponseSize?: number
   /**
     * Warning: If you set meta to true the result will no longer be
     * the response body, but an object containing the body, statusCode,
@@ -183,6 +190,8 @@ export default class Transport {
   [kSniffOnConnectionFault]: boolean
   [kSniffEndpoint]: string | null
   [kProductCheck]: string | null
+  [kMaxResponseSize]: number
+  [kMaxCompressedResponseSize]: number
 
   static sniffReasons = {
     SNIFF_ON_START: 'sniff-on-start',
@@ -203,6 +212,14 @@ export default class Transport {
     if (opts.sniffInterval === true ||
        (typeof opts.sniffInterval === 'number' && opts.sniffInterval < 0 && Number.isInteger(opts.sniffInterval))) {
       throw new ConfigurationError('The sniffInterval option must be false or a positive integer')
+    }
+
+    if (opts.maxResponseSize != null && opts.maxResponseSize > buffer.constants.MAX_STRING_LENGTH) {
+      throw new ConfigurationError(`The maxResponseSize cannot be bigger than ${buffer.constants.MAX_STRING_LENGTH}`)
+    }
+
+    if (opts.maxCompressedResponseSize != null && opts.maxCompressedResponseSize > buffer.constants.MAX_LENGTH) {
+      throw new ConfigurationError(`The maxCompressedResponseSize cannot be bigger than ${buffer.constants.MAX_LENGTH}`)
     }
 
     this[kNodeFilter] = opts.nodeFilter ?? defaultNodeFilter
@@ -229,6 +246,8 @@ export default class Transport {
     this[kSniffOnConnectionFault] = opts.sniffOnConnectionFault ?? false
     this[kSniffEndpoint] = opts.sniffEndpoint ?? null
     this[kProductCheck] = opts.productCheck ?? null
+    this[kMaxResponseSize] = opts.maxResponseSize ?? buffer.constants.MAX_STRING_LENGTH
+    this[kMaxCompressedResponseSize] = opts.maxCompressedResponseSize ?? buffer.constants.MAX_LENGTH
 
     if (opts.sniffOnStart === true) {
       this.sniff({
@@ -326,6 +345,8 @@ export default class Transport {
     const maxRetries = isStream(params.body ?? params.bulkBody) ? 0 : (typeof options.maxRetries === 'number' ? options.maxRetries : this[kMaxRetries])
     const compression = typeof options.compression === 'boolean' ? options.compression : this[kCompression]
     const abortController = options.abortController ?? null
+    const maxResponseSize = options.maxResponseSize ?? this[kMaxResponseSize]
+    const maxCompressedResponseSize = options.maxCompressedResponseSize ?? this[kMaxCompressedResponseSize]
 
     this[kDiagnostic].emit('serialization', null, result)
     const headers = Object.assign({}, this[kHeaders], lowerCaseHeaders(options.headers))
@@ -341,7 +362,7 @@ export default class Transport {
       if (shouldSerialize(params.body)) {
         try {
           connectionParams.body = this[kSerializer].serialize(params.body)
-        } catch (err) {
+        } catch (err: any) {
           this[kDiagnostic].emit('request', err, result)
           throw err
         }
@@ -358,7 +379,7 @@ export default class Transport {
       if (shouldSerialize(params.bulkBody)) {
         try {
           connectionParams.body = this[kSerializer].ndserialize(params.bulkBody as Array<Record<string, any>>)
-        } catch (err) {
+        } catch (err: any) {
           this[kDiagnostic].emit('request', err, result)
           throw err
         }
@@ -398,7 +419,7 @@ export default class Transport {
       } else if (compression) {
         try {
           connectionParams.body = await gzip(connectionParams.body)
-        } catch (err) {
+        } catch (err: any) {
           /* istanbul ignore next */
           this[kDiagnostic].emit('request', err, result)
           /* istanbul ignore next */
@@ -431,7 +452,9 @@ export default class Transport {
         let { statusCode, headers, body } = await meta.connection.request(connectionParams, {
           requestId: meta.request.id,
           name: this[kName],
-          context: meta.context
+          context: meta.context,
+          maxResponseSize,
+          maxCompressedResponseSize
         })
         result.statusCode = statusCode
         result.headers = headers
@@ -503,7 +526,7 @@ export default class Transport {
           this[kDiagnostic].emit('response', null, result)
           return returnMeta ? result : result.body
         }
-      } catch (error) {
+      } catch (error: any) {
         switch (error.name) {
           // should not retry
           case 'ProductNotSupportedError':

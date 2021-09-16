@@ -89,7 +89,7 @@ test('API', t => {
             }
           }
           t.pass('Distribution is ok')
-        } catch (err) {
+        } catch (err: any) {
           t.error(err)
         }
 
@@ -121,7 +121,7 @@ test('API', t => {
       //       }
       //     }
       //     t.pass('Distribution is ok')
-      //   } catch (err) {
+      //   } catch (err: any) {
       //     t.error(err)
       //   }
 
@@ -151,7 +151,7 @@ test('API', t => {
       //       }
       //     }
       //     t.pass('Distribution is ok')
-      //   } catch (err) {
+      //   } catch (err: any) {
       //     t.error(err)
       //   }
 

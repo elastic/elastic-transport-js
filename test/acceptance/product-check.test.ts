@@ -128,7 +128,7 @@ test('Errors v8', async t => {
       }
     })
     t.fail('Should throw')
-  } catch (err) {
+  } catch (err: any) {
     t.equal(err.message, 'The client noticed that the server is not Elasticsearch and we do not support this unknown product.')
   }
 })
@@ -168,7 +168,7 @@ test('401', async t => {
       }
     })
     t.fail('Should throw')
-  } catch (err) {
+  } catch (err: any) {
     t.equal(err.statusCode, 401)
   }
 })
@@ -208,7 +208,7 @@ test('403', async t => {
       }
     })
     t.fail('Should throw')
-  } catch (err) {
+  } catch (err: any) {
     t.equal(err.statusCode, 403)
   }
 })

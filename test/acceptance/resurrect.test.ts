@@ -67,7 +67,7 @@ test('Should execute the recurrect API with the ping strategy', async t => {
   try {
     await client.request({ method: 'GET', path: '/' })
     t.fail('Should throw')
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof ConnectionError)
   }
 
@@ -120,7 +120,7 @@ test('Resurrect a node and handle 502/3/4 status code', async t => {
   try {
     await client.request({ method: 'GET', path: '/' })
     t.fail('Should throw')
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof ResponseError)
   }
 
@@ -167,7 +167,7 @@ test('Should execute the recurrect API with the optimistic strategy', async t =>
   try {
     await client.request({ method: 'GET', path: '/' })
     t.fail('Should throw')
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof ConnectionError)
   }
 

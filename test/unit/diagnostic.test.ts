@@ -94,7 +94,7 @@ test('on', t => {
       t.ok(err instanceof ConnectionError)
       t.same(meta, mmeta)
     })
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof ConfigurationError)
   }
 })

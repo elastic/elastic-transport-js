@@ -18,7 +18,7 @@
  */
 
 import { test } from 'tap'
-// import buffer from 'buffer'
+import buffer from 'buffer'
 // import { URL } from 'url'
 // import FakeTimers from '@sinonjs/fake-timers'
 import { promisify } from 'util'
@@ -115,7 +115,7 @@ test('Basic error (TimeoutError)', async t => {
       method: 'GET',
       path: '/hello'
     })
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof TimeoutError)
   }
 })
@@ -144,7 +144,7 @@ test('Basic error (ConnectionError)', async t => {
       method: 'GET',
       path: '/hello'
     }, { meta: true })
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof ConnectionError)
   }
 })
@@ -328,7 +328,7 @@ test('NoLivingConnectionsError', async t => {
       method: 'GET',
       path: '/hello'
     })
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof NoLivingConnectionsError)
   }
 })
@@ -348,7 +348,7 @@ test('SerializationError', async t => {
       path: '/hello',
       body
     })
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof SerializationError)
   }
 })
@@ -368,7 +368,7 @@ test('SerializationError (bulk)', async t => {
       path: '/hello',
       bulkBody: [bulkBody]
     })
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof SerializationError)
   }
 })
@@ -393,7 +393,7 @@ test('DeserializationError', async t => {
       method: 'GET',
       path: '/hello'
     })
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof DeserializationError)
   }
 })
@@ -455,7 +455,7 @@ test('Should not retry if the body is a stream', async t => {
       path: '/hello',
       body: intoStream(JSON.stringify({ hello: 'world' }))
     })
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof ResponseError)
     t.same(err.body, { hello: 'world' })
     t.equal(err.statusCode, 502)
@@ -490,7 +490,7 @@ test('Should not retry if the bulkBody is a stream', async t => {
       path: '/hello',
       bulkBody: intoStream(JSON.stringify({ hello: 'world' }))
     })
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof ResponseError)
     t.same(err.body, { hello: 'world' })
     t.equal(err.statusCode, 502)
@@ -524,7 +524,7 @@ test('Disable maxRetries locally', async t => {
       { method: 'GET', path: '/hello' },
       { maxRetries: 0 }
     )
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof ResponseError)
     t.same(err.body, { hello: 'world' })
     t.equal(err.statusCode, 502)
@@ -575,7 +575,7 @@ test('Retry on connection error', async t => {
       method: 'GET',
       path: '/hello'
     })
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof ConnectionError)
     t.equal(err.meta.meta.attempts, 3)
   }
@@ -594,7 +594,7 @@ test('Retry on timeout error', async t => {
       method: 'GET',
       path: '/hello'
     })
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof TimeoutError)
     t.equal(err.meta.meta.attempts, 3)
   }
@@ -622,7 +622,7 @@ test('Abort a request', async t => {
       { method: 'GET', path: '/hello' },
       { abortController }
     )
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof RequestAbortedError)
   }
 })
@@ -752,7 +752,7 @@ test('Should not cast to boolean HEAD request in case of error', async t => {
       method: 'HEAD',
       path: '/hello'
     })
-  } catch (err) {
+  } catch (err: any) {
     t.equal(typeof err.body === 'boolean', false)
     t.equal(err.statusCode, 400)
   }
@@ -887,7 +887,7 @@ test('Broken compression', async t => {
       method: 'GET',
       path: '/hello'
     })
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err)
   }
 })
@@ -1382,7 +1382,7 @@ test('Calls the sniff method on connection error', async t => {
       method: 'GET',
       path: '/hello'
     })
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof ConnectionError)
     t.equal(err.meta.meta.attempts, 3)
   }
@@ -1409,7 +1409,7 @@ test('Calls the sniff method on timeout error', async t => {
       method: 'GET',
       path: '/hello'
     })
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof TimeoutError)
     t.equal(err.meta.meta.attempts, 3)
   }
@@ -1476,7 +1476,7 @@ test('No connection pool', t => {
   try {
     // @ts-expect-error
     new Transport({})
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof ConfigurationError)
   }
 })
@@ -1491,7 +1491,7 @@ test('Negative maxRetries is not valid', t => {
       connectionPool: pool,
       maxRetries: -1
     })
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof ConfigurationError)
   }
 })
@@ -1506,7 +1506,7 @@ test('sniffInterval should be false or a positive integer', t => {
       connectionPool: pool,
       sniffInterval: true
     })
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof ConfigurationError)
   }
 
@@ -1515,7 +1515,7 @@ test('sniffInterval should be false or a positive integer', t => {
       connectionPool: pool,
       sniffInterval: -1
     })
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof ConfigurationError)
   }
 })
@@ -1620,6 +1620,233 @@ test('Compressed mapbox vector tile', async t => {
     path: '/_mvt'
   })
   t.same(body.toString('base64'), Buffer.from(mvtContent, 'base64').toString('base64'))
+})
+
+test('maxResponseSize request option', async t => {
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
+      return {
+        body: '',
+        statusCode: 200,
+        headers: {
+          'content-length': '1100'
+        }
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool,
+    compression: true
+  })
+
+  try {
+    await transport.request({
+      method: 'GET',
+      path: '/hello'
+    }, { maxResponseSize: 1000 })
+  } catch (err: any) {
+    t.ok(err)
+  }
+})
+
+test('maxCompressedResponseSize request option', async t => {
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
+      return {
+        body: '',
+        statusCode: 200,
+        headers: {
+          'content-encoding': 'gzip',
+          'content-length': '1100'
+        }
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool,
+    compression: true
+  })
+
+  try {
+    await transport.request({
+      method: 'GET',
+      path: '/hello'
+    }, { maxCompressedResponseSize: 1000 })
+  } catch (err: any) {
+    t.ok(err)
+  }
+})
+
+test('maxResponseSize constructor option', async t => {
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
+      return {
+        body: '',
+        statusCode: 200,
+        headers: {
+          'content-length': '1100'
+        }
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool,
+    compression: true,
+    maxResponseSize: 1000
+  })
+
+  try {
+    await transport.request({
+      method: 'GET',
+      path: '/hello'
+    })
+  } catch (err: any) {
+    t.ok(err)
+  }
+})
+
+test('maxCompressedResponseSize constructor option', async t => {
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
+      return {
+        body: '',
+        statusCode: 200,
+        headers: {
+          'content-encoding': 'gzip',
+          'content-length': '1100'
+        }
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool,
+    compression: true,
+    maxCompressedResponseSize: 1000
+  })
+
+  try {
+    await transport.request({
+      method: 'GET',
+      path: '/hello'
+    })
+  } catch (err: any) {
+    t.ok(err)
+  }
+})
+
+test('maxResponseSize constructor option override', async t => {
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
+      return {
+        body: '',
+        statusCode: 200,
+        headers: {
+          'content-length': '1100'
+        }
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool,
+    compression: true,
+    maxResponseSize: 2000
+  })
+
+  try {
+    await transport.request({
+      method: 'GET',
+      path: '/hello'
+    }, { maxResponseSize: 1000 })
+  } catch (err: any) {
+    t.ok(err)
+  }
+})
+
+test('maxCompressedResponseSize constructor option override', async t => {
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
+      return {
+        body: '',
+        statusCode: 200,
+        headers: {
+          'content-encoding': 'gzip',
+          'content-length': '1100'
+        }
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool,
+    compression: true,
+    maxCompressedResponseSize: 2000
+  })
+
+  try {
+    await transport.request({
+      method: 'GET',
+      path: '/hello'
+    }, { maxCompressedResponseSize: 1000 })
+  } catch (err: any) {
+    t.ok(err)
+  }
+})
+
+test('Should throw on bad maxResponseSize', t => {
+  const pool = new WeightedConnectionPool({ Connection: UndiciConnection })
+  pool.addConnection('http://localhost:9200')
+
+  try {
+    new Transport({ // eslint-disable-line // eslint-disable-line
+      connectionPool: pool,
+      maxResponseSize: buffer.constants.MAX_STRING_LENGTH + 10
+    })
+    t.fail('Should throw')
+  } catch (err: any) {
+    t.ok(err instanceof ConfigurationError)
+    t.equal(err.message, `The maxResponseSize cannot be bigger than ${buffer.constants.MAX_STRING_LENGTH}`)
+  }
+  t.end()
+})
+
+test('Should throw on bad maxCompressedResponseSize', t => {
+  const pool = new WeightedConnectionPool({ Connection: UndiciConnection })
+  pool.addConnection('http://localhost:9200')
+
+  try {
+    new Transport({ // eslint-disable-line
+      connectionPool: pool,
+      maxCompressedResponseSize: buffer.constants.MAX_LENGTH + 10
+    })
+    t.fail('Should throw')
+  } catch (err: any) {
+    t.ok(err instanceof ConfigurationError)
+    t.equal(err.message, `The maxCompressedResponseSize cannot be bigger than ${buffer.constants.MAX_LENGTH}`)
+  }
+  t.end()
 })
 
 // test('asStream set to true', t => {

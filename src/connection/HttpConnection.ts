@@ -94,6 +94,8 @@ export default class HttpConnection extends BaseConnection {
       this._openRequests++
       let cleanedListeners = false
 
+      const maxResponseSize = options.maxResponseSize ?? MAX_STRING_LENGTH
+      const maxCompressedResponseSize = options.maxCompressedResponseSize ?? MAX_BUFFER_LENGTH
       const requestParams = this.buildRequestObject(params)
       // https://github.com/nodejs/node/commit/b961d9fd83
       if (INVALID_PATH_REGEX.test(requestParams.path as string)) {
@@ -122,15 +124,15 @@ export default class HttpConnection extends BaseConnection {
         /* istanbul ignore else */
         if (response.headers['content-length'] !== undefined) {
           const contentLength = Number(response.headers['content-length'])
-          if (isCompressed && contentLength > MAX_BUFFER_LENGTH) {
+          if (isCompressed && contentLength > maxCompressedResponseSize) {
             response.destroy()
             return reject(
-              new RequestAbortedError(`The content length (${contentLength}) is bigger than the maximum allowed buffer (${MAX_BUFFER_LENGTH})`)
+              new RequestAbortedError(`The content length (${contentLength}) is bigger than the maximum allowed buffer (${maxCompressedResponseSize})`)
             )
-          } else if (contentLength > MAX_STRING_LENGTH) {
+          } else if (contentLength > maxResponseSize) {
             response.destroy()
             return reject(
-              new RequestAbortedError(`The content length (${contentLength}) is bigger than the maximum allowed string (${MAX_STRING_LENGTH})`)
+              new RequestAbortedError(`The content length (${contentLength}) is bigger than the maximum allowed string (${maxResponseSize})`)
             )
           }
         }

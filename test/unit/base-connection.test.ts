@@ -89,7 +89,7 @@ test('get & set status', t => {
   try {
     conn.status = 'hello'
     t.fail('Should throw')
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof ConfigurationError)
   }
 
@@ -102,7 +102,7 @@ test('Should throw if the protocol is not http or https', t => {
       url: new URL('nope://nope')
     })
     t.fail('Should throw')
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof ConfigurationError)
     t.equal(err.message, 'Invalid protocol: \'nope:\'')
   }

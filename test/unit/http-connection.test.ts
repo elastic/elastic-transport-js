@@ -209,7 +209,7 @@ test('Timeout support / 1', async t => {
       path: '/hello',
       method: 'GET'
     }, options)
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof TimeoutError)
   }
   server.stop()
@@ -233,7 +233,7 @@ test('Timeout support / 2', async t => {
       method: 'GET',
       timeout: 50
     }, options)
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof TimeoutError)
   }
   server.stop()
@@ -258,7 +258,7 @@ test('Timeout support / 3', async t => {
       method: 'GET',
       timeout: 50
     }, options)
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof TimeoutError)
   }
   server.stop()
@@ -514,7 +514,7 @@ test('Should disallow two-byte characters in URL path', async t => {
       path: '/thisisinvalid\uffe2',
       method: 'GET'
     }, options)
-  } catch (err) {
+  } catch (err: any) {
     t.equal(
       err.message,
       'ERR_UNESCAPED_CHARACTERS: /thisisinvalid\uffe2'
@@ -602,7 +602,7 @@ test('Abort a request asyncronously', async t => {
       method: 'GET',
       abortController: controller
     }, options)
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof RequestAbortedError)
   }
 
@@ -691,7 +691,7 @@ test('Abort with a slow body', async t => {
       body: slowBody,
       abortController: controller
     }, options)
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof RequestAbortedError)
   }
 })
@@ -718,7 +718,7 @@ test('Bad content length', async t => {
       path: '/hello',
       method: 'GET'
     }, options)
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof ConnectionError)
     t.equal(err.message, 'Response aborted while reading the body')
   }
@@ -747,7 +747,7 @@ test('Socket destryed while reading the body', async t => {
       path: '/hello',
       method: 'GET'
     }, options)
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof ConnectionError)
     t.equal(err.message, 'Response aborted while reading the body')
   }
@@ -798,7 +798,7 @@ test('Content length too big (buffer)', async t => {
       method: 'GET',
       path: '/'
     }, options)
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof RequestAbortedError)
     t.equal(err.message, `The content length (${buffer.constants.MAX_LENGTH + 10}) is bigger than the maximum allowed buffer (${buffer.constants.MAX_LENGTH})`)
   }
@@ -848,9 +848,109 @@ test('Content length too big (string)', async t => {
       method: 'GET',
       path: '/'
     }, options)
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof RequestAbortedError)
     t.equal(err.message, `The content length (${buffer.constants.MAX_STRING_LENGTH + 10}) is bigger than the maximum allowed string (${buffer.constants.MAX_STRING_LENGTH})`)
+  }
+})
+
+test('Content length too big custom option (buffer)', async t => {
+  t.plan(3)
+
+  class MyConnection extends HttpConnection {
+    constructor (opts: ConnectionOptions) {
+      super(opts)
+      // @ts-expect-error
+      this.makeRequest = () => {
+        const stream = intoStream(JSON.stringify({ hello: 'world' }))
+        // @ts-expect-error
+        stream.statusCode = 200
+        // @ts-expect-error
+        stream.headers = {
+          'content-type': 'application/json;utf=8',
+          'content-encoding': 'gzip',
+          'content-length': 1100,
+          connection: 'keep-alive',
+          date: new Date().toISOString()
+        }
+        stream.on('close', () => t.pass('Stream destroyed'))
+        return {
+          abort () {},
+          removeListener () {},
+          setNoDelay () {},
+          end () {},
+          on (event: string, cb: () => void) {
+            if (event === 'response') {
+              process.nextTick(cb, stream)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  const connection = new MyConnection({
+    url: new URL('http://localhost:9200')
+  })
+
+  try {
+    await connection.request({
+      method: 'GET',
+      path: '/'
+    }, { ...options, maxCompressedResponseSize: 1000 })
+  } catch (err: any) {
+    t.ok(err instanceof RequestAbortedError)
+    t.equal(err.message, 'The content length (1100) is bigger than the maximum allowed buffer (1000)')
+  }
+})
+
+test('Content length too big custom option (string)', async t => {
+  t.plan(3)
+
+  class MyConnection extends HttpConnection {
+    constructor (opts: ConnectionOptions) {
+      super(opts)
+      // @ts-expect-error
+      this.makeRequest = () => {
+        const stream = intoStream(JSON.stringify({ hello: 'world' }))
+        // @ts-expect-error
+        stream.statusCode = 200
+        // @ts-expect-error
+        stream.headers = {
+          'content-type': 'application/json;utf=8',
+          'content-encoding': 'gzip',
+          'content-length': 1100,
+          connection: 'keep-alive',
+          date: new Date().toISOString()
+        }
+        stream.on('close', () => t.pass('Stream destroyed'))
+        return {
+          abort () {},
+          removeListener () {},
+          setNoDelay () {},
+          end () {},
+          on (event: string, cb: () => void) {
+            if (event === 'response') {
+              process.nextTick(cb, stream)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  const connection = new MyConnection({
+    url: new URL('http://localhost:9200')
+  })
+
+  try {
+    await connection.request({
+      method: 'GET',
+      path: '/'
+    }, { ...options, maxResponseSize: 1000 })
+  } catch (err: any) {
+    t.ok(err instanceof RequestAbortedError)
+    t.equal(err.message, 'The content length (1100) is bigger than the maximum allowed string (1000)')
   }
 })
 
@@ -926,7 +1026,7 @@ test('Connection error', async t => {
       path: '/',
       method: 'GET'
     }, options)
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof ConnectionError)
   }
 })
@@ -941,7 +1041,7 @@ test('Throw if detects undici agent options', async t => {
         connections: 42
       }
     })
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof ConfigurationError)
   }
 })
@@ -1006,7 +1106,7 @@ test('Check server fingerprint (failure)', async t => {
       method: 'GET'
     }, options)
     t.fail('Should throw')
-  } catch (err) {
+  } catch (err: any) {
     t.ok(err instanceof ConnectionError)
     t.equal(err.message, 'Server certificate CA fingerprint does not match the value configured in caFingerprint')
   }
