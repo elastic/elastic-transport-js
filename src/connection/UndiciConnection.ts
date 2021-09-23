@@ -156,6 +156,8 @@ export default class Connection extends BaseConnection {
           throw (timedout ? new TimeoutError('Request timed out') : new RequestAbortedError('Request aborted'))
         case 'UND_ERR_HEADERS_TIMEOUT':
           throw new TimeoutError('Request timed out')
+        case 'UND_ERR_SOCKET':
+          throw new ConnectionError(`${err.message} - Local: ${err.socket?.localAddress ?? 'unknown'}:${err.socket?.localPort ?? 'unknown'}, Remote: ${err.socket?.remoteAddress ?? 'unknown'}:${err.socket?.remotePort ?? 'unknown'}`) // eslint-disable-line
         default:
           throw new ConnectionError(err.message)
       }

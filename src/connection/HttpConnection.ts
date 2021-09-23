@@ -190,7 +190,7 @@ export default class HttpConnection extends BaseConnection {
         let message = err.message
         // @ts-expect-error
         if (err.code === 'ECONNRESET') {
-          message += ` - Local: ${request.socket?.localAddress ?? ''}:${request.socket?.localPort ?? ''}, Remote: ${request.socket?.remoteAddress ?? ''}:${request.socket?.remotePort ?? ''}`
+          message += ` - Local: ${request.socket?.localAddress ?? 'unknown'}:${request.socket?.localPort ?? 'unknown'}, Remote: ${request.socket?.remoteAddress ?? 'unknown'}:${request.socket?.remotePort ?? 'unknown'}`
         }
         reject(new ConnectionError(message))
       }
