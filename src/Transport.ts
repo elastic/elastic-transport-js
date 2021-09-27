@@ -225,7 +225,7 @@ export default class Transport {
     this[kNodeFilter] = opts.nodeFilter ?? defaultNodeFilter
     this[kNodeSelector] = opts.nodeSelector ?? roundRobinSelector()
     this[kHeaders] = Object.assign({},
-      { 'user-agent': userAgent, accept: 'application/vnd.elasticsearch+json; compatible-with=8' },
+      { 'user-agent': userAgent, accept: 'application/vnd.elasticsearch+json; compatible-with=8,text/plain' },
       opts.compression === true ? { 'accept-encoding': 'gzip,deflate' } : null,
       lowerCaseHeaders(opts.headers)
     )
@@ -372,6 +372,7 @@ export default class Transport {
 
       if (params.body !== '') {
         headers['content-type'] = headers['content-type'] ?? 'application/vnd.elasticsearch+json; compatible-with=8'
+        headers.accept = 'application/vnd.elasticsearch+json; compatible-with=8'
       }
 
     // handle ndjson body
@@ -389,6 +390,7 @@ export default class Transport {
 
       if (connectionParams.body !== '') {
         headers['content-type'] = headers['content-type'] ?? 'application/vnd.elasticsearch+x-ndjson; compatible-with=8'
+        headers.accept = 'application/vnd.elasticsearch+json; compatible-with=8'
       }
     }
 

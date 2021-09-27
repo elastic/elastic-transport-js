@@ -214,7 +214,11 @@ export default class BaseConnectionPool {
         this.markAlive(connectionByUrl)
         newConnections.push(connectionByUrl)
       } else {
-        newConnections.push(this.createConnection(node as ConnectionOptions))
+        if (node instanceof BaseConnection) {
+          newConnections.push(node)
+        } else {
+          newConnections.push(this.createConnection(node))
+        }
       }
     }
 
