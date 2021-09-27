@@ -963,3 +963,27 @@ test('Check server fingerprint (failure)', async t => {
   }
   server.stop()
 })
+
+test('Should show local/remote socket addres in case of ECONNRESET', async t => {
+  t.plan(2)
+
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+    res.destroy()
+  }
+
+  const [{ port }, server] = await buildServer(handler)
+  const connection = new UndiciConnection({
+    url: new URL(`http://localhost:${port}`)
+  })
+  try {
+    await connection.request({
+      path: '/hello',
+      method: 'GET'
+    }, options)
+    t.fail('should throw')
+  } catch (err: any) {
+    t.ok(err instanceof ConnectionError)
+    t.match(err.message, /other\sside\sclosed\s-\sLocal:\s127.0.0.1:\d+,\sRemote:\s127.0.0.1:\d+/)
+  }
+  server.stop()
+})

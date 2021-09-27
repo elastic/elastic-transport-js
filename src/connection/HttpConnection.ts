@@ -187,7 +187,12 @@ export default class HttpConnection extends BaseConnection {
       const onError = (err: Error): void => {
         cleanListeners()
         this._openRequests--
-        reject(new ConnectionError(err.message))
+        let message = err.message
+        // @ts-expect-error
+        if (err.code === 'ECONNRESET') {
+          message += ` - Local: ${request.socket?.localAddress ?? 'unknown'}:${request.socket?.localPort ?? 'unknown'}, Remote: ${request.socket?.remoteAddress ?? 'unknown'}:${request.socket?.remotePort ?? 'unknown'}`
+        }
+        reject(new ConnectionError(message))
       }
 
       const onAbort = (): void => {
