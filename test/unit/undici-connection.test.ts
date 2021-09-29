@@ -95,7 +95,7 @@ test('Basic (https)', async t => {
   server.stop()
 })
 
-test('Basic (https with ssl agent)', async t => {
+test('Basic (https with tls agent)', async t => {
   t.plan(3)
 
   function handler (req: http.IncomingMessage, res: http.ServerResponse) {
@@ -109,7 +109,7 @@ test('Basic (https with ssl agent)', async t => {
   const [{ port, key, cert }, server] = await buildServer(handler, { secure: true })
   const connection = new UndiciConnection({
     url: new URL(`https://localhost:${port}`),
-    ssl: { key, cert }
+    tls: { key, cert }
   })
   const res = await connection.request({
     path: '/hello',

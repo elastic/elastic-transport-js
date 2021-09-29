@@ -39,13 +39,13 @@ test('Connection id should not contain credentials', t => {
   t.end()
 })
 
-test('configure ssl', t => {
+test('configure tls', t => {
   const conn = new BaseConnection({
     url: new URL('http://localhost:9200'),
-    ssl: { host: 'host' }
+    tls: { host: 'host' }
   })
 
-  t.equal(conn.ssl?.host, 'host')
+  t.equal(conn.tls?.host, 'host')
   t.end()
 })
 
@@ -109,7 +109,7 @@ test('Should throw if the protocol is not http or https', t => {
   t.end()
 })
 
-test('Util.inspect Connection class should hide agent, ssl and auth', t => {
+test('Util.inspect Connection class should hide agent, tls and auth', t => {
   t.plan(1)
 
   const connection = new BaseConnection({
@@ -134,7 +134,7 @@ test('Util.inspect Connection class should hide agent, ssl and auth', t => {
   )
 })
 
-test('connection.toJSON should hide agent, ssl and auth', t => {
+test('connection.toJSON should hide agent, tls and auth', t => {
   t.plan(1)
 
   const connection = new BaseConnection({

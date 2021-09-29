@@ -43,7 +43,7 @@ const debug = Debug('elasticsearch')
 
 type AddConnectionOptions = string | ConnectionOptions
 export interface ConnectionPoolOptions {
-  ssl?: TlsConnectionOptions
+  tls?: TlsConnectionOptions
   agent?: HttpAgentOptions | UndiciAgentOptions | agentFn | false
   proxy?: string | URL
   auth?: BasicAuth | ApiKeyAuth | BearerAuth
@@ -71,7 +71,7 @@ export default class BaseConnectionPool {
   auth?: BasicAuth | ApiKeyAuth | BearerAuth
   _agent?: HttpAgentOptions | UndiciAgentOptions | agentFn | false
   _proxy?: string | URL
-  _ssl?: TlsConnectionOptions
+  _tls?: TlsConnectionOptions
   [kCaFingerprint]?: string
 
   constructor (opts: ConnectionPoolOptions) {
@@ -82,7 +82,7 @@ export default class BaseConnectionPool {
     this.Connection = opts.Connection
     this.diagnostic = opts.diagnostic ?? new Diagnostic()
     this.auth = opts.auth
-    this._ssl = opts.ssl
+    this._tls = opts.tls
     this._agent = opts.agent
     this._proxy = opts.proxy
     this[kCaFingerprint] = opts.caFingerprint
@@ -120,7 +120,7 @@ export default class BaseConnectionPool {
     }
 
     /* istanbul ignore else */
-    if (opts.ssl == null) opts.ssl = this._ssl
+    if (opts.tls == null) opts.tls = this._tls
     /* istanbul ignore else */
     if (opts.agent == null) opts.agent = this._agent
     /* istanbul ignore else */

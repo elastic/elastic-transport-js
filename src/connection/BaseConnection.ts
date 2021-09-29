@@ -37,7 +37,7 @@ import { kStatus, kDiagnostic, kCaFingerprint } from '../symbols'
 
 export interface ConnectionOptions {
   url: URL
-  ssl?: TlsConnectionOptions
+  tls?: TlsConnectionOptions
   id?: string
   headers?: http.IncomingHttpHeaders
   status?: string
@@ -76,7 +76,7 @@ export interface ConnectionRequestResponse {
 
 export default class BaseConnection {
   url: URL
-  ssl: TlsConnectionOptions | null
+  tls: TlsConnectionOptions | null
   id: string
   timeout: number
   headers: http.IncomingHttpHeaders
@@ -95,7 +95,7 @@ export default class BaseConnection {
 
   constructor (opts: ConnectionOptions) {
     this.url = opts.url
-    this.ssl = opts.ssl ?? null
+    this.tls = opts.tls ?? null
     this.id = opts.id ?? stripAuth(opts.url.href)
     this.headers = prepareHeaders(opts.headers, opts.auth)
     this.timeout = opts.timeout ?? 30000
@@ -138,9 +138,9 @@ export default class BaseConnection {
   }
 
   // Handles console.log and utils.inspect invocations.
-  // We want to hide `auth`, `agent` and `ssl` since they made
+  // We want to hide `auth`, `agent` and `tls` since they made
   // the logs very hard to read. The user can still
-  // access them with `instance.agent` and `instance.ssl`.
+  // access them with `instance.agent` and `instance.tls`.
   [inspect.custom] (depth: number, options: Record<string, any>): Record<string, any> {
     const {
       authorization,

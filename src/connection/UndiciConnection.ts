@@ -78,7 +78,7 @@ export default class Connection extends BaseConnection {
 
     if (this[kCaFingerprint] !== null) {
       const caFingerprint = this[kCaFingerprint]
-      const connector = buildConnector((this.ssl ?? {}) as buildConnector.BuildOptions)
+      const connector = buildConnector((this.tls ?? {}) as buildConnector.BuildOptions)
       undiciOptions.connect = function (opts: buildConnector.Options, cb: buildConnector.Callback) {
         connector(opts, (err, socket) => {
           if (err != null) {
@@ -102,8 +102,8 @@ export default class Connection extends BaseConnection {
           return cb(null, socket)
         })
       }
-    } else if (this.ssl !== null) {
-      undiciOptions.connect = this.ssl as buildConnector.BuildOptions
+    } else if (this.tls !== null) {
+      undiciOptions.connect = this.tls as buildConnector.BuildOptions
     }
 
     this.pool = new Pool(this.url.toString(), undiciOptions)

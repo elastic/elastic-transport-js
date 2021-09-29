@@ -76,11 +76,11 @@ export default class HttpConnection extends BaseConnection {
         }
         this.agent = this.url.protocol === 'http:'
           ? new hpagent.HttpProxyAgent(proxyAgentOptions)
-          : new hpagent.HttpsProxyAgent(Object.assign({}, proxyAgentOptions, this.ssl))
+          : new hpagent.HttpsProxyAgent(Object.assign({}, proxyAgentOptions, this.tls))
       } else {
         this.agent = this.url.protocol === 'http:'
           ? new http.Agent(agentOptions)
-          : new https.Agent(Object.assign({}, agentOptions, this.ssl))
+          : new https.Agent(Object.assign({}, agentOptions, this.tls))
       }
     }
 
