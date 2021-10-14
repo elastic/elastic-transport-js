@@ -38,24 +38,24 @@ export enum events {
 }
 
 export default class Diagnostic extends EventEmitter {
-  on (event: events.REQUEST, listener: DiagnosticListenerFull): this
-  on (event: events.RESPONSE, listener: DiagnosticListenerFull): this
-  on (event: events.SERIALIZATION, listener: DiagnosticListenerFull): this
-  on (event: events.SNIFF, listener: DiagnosticListenerFull): this
-  on (event: events.DESERIALIZATION, listener: DiagnosticListenerLight): this
-  on (event: events.RESURRECT, listener: DiagnosticListenerResurrect): this
+  on (event: 'request', listener: DiagnosticListenerFull): this
+  on (event: 'response', listener: DiagnosticListenerFull): this
+  on (event: 'serialization', listener: DiagnosticListenerFull): this
+  on (event: 'sniff', listener: DiagnosticListenerFull): this
+  on (event: 'deserialization', listener: DiagnosticListenerLight): this
+  on (event: 'resurrect', listener: DiagnosticListenerResurrect): this
   on (event: string, listener: DiagnosticListener): this {
     assertSupportedEvent(event)
     super.on(event, listener)
     return this
   }
 
-  once (event: events.REQUEST, listener: DiagnosticListenerFull): this
-  once (event: events.RESPONSE, listener: DiagnosticListenerFull): this
-  once (event: events.SERIALIZATION, listener: DiagnosticListenerFull): this
-  once (event: events.SNIFF, listener: DiagnosticListenerFull): this
-  once (event: events.DESERIALIZATION, listener: DiagnosticListenerLight): this
-  once (event: events.RESURRECT, listener: DiagnosticListenerResurrect): this
+  once (event: 'request', listener: DiagnosticListenerFull): this
+  once (event: 'response', listener: DiagnosticListenerFull): this
+  once (event: 'serialization', listener: DiagnosticListenerFull): this
+  once (event: 'sniff', listener: DiagnosticListenerFull): this
+  once (event: 'deserialization', listener: DiagnosticListenerLight): this
+  once (event: 'resurrect', listener: DiagnosticListenerResurrect): this
   once (event: string, listener: DiagnosticListener): this {
     assertSupportedEvent(event)
     super.once(event, listener)
