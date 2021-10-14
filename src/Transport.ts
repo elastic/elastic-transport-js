@@ -36,7 +36,6 @@ import {
 import { Connection, ConnectionRequestParams } from './connection'
 import Diagnostic from './Diagnostic'
 import Serializer from './Serializer'
-import AbortController from 'node-abort-controller'
 import { Readable as ReadableStream } from 'stream'
 import { BaseConnectionPool } from './pool'
 import {
@@ -124,7 +123,7 @@ export interface TransportRequestOptions {
   context?: Context
   warnings?: string[]
   opaqueId?: string
-  abortController?: AbortController
+  signal?: AbortSignal
   maxResponseSize?: number
   maxCompressedResponseSize?: number
   /**
@@ -344,7 +343,7 @@ export default class Transport {
     // Furthermore, copying everytime the stream is very a expensive operation.
     const maxRetries = isStream(params.body ?? params.bulkBody) ? 0 : (typeof options.maxRetries === 'number' ? options.maxRetries : this[kMaxRetries])
     const compression = typeof options.compression === 'boolean' ? options.compression : this[kCompression]
-    const abortController = options.abortController ?? null
+    const signal = options.signal
     const maxResponseSize = options.maxResponseSize ?? this[kMaxResponseSize]
     const maxCompressedResponseSize = options.maxCompressedResponseSize ?? this[kMaxCompressedResponseSize]
 
@@ -404,8 +403,6 @@ export default class Transport {
       )
     }
 
-    // handles request timeout
-    connectionParams.timeout = toMs(options.requestTimeout != null ? options.requestTimeout : this[kRequestTimeout])
     // TODO: fixme
     // if (options.asStream === true) params.asStream = true
     meta.request.params = params
@@ -436,7 +433,7 @@ export default class Transport {
 
     while (meta.attempts <= maxRetries) {
       try {
-        if (abortController?.signal.aborted) { // eslint-disable-line
+        if (signal?.aborted) { // eslint-disable-line
           throw new RequestAbortedError('Request has been aborted by the user', result)
         }
 
@@ -456,7 +453,9 @@ export default class Transport {
           name: this[kName],
           context: meta.context,
           maxResponseSize,
-          maxCompressedResponseSize
+          maxCompressedResponseSize,
+          signal,
+          timeout: toMs(options.requestTimeout != null ? options.requestTimeout : this[kRequestTimeout])
         })
         result.statusCode = statusCode
         result.headers = headers

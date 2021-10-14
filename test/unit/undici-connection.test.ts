@@ -187,9 +187,11 @@ test('Timeout support / 3', async t => {
   try {
     await connection.request({
       path: '/hello',
-      method: 'GET',
-      timeout: 50
-    }, options)
+      method: 'GET'
+    }, {
+      timeout: 50,
+      ...options
+    })
   } catch (err: any) {
     t.ok(err instanceof TimeoutError)
     t.equal(err.message, 'Request timed out')
@@ -214,9 +216,11 @@ test('Timeout support / 4', async t => {
     await connection.request({
       path: '/hello',
       method: 'GET',
-      abortController,
-      timeout: 50
-    }, options)
+    }, {
+      signal: abortController.signal,
+      timeout: 50,
+      ...options
+    })
   } catch (err: any) {
     t.ok(err instanceof TimeoutError)
     t.equal(err.message, 'Request timed out')
@@ -238,8 +242,10 @@ test('Timeout support / 5', async t => {
   const res = await connection.request({
     path: '/hello',
     method: 'GET',
-    timeout: 50
-  }, options)
+  }, {
+    timeout: 50,
+    ...options
+  })
   t.equal(res.body, 'ok')
   server.stop()
 })
@@ -489,8 +495,10 @@ test('Abort a request syncronously', async t => {
   connection.request({
     path: '/hello',
     method: 'GET',
-    abortController: controller
-  }, options).catch(err => {
+  }, {
+    signal: controller.signal,
+    ...options
+  }).catch(err => {
     t.ok(err instanceof RequestAbortedError)
     server.stop()
   })
@@ -519,8 +527,10 @@ test('Abort a request asyncronously', async t => {
     await connection.request({
       path: '/hello',
       method: 'GET',
-      abortController: controller
-    }, options)
+    }, {
+      signal: controller.signal,
+      ...options
+    })
   } catch (err: any) {
     t.ok(err instanceof RequestAbortedError)
   }
@@ -553,8 +563,10 @@ test('Abort with a slow body', async t => {
       path: '/',
       // @ts-ignore
       body: slowBody,
-      abortController: controller
-    }, options)
+    }, {
+      signal: controller.signal,
+      ...options
+    })
   } catch (err: any) {
     t.ok(err instanceof RequestAbortedError)
   }

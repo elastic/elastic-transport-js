@@ -117,7 +117,7 @@ export default class Connection extends BaseConnection {
       path: params.path + (params.querystring == null || params.querystring === '' ? '' : `?${params.querystring}`),
       headers: Object.assign({}, this.headers, params.headers),
       body: params.body,
-      signal: params.abortController?.signal ?? this[kEmitter]
+      signal: options.signal ?? this[kEmitter]
     }
 
     // undici does not support per-request timeouts,
@@ -127,15 +127,16 @@ export default class Connection extends BaseConnection {
     // is different from the constructor timeout.
     let timedout = false
     let timeoutId
-    if (params.timeout != null && params.timeout !== this.timeout) {
+    if (options.timeout != null && options.timeout !== this.timeout) {
       timeoutId = setTimeout(() => {
         timedout = true
-        if (params.abortController?.signal != null) {
-          params.abortController.abort()
+        if (options.signal != null) {
+          // @ts-expect-error
+          options.signal.dispatchEvent('abort')
         } else {
           this[kEmitter].emit('abort')
         }
-      }, params.timeout)
+      }, options.timeout)
     }
 
     // https://github.com/nodejs/node/commit/b961d9fd83

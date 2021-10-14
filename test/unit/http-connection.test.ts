@@ -230,9 +230,11 @@ test('Timeout support / 2', async t => {
   try {
     await connection.request({
       path: '/hello',
-      method: 'GET',
-      timeout: 50
-    }, options)
+      method: 'GET'
+    }, {
+      timeout: 50,
+      ...options
+    })
   } catch (err: any) {
     t.ok(err instanceof TimeoutError)
   }
@@ -255,9 +257,11 @@ test('Timeout support / 3', async t => {
   try {
     await connection.request({
       path: '/hello',
-      method: 'GET',
-      timeout: 50
-    }, options)
+      method: 'GET'
+    }, {
+      timeout: 50,
+      ...options
+    })
   } catch (err: any) {
     t.ok(err instanceof TimeoutError)
   }
@@ -498,7 +502,7 @@ test('Ipv6 support', t => {
   const connection = new HttpConnection({
     url: new URL('http://[::1]:9200')
   })
-  t.equal(connection.buildRequestObject({ method: 'GET', path: '/' }).hostname, '::1')
+  t.equal(connection.buildRequestObject({ method: 'GET', path: '/' }, options).hostname, '::1')
   t.end()
 })
 
@@ -530,7 +534,7 @@ test('Port handling', t => {
     })
 
     t.equal(
-      connection.buildRequestObject({ method: 'GET', path: '/' }).port,
+      connection.buildRequestObject({ method: 'GET', path: '/' }, options).port,
       undefined
     )
 
@@ -543,7 +547,7 @@ test('Port handling', t => {
     })
 
     t.equal(
-      connection.buildRequestObject({ method: 'GET', path: '/' }).port,
+      connection.buildRequestObject({ method: 'GET', path: '/' }, options).port,
       undefined
     )
 
@@ -569,9 +573,11 @@ test('Abort a request syncronously', async t => {
   const controller = new AbortController()
   connection.request({
     path: '/hello',
-    method: 'GET',
-    abortController: controller
-  }, options).catch(err => {
+    method: 'GET'
+  }, {
+    signal: controller.signal,
+    ...options
+  }).catch(err => {
     t.ok(err instanceof RequestAbortedError)
     server.stop()
   })
@@ -599,9 +605,11 @@ test('Abort a request asyncronously', async t => {
   try {
     await connection.request({
       path: '/hello',
-      method: 'GET',
-      abortController: controller
-    }, options)
+      method: 'GET'
+    }, {
+      signal: controller.signal,
+      ...options
+    })
   } catch (err: any) {
     t.ok(err instanceof RequestAbortedError)
   }
@@ -621,7 +629,7 @@ test('Should correctly resolve request path / 1', t => {
     connection.buildRequestObject({
       method: 'GET',
       path: 'hello'
-    }).path,
+    }, options).path,
     '/test/hello'
   )
 })
@@ -637,7 +645,7 @@ test('Should correctly resolve request path / 2', t => {
     connection.buildRequestObject({
       method: 'GET',
       path: 'hello'
-    }).path,
+    }, options).path,
     '/test/hello'
   )
 })
@@ -688,9 +696,11 @@ test('Abort with a slow body', async t => {
       method: 'GET',
       path: '/',
       // @ts-ignore
-      body: slowBody,
-      abortController: controller
-    }, options)
+      body: slowBody
+    }, {
+      signal: controller.signal,
+      ...options
+    })
   } catch (err: any) {
     t.ok(err instanceof RequestAbortedError)
   }

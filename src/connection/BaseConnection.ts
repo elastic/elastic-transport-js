@@ -22,7 +22,6 @@ import * as http from 'http'
 import { URL } from 'url'
 import { ConnectionOptions as TlsConnectionOptions, TLSSocket, DetailedPeerCertificate } from 'tls'
 import { Readable as ReadableStream } from 'stream'
-import AbortController from 'node-abort-controller'
 import Diagnostic from '../Diagnostic'
 import {
   ApiKeyAuth,
@@ -53,11 +52,8 @@ export interface ConnectionRequestParams {
   method: string
   path: string
   headers?: http.IncomingHttpHeaders
-  asStream?: boolean
   body?: string | Buffer | ReadableStream | null
   querystring?: string
-  abortController?: AbortController
-  timeout?: number
 }
 
 export interface ConnectionRequestOptions {
@@ -66,6 +62,9 @@ export interface ConnectionRequestOptions {
   context: any
   maxResponseSize?: number
   maxCompressedResponseSize?: number
+  asStream?: boolean
+  signal?: AbortSignal
+  timeout?: number
 }
 
 export interface ConnectionRequestResponse {
