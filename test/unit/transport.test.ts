@@ -620,7 +620,7 @@ test('Abort a request', async t => {
   try {
     await transport.request(
       { method: 'GET', path: '/hello' },
-      { abortController }
+      { signal: abortController.signal }
     )
   } catch (err: any) {
     t.ok(err instanceof RequestAbortedError)

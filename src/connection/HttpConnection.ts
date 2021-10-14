@@ -96,7 +96,7 @@ export default class HttpConnection extends BaseConnection {
 
       const maxResponseSize = options.maxResponseSize ?? MAX_STRING_LENGTH
       const maxCompressedResponseSize = options.maxCompressedResponseSize ?? MAX_BUFFER_LENGTH
-      const requestParams = this.buildRequestObject(params)
+      const requestParams = this.buildRequestObject(params, options)
       // https://github.com/nodejs/node/commit/b961d9fd83
       if (INVALID_PATH_REGEX.test(requestParams.path as string)) {
         return reject(new TypeError(`ERR_UNESCAPED_CHARACTERS: ${requestParams.path as string}`))
@@ -105,8 +105,9 @@ export default class HttpConnection extends BaseConnection {
       debug('Starting a new request', params)
       const request = this.makeRequest(requestParams)
 
-      if (params.abortController != null) {
-        params.abortController.signal.addEventListener(
+      if (options.signal != null) {
+        // @ts-expect-error
+        options.signal.addEventListener(
           'abort',
           () => request.abort(),
           { once: true }
@@ -275,7 +276,7 @@ export default class HttpConnection extends BaseConnection {
     }
   }
 
-  buildRequestObject (params: ConnectionRequestParams): http.ClientRequestArgs {
+  buildRequestObject (params: ConnectionRequestParams, options: ConnectionRequestOptions): http.ClientRequestArgs {
     const url = this.url
     const request = {
       protocol: url.protocol,
@@ -292,7 +293,7 @@ export default class HttpConnection extends BaseConnection {
       port: url.port !== '' ? url.port : undefined,
       headers: this.headers,
       agent: this.agent,
-      timeout: this.timeout
+      timeout: options.timeout ?? this.timeout
     }
 
     const paramsKeys = Object.keys(params)

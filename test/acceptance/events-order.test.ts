@@ -237,7 +237,7 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
       const abortController = new AbortController()
       setImmediate(() => abortController.abort())
       try {
-        await client.request({ method: 'GET', path: '/' }, { abortController })
+        await client.request({ method: 'GET', path: '/' }, { signal: abortController.signal })
       } catch (err: any) {
         t.ok(err instanceof RequestAbortedError)
         t.equal(order.length, 0)

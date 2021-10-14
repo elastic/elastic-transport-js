@@ -159,8 +159,8 @@ export default class ClusterConnectionPool extends BaseConnectionPool {
     // ping strategy
     if (this.resurrectStrategy === 1) {
       connection.request(
-        { method: 'HEAD', path: '/', timeout: this.pingTimeout },
-        { requestId: opts.requestId, name: opts.name, context: opts.context }
+        { method: 'HEAD', path: '/' },
+        { timeout: this.pingTimeout, requestId: opts.requestId, name: opts.name, context: opts.context }
       )
         .then(({ statusCode }) => {
           let isAlive = true
