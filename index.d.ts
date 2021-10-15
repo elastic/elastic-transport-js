@@ -54,7 +54,16 @@ export type {
   SniffOptions
 } from './lib/Transport'
 
-export type { TransportResult, DiagnosticResult } from './lib/types'
+export type {
+  RequestBody,
+  RequestNDBody,
+  DiagnosticResult
+  TransportResult,
+  HttpAgentOptions,
+  UndiciAgentOptions,
+  ApiKeyAuth,
+  BearerAuth
+} from './lib/types'
 
 export {
   Diagnostic,
