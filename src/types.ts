@@ -29,7 +29,7 @@ export type RequestBody<T = Record<string, any>> = T | string | Buffer | Readabl
 
 export type RequestNDBody<T = Array<Record<string, any>>> = T | string | string[] | Buffer | ReadableStream
 
-export interface DiagnosticResult<TResponse = unknown, TContext = Context> {
+export interface DiagnosticResult<TResponse = unknown, TContext = unknown> {
   body?: TResponse
   statusCode?: number
   headers?: http.IncomingHttpHeaders
@@ -52,7 +52,7 @@ export interface DiagnosticResult<TResponse = unknown, TContext = Context> {
   }
 }
 
-export interface TransportResult<TResponse = unknown, TContext = Context> extends DiagnosticResult<TResponse, TContext> {
+export interface TransportResult<TResponse = unknown, TContext = unknown> extends DiagnosticResult<TResponse, TContext> {
   body: TResponse
   statusCode: number
   headers: http.IncomingHttpHeaders
