@@ -57,7 +57,7 @@ export type {
 export type {
   RequestBody,
   RequestNDBody,
-  DiagnosticResult
+  DiagnosticResult,
   TransportResult,
   HttpAgentOptions,
   UndiciAgentOptions,
