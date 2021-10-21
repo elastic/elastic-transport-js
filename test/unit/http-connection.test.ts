@@ -1142,7 +1142,11 @@ test('Should show local/remote socket addres in case of ECONNRESET', async t => 
     t.fail('should throw')
   } catch (err: any) {
     t.ok(err instanceof ConnectionError)
-    t.match(err.message, /socket\shang\sup\s-\sLocal:\s127.0.0.1:\d+,\sRemote:\s127.0.0.1:\d+/)
+    if (err.message.includes('::1')) {
+      t.match(err.message, /socket\shang\sup\s-\sLocal:\s::1:\d+,\sRemote:\s::1:\d+/)
+    } else {
+      t.match(err.message, /socket\shang\sup\s-\sLocal:\s127.0.0.1:\d+,\sRemote:\s127.0.0.1:\d+/)
+    }
   }
   server.stop()
 })
