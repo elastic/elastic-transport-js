@@ -999,3 +999,23 @@ test('Should show local/remote socket addres in case of ECONNRESET', async t => 
   }
   server.stop()
 })
+
+test('Path without intial slash', async t => {
+  t.plan(2)
+
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+    t.equal(req.url, '/hello')
+    res.end('ok')
+  }
+
+  const [{ port }, server] = await buildServer(handler)
+  const connection = new UndiciConnection({
+    url: new URL(`http://localhost:${port}`)
+  })
+  const res = await connection.request({
+    path: 'hello',
+    method: 'GET'
+  }, options)
+  t.equal(res.body, 'ok')
+  server.stop()
+})

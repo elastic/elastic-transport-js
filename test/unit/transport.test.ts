@@ -290,6 +290,7 @@ test('Send stream (ndjson)', async t => {
 test('Not JSON payload from server', async t => {
   const Conn = buildMockConnection({
     onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
+      t.equal(opts.headers?.accept, 'application/vnd.elasticsearch+json; compatible-with=8,text/plain')
       return {
         body: 'hello!',
         headers: { 'content-type': 'text/plain' },
@@ -1847,6 +1848,40 @@ test('Should throw on bad maxCompressedResponseSize', t => {
     t.equal(err.message, `The maxCompressedResponseSize cannot be bigger than ${buffer.constants.MAX_LENGTH}`)
   }
   t.end()
+})
+
+test('Override headers', async t => {
+  t.plan(5)
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
+      t.equal(opts.headers?.accept, 'application/json')
+      t.equal(opts.headers?.['content-type'], 'application/yaml')
+      return {
+        body: JSON.parse(opts.body as string),
+        statusCode: 200
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({ connectionPool: pool })
+
+  const res = await transport.request({
+    method: 'POST',
+    path: '/hello',
+    body: { hello: 'world' }
+  }, {
+    meta: true,
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/yaml'
+    }
+  })
+  t.same(res.body, { hello: 'world' })
+  t.equal(res.statusCode, 200)
+  t.equal(res.headers?.['content-type'], 'application/json;utf=8')
 })
 
 // test('asStream set to true', t => {
