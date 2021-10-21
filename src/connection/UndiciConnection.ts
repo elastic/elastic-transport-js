@@ -120,6 +120,10 @@ export default class Connection extends BaseConnection {
       signal: options.signal ?? this[kEmitter]
     }
 
+    if (requestParams.path[0] !== '/') {
+      requestParams.path = `/${requestParams.path}`
+    }
+
     // undici does not support per-request timeouts,
     // to address this issue, we default to the constructor
     // timeout (which is handled by undici) and create a local

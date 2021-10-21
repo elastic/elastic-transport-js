@@ -224,7 +224,7 @@ export default class Transport {
     this[kNodeFilter] = opts.nodeFilter ?? defaultNodeFilter
     this[kNodeSelector] = opts.nodeSelector ?? roundRobinSelector()
     this[kHeaders] = Object.assign({},
-      { 'user-agent': userAgent, accept: 'application/vnd.elasticsearch+json; compatible-with=8,text/plain' },
+      { 'user-agent': userAgent },
       opts.compression === true ? { 'accept-encoding': 'gzip,deflate' } : null,
       lowerCaseHeaders(opts.headers)
     )
@@ -371,7 +371,7 @@ export default class Transport {
 
       if (params.body !== '') {
         headers['content-type'] = headers['content-type'] ?? 'application/vnd.elasticsearch+json; compatible-with=8'
-        headers.accept = 'application/vnd.elasticsearch+json; compatible-with=8'
+        headers.accept = headers.accept ?? 'application/vnd.elasticsearch+json; compatible-with=8'
       }
 
     // handle ndjson body
@@ -389,11 +389,10 @@ export default class Transport {
 
       if (connectionParams.body !== '') {
         headers['content-type'] = headers['content-type'] ?? 'application/vnd.elasticsearch+x-ndjson; compatible-with=8'
-        headers.accept = 'application/vnd.elasticsearch+json; compatible-with=8'
+        headers.accept = headers.accept ?? 'application/vnd.elasticsearch+json; compatible-with=8'
       }
     }
 
-    connectionParams.headers = headers
     // serializes the querystring
     if (options.querystring == null) {
       connectionParams.querystring = this[kSerializer].qserialize(params.querystring)
@@ -412,7 +411,7 @@ export default class Transport {
     if (connectionParams.body !== '' && connectionParams.body != null) {
       if (isStream(connectionParams.body)) {
         if (compression) {
-          connectionParams.headers['content-encoding'] = 'gzip'
+          headers['content-encoding'] = 'gzip'
           connectionParams.body = connectionParams.body.pipe(createGzip())
         }
       } else if (compression) {
@@ -424,13 +423,15 @@ export default class Transport {
           /* istanbul ignore next */
           throw err
         }
-        connectionParams.headers['content-encoding'] = 'gzip'
-        connectionParams.headers['content-length'] = '' + Buffer.byteLength(connectionParams.body) // eslint-disable-line
+        headers['content-encoding'] = 'gzip'
+        headers['content-length'] = '' + Buffer.byteLength(connectionParams.body) // eslint-disable-line
       } else {
-        connectionParams.headers['content-length'] = '' + Buffer.byteLength(connectionParams.body) // eslint-disable-line
+        headers['content-length'] = '' + Buffer.byteLength(connectionParams.body) // eslint-disable-line
       }
     }
 
+    headers.accept = headers.accept ?? 'application/vnd.elasticsearch+json; compatible-with=8,text/plain'
+    connectionParams.headers = headers
     while (meta.attempts <= maxRetries) {
       try {
         if (signal?.aborted) { // eslint-disable-line
