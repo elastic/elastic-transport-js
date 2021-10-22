@@ -91,7 +91,6 @@ export default class HttpConnection extends BaseConnection {
 
   async request (params: ConnectionRequestParams, options: ConnectionRequestOptions): Promise<ConnectionRequestResponse> {
     return await new Promise((resolve, reject) => {
-      this._openRequests++
       let cleanedListeners = false
 
       const maxResponseSize = options.maxResponseSize ?? MAX_STRING_LENGTH
@@ -103,8 +102,14 @@ export default class HttpConnection extends BaseConnection {
       }
 
       debug('Starting a new request', params)
-      const request = this.makeRequest(requestParams)
+      let request: http.ClientRequest
+      try {
+        request = this.makeRequest(requestParams)
+      } catch (err: any) {
+        return reject(err)
+      }
 
+      this._openRequests++
       if (options.signal != null) {
         // @ts-expect-error
         options.signal.addEventListener(
