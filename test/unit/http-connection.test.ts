@@ -1150,3 +1150,25 @@ test('Should show local/remote socket addres in case of ECONNRESET', async t => 
   }
   server.stop()
 })
+
+test('Should decrease the request count if a request gets never sent', async t => {
+  t.plan(2)
+
+  const connection = new HttpConnection({
+    url: new URL('http://localhost:9200')
+  })
+  try {
+    await connection.request({
+      path: '/hello',
+      method: 'GET',
+      headers: {
+        // bad header for node.js core http.request
+        'X-Custom-Test': undefined
+      }
+    }, options)
+    t.fail('Should throw')
+  } catch (err: any) {
+    t.ok(err)
+  }
+  t.equal(connection._openRequests, 0)
+})
