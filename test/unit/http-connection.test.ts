@@ -1151,7 +1151,7 @@ test('Should show local/remote socket addres in case of ECONNRESET', async t => 
   server.stop()
 })
 
-test('Should decrease the request count if a request gets never sent', async t => {
+test('Should decrease the request count if a request never sent', async t => {
   t.plan(2)
 
   const connection = new HttpConnection({
