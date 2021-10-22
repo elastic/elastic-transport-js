@@ -352,6 +352,6 @@ function isHttpAgentOptions (opts: Record<string, any>): opts is HttpAgentOption
   return true
 }
 
-function sleep (ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+async function sleep (ms: number): Promise<unknown> {
+  return await new Promise((resolve) => setTimeout(resolve, ms))
 }
