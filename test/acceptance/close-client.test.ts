@@ -89,6 +89,37 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
     await closePromise
     server.stop()
   })
+
+  test(`Empty connection pool with ${name} connection type and retries will fail the in-flight request`, async t => {
+    t.plan(1)
+
+    let client: TestClient | null = null
+    let closePromise: Promise<void> | undefined = undefined
+
+    function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+      const body = JSON.stringify({ error: true })
+      res.setHeader('Content-Type', 'application/json;utf=8')
+      res.setHeader('Content-Length', body.length + '')
+      closePromise = client?.close()
+      res.statusCode = 504
+      res.end(body)
+    }
+
+    const [{ port }, server] = await buildServer(handler)
+    client = new TestClient({
+      node: `http://localhost:${port}`,
+      Connection
+    })
+
+    try {
+      await client.request({ method: 'GET', path: '/' })
+      t.fail('Should throw')
+    } catch (err: any) {
+      t.ok(err instanceof errors.NoLivingConnectionsError)
+    }
+    await closePromise
+    server.stop()
+  })
 }
 
 runWithConnection('HttpConnection', HttpConnection)
