@@ -177,11 +177,12 @@ export default class BaseConnectionPool {
    */
   async empty (): Promise<void> {
     debug('Emptying the connection pool')
-    for (const connection of this.connections) {
+    const connections = this.connections
+    this.connections = []
+    this.size = 0
+    for (const connection of connections) {
       await connection.close()
     }
-    this.connections = []
-    this.size = this.connections.length
   }
 
   /**
