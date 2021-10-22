@@ -22,7 +22,6 @@ import http from 'http'
 import https from 'https'
 import Debug from 'debug'
 import buffer from 'buffer'
-import { promisify } from 'util'
 import { TLSSocket } from 'tls'
 import BaseConnection, {
   ConnectionOptions,
@@ -41,7 +40,6 @@ import {
 } from '../errors'
 import { HttpAgentOptions } from '../types'
 
-const sleep = promisify(setTimeout)
 const debug = Debug('elasticsearch')
 const INVALID_PATH_REGEX = /[^\u0021-\u00ff]/
 const MAX_BUFFER_LENGTH = buffer.constants.MAX_LENGTH
@@ -352,4 +350,8 @@ function isHttpAgentOptions (opts: Record<string, any>): opts is HttpAgentOption
   if (opts.maxHeaderSize != null) return false
   if (opts.connections != null) return false
   return true
+}
+
+function sleep (ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
