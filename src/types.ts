@@ -52,6 +52,8 @@ export interface DiagnosticResult<TResponse = unknown, TContext = unknown> {
   }
 }
 
+export type DiagnosticResultResponse<TResponse = unknown, TContext = unknown> = Required<DiagnosticResult<TResponse, TContext>>
+
 export interface TransportResult<TResponse = unknown, TContext = unknown> extends DiagnosticResult<TResponse, TContext> {
   body: TResponse
   statusCode: number
