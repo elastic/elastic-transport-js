@@ -295,10 +295,15 @@ export default class Transport {
   async request<TResponse = unknown, TContext = any> (params: TransportRequestParams, options?: TransportRequestOptionsWithMeta): Promise<TransportResult<TResponse, TContext>>
   async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptions): Promise<TResponse>
   async request (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<any> {
+    const connectionParams: ConnectionRequestParams = {
+      method: params.method,
+      path: params.path
+    }
+
     const meta: TransportResult['meta'] = {
       context: null,
       request: {
-        params: params,
+        params: connectionParams,
         options: options,
         id: options.id ?? this[kGenerateRequestId](params, options)
       },
@@ -330,11 +335,6 @@ export default class Transport {
           ? this.headers.warning.split(/(?!\B"[^"]*),(?![^"]*"\B)/)
           : null
       }
-    }
-
-    const connectionParams: ConnectionRequestParams = {
-      method: params.method,
-      path: params.path
     }
 
     // We should not retry if we are sending a stream body, because we should store in memory
@@ -404,8 +404,6 @@ export default class Transport {
 
     // TODO: fixme
     // if (options.asStream === true) params.asStream = true
-    meta.request.params = params
-    meta.request.options = options
 
     // handle compression
     if (connectionParams.body !== '' && connectionParams.body != null) {

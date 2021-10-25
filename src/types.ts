@@ -20,7 +20,7 @@
 import { Readable as ReadableStream } from 'stream'
 import { URL } from 'url'
 import * as http from 'http'
-import { Connection, ConnectionOptions } from './connection'
+import { Connection, ConnectionOptions, ConnectionRequestParams } from './connection'
 import { TransportRequestParams, TransportRequestOptions } from './Transport'
 
 export type Context = Record<string, unknown> | null
@@ -38,7 +38,7 @@ export interface DiagnosticResult<TResponse = unknown, TContext = unknown> {
     context: TContext
     name: string | symbol
     request: {
-      params: TransportRequestParams
+      params: ConnectionRequestParams
       options: TransportRequestOptions
       id: any
     }
