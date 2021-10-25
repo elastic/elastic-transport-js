@@ -405,3 +405,23 @@ test('Client name', t => {
 
   t.end()
 })
+
+test('event.meta.request.params.body should be a string', t => {
+  t.plan(3)
+
+  const options = { context: { winter: 'is coming' } }
+
+  const client = new TestClient({
+    node: 'http://localhost:9200',
+    Connection: MockConnection
+  })
+
+  client.diagnostic.on(events.REQUEST, (err, event) => {
+    t.error(err)
+    t.equal(event?.meta.request.params.body, JSON.stringify({ foo: 'bar' }))
+  })
+
+  client.request({ method: 'POST', path: '/', body: { foo: 'bar' } }, options)
+    .then(() => t.pass('ok'))
+    .catch(err => t.fail(err))
+})
