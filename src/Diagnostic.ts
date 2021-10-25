@@ -21,10 +21,11 @@ import { EventEmitter } from 'events'
 import { ElasticsearchClientError, ConfigurationError } from './errors'
 import { ConnectionRequestOptions } from './connection'
 import { ResurrectEvent } from './pool'
-import { DiagnosticResult } from './types'
+import { DiagnosticResult, DiagnosticResultResponse } from './types'
 
 export type DiagnosticListener = (err: ElasticsearchClientError | null, meta: any | null) => void
 export type DiagnosticListenerFull = (err: ElasticsearchClientError | null, meta: DiagnosticResult | null) => void
+export type DiagnosticListenerFullResponse = (err: ElasticsearchClientError | null, meta: DiagnosticResultResponse | null) => void
 export type DiagnosticListenerLight = (err: ElasticsearchClientError | null, meta: ConnectionRequestOptions | null) => void
 export type DiagnosticListenerResurrect = (err: ElasticsearchClientError | null, meta: ResurrectEvent | null) => void
 
@@ -39,7 +40,7 @@ export enum events {
 
 export default class Diagnostic extends EventEmitter {
   on (event: 'request', listener: DiagnosticListenerFull): this
-  on (event: 'response', listener: DiagnosticListenerFull): this
+  on (event: 'response', listener: DiagnosticListenerFullResponse): this
   on (event: 'serialization', listener: DiagnosticListenerFull): this
   on (event: 'sniff', listener: DiagnosticListenerFull): this
   on (event: 'deserialization', listener: DiagnosticListenerLight): this
@@ -51,7 +52,7 @@ export default class Diagnostic extends EventEmitter {
   }
 
   once (event: 'request', listener: DiagnosticListenerFull): this
-  once (event: 'response', listener: DiagnosticListenerFull): this
+  once (event: 'response', listener: DiagnosticListenerFullResponse): this
   once (event: 'serialization', listener: DiagnosticListenerFull): this
   once (event: 'sniff', listener: DiagnosticListenerFull): this
   once (event: 'deserialization', listener: DiagnosticListenerLight): this
