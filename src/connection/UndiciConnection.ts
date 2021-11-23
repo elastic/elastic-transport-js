@@ -29,7 +29,7 @@ import BaseConnection, {
   ConnectionRequestResponse,
   getIssuerCertificate
 } from './BaseConnection'
-import { Pool, buildConnector } from 'undici'
+import { Pool, buildConnector, Dispatcher } from 'undici'
 import {
   ConfigurationError,
   RequestAbortedError,
@@ -152,7 +152,7 @@ export default class Connection extends BaseConnection {
     let response
     try {
       // @ts-expect-error method it's fine as string
-      response = await this.pool.request(requestParams)
+      response = (await this.pool.request(requestParams)) as Dispatcher.ResponseData
       if (timeoutId != null) clearTimeout(timeoutId)
     } catch (err: any) {
       if (timeoutId != null) clearTimeout(timeoutId)
@@ -169,13 +169,13 @@ export default class Connection extends BaseConnection {
     }
 
     const contentEncoding = (response.headers['content-encoding'] ?? '').toLowerCase()
-    const isCompressed = contentEncoding.includes('gzip') || contentEncoding.includes('deflate')
+    const isCompressed = contentEncoding.includes('gzip') || contentEncoding.includes('deflate') // eslint-disable-line
     const isVectorTile = (response.headers['content-type'] ?? '').includes('application/vnd.mapbox-vector-tile')
 
     /* istanbul ignore else */
     if (response.headers['content-length'] !== undefined) {
       const contentLength = Number(response.headers['content-length'])
-      if (isCompressed && contentLength > maxCompressedResponseSize) {
+      if (isCompressed && contentLength > maxCompressedResponseSize) { // eslint-disable-line
         response.body.destroy()
         throw new RequestAbortedError(`The content length (${contentLength}) is bigger than the maximum allowed buffer (${maxCompressedResponseSize})`)
       } else if (contentLength > maxResponseSize) {
@@ -186,7 +186,7 @@ export default class Connection extends BaseConnection {
 
     this.diagnostic.emit('deserialization', null, options)
     try {
-      if (isCompressed || isVectorTile) {
+      if (isCompressed || isVectorTile) { // eslint-disable-line
         const payload: Buffer[] = []
         for await (const chunk of response.body) {
           payload.push(chunk)
