@@ -459,7 +459,7 @@ export default class Transport {
         result.statusCode = statusCode
         result.headers = headers
 
-        if (this[kProductCheck] != null && headers['x-elastic-product'] !== this[kProductCheck] && statusCode !== 401 && statusCode !== 403) {
+        if (this[kProductCheck] != null && headers['x-elastic-product'] !== this[kProductCheck] && statusCode >= 200 && statusCode < 300) {
           throw new ProductNotSupportedError(this[kProductCheck] as string, result)
         }
 
