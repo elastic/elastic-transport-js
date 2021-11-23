@@ -133,82 +133,49 @@ test('Errors v8', async t => {
   }
 })
 
-test('401', async t => {
-  t.plan(2)
+function withCode (code: number): void {
+  test(`With code ${code}`, async t => {
+    t.plan(2)
 
-  const MockConnection = buildMockConnection({
-    onRequest (params) {
-      return {
-        statusCode: 401,
-        headers: {
-          'x-elastic-product': undefined
-        },
-        body: { error: true }
-      }
-    }
-  })
-
-  const client = new TestClient({
-    node: 'http://localhost:9200',
-    Connection: MockConnection
-  })
-
-  client.diagnostic.on(events.RESPONSE, (err, event) => {
-    t.ok(err instanceof errors.ResponseError)
-  })
-
-  try {
-    await client.request({
-      path: '/foo/_search',
-      method: 'POST',
-      body: {
-        query: {
-          match_all: {}
+    const MockConnection = buildMockConnection({
+      onRequest (params) {
+        return {
+          statusCode: code,
+          headers: {
+            'x-elastic-product': undefined
+          },
+          body: { error: true }
         }
       }
     })
-    t.fail('Should throw')
-  } catch (err: any) {
-    t.equal(err.statusCode, 401)
-  }
-})
 
-test('403', async t => {
-  t.plan(2)
+    const client = new TestClient({
+      node: 'http://localhost:9200',
+      Connection: MockConnection
+    })
 
-  const MockConnection = buildMockConnection({
-    onRequest (params) {
-      return {
-        statusCode: 403,
-        headers: {
-          'x-elastic-product': undefined
-        },
-        body: { error: true }
-      }
+    client.diagnostic.on(events.RESPONSE, (err, event) => {
+      t.ok(err instanceof errors.ResponseError)
+    })
+
+    try {
+      await client.request({
+        path: '/foo/_search',
+        method: 'POST',
+        body: {
+          query: {
+            match_all: {}
+          }
+        }
+      })
+      t.fail('Should throw')
+    } catch (err: any) {
+      t.equal(err.statusCode, code)
     }
   })
+}
 
-  const client = new TestClient({
-    node: 'http://localhost:9200',
-    Connection: MockConnection
-  })
-
-  client.diagnostic.on(events.RESPONSE, (err, event) => {
-    t.ok(err instanceof errors.ResponseError)
-  })
-
-  try {
-    await client.request({
-      path: '/foo/_search',
-      method: 'POST',
-      body: {
-        query: {
-          match_all: {}
-        }
-      }
-    })
-    t.fail('Should throw')
-  } catch (err: any) {
-    t.equal(err.statusCode, 403)
-  }
-})
+withCode(401)
+withCode(403)
+withCode(404)
+withCode(413)
