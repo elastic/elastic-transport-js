@@ -453,7 +453,6 @@ export default class Transport {
           signal,
           timeout: toMs(options.requestTimeout != null ? options.requestTimeout : this[kRequestTimeout]),
           ...(options.asStream === true ? { asStream: true } : null)
-          // asStream: options.asStream ? true : undefined
         })
         result.statusCode = statusCode
         result.headers = headers
