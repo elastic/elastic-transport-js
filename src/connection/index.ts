@@ -26,7 +26,9 @@ export type {
   ConnectionOptions,
   ConnectionRequestParams,
   ConnectionRequestOptions,
-  ConnectionRequestResponse
+  ConnectionRequestOptionsAsStream,
+  ConnectionRequestResponse,
+  ConnectionRequestResponseAsStream
 } from './BaseConnection'
 
 export {

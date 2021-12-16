@@ -22,6 +22,7 @@ import buffer from 'buffer'
 // import { URL } from 'url'
 // import FakeTimers from '@sinonjs/fake-timers'
 import { promisify } from 'util'
+import { Readable as ReadableStream } from 'stream'
 import { gzipSync, deflateSync } from 'zlib'
 import os from 'os'
 import { Readable } from 'stream'
@@ -42,7 +43,7 @@ import {
   SniffOptions,
   errors
 } from '../..'
-import { connection } from '../utils'
+import { connection, buildServer } from '../utils'
 
 const { version: transportVersion } = require('../../package.json') // eslint-disable-line
 const sleep = promisify(setTimeout)
@@ -1884,110 +1885,30 @@ test('Override headers', async t => {
   t.equal(res.headers?.['content-type'], 'application/json;utf=8')
 })
 
-// test('asStream set to true', t => {
-//   t.plan(3)
-//   function handler (req, res) {
-//     res.setHeader('Content-Type', 'application/json;utf=8')
-//     res.end(JSON.stringify({ hello: 'world' }))
-//   }
+test('As stream', async t => {
+  t.plan(2)
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+    res.end('ok')
+  }
 
-//   buildServer(handler, ({ port }, server) => {
-//     const pool = new WeightedConnectionPool({ Connection: UndiciConnection })
-//     pool.addConnection(`http://localhost:${port}`)
+  const [{ port }, server] = await buildServer(handler)
 
-//     const transport = new Transport({ connectionPool: pool })
 
-//     transport.request({
-//       method: 'GET',
-//       path: '/hello'
-//     }, {
-//       asStream: true
-//     }, (err, { body, headers }) => {
-//       t.error(err)
-//       t.match(headers, {
-//         connection: 'keep-alive',
-//         'content-type': 'application/json;utf=8'
-//       })
+  const pool = new WeightedConnectionPool({ Connection: UndiciConnection })
+  pool.addConnection(`http://localhost:${port}`)
+  const transport = new Transport({ connectionPool: pool })
 
-//       let payload = ''
-//       body.setEncoding('utf8')
-//       body.on('data', chunk => { payload += chunk })
-//       body.on('error', err => t.fail(err))
-//       body.on('end', () => {
-//         t.same(JSON.parse(payload), { hello: 'world' })
-//         server.stop()
-//       })
-//     })
-//   })
-// })
-
-// test('Secure json parsing', t => {
-//   t.test('__proto__ protection', t => {
-//     t.plan(2)
-//     function handler (req, res) {
-//       res.setHeader('Content-Type', 'application/json;utf=8')
-//       res.end('{"__proto__":{"a":1}}')
-//     }
-
-//     buildServer(handler, ({ port }, server) => {
-//       const pool = new WeightedConnectionPool({ Connection: UndiciConnection })
-//       pool.addConnection(`http://localhost:${port}`)
-
-//       const transport = new Transport({
-//         emit: () => {},
-//         connectionPool: pool,
-//         serializer: new Serializer(),
-//         maxRetries: 3,
-//         requestTimeout: 30000,
-//         sniffInterval: false,
-//         sniffOnStart: false
-//       })
-
-//       transport.request({
-//         method: 'GET',
-//         path: '/hello'
-//       }, (err, { body }) => {
-//         t.ok(err instanceof DeserializationError)
-//         t.equal(err.message, 'Object contains forbidden prototype property')
-//         server.stop()
-//       })
-//     })
-//   })
-
-//   t.test('constructor protection', t => {
-//     t.plan(2)
-//     function handler (req, res) {
-//       res.setHeader('Content-Type', 'application/json;utf=8')
-//       res.end('{"constructor":{"prototype":{"bar":"baz"}}}')
-//     }
-
-//     buildServer(handler, ({ port }, server) => {
-//       const pool = new WeightedConnectionPool({ Connection: UndiciConnection })
-//       pool.addConnection(`http://localhost:${port}`)
-
-//       const transport = new Transport({
-//         emit: () => {},
-//         connectionPool: pool,
-//         serializer: new Serializer(),
-//         maxRetries: 3,
-//         requestTimeout: 30000,
-//         sniffInterval: false,
-//         sniffOnStart: false
-//       })
-
-//       transport.request({
-//         method: 'GET',
-//         path: '/hello'
-//       }, (err, { body }) => {
-//         t.ok(err instanceof DeserializationError)
-//         t.equal(err.message, 'Object contains forbidden prototype property')
-//         server.stop()
-//       })
-//     })
-//   })
-
-//   t.end()
-// })
+  const res = await transport.request<ReadableStream>({
+    method: 'GET',
+    path: '/'
+  }, {
+    meta: true,
+    asStream: true
+  })
+  t.ok(res.body instanceof ReadableStream)
+  t.equal(res.statusCode, 200)
+  server.stop()
+})
 
 // test('Lowercase headers utilty', t => {
 //   t.plan(4)

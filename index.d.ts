@@ -38,7 +38,9 @@ export type {
   ConnectionOptions,
   ConnectionRequestParams,
   ConnectionRequestOptions,
-  ConnectionRequestResponse
+  ConnectionRequestOptionsAsStream,
+  ConnectionRequestResponse,
+  ConnectionRequestResponseAsStream
 } from './lib/connection'
 
 export type {
@@ -47,6 +49,7 @@ export type {
 } from './lib/pool'
 
 export type {
+  TransportOptions,
   TransportRequestParams,
   TransportRequestOptions,
   TransportRequestOptionsWithMeta,

@@ -17,6 +17,8 @@
  * under the License.
  */
 
+/* eslint-disable @typescript-eslint/restrict-template-expressions */
+
 import hpagent from 'hpagent'
 import http from 'http'
 import https from 'https'
@@ -27,7 +29,9 @@ import BaseConnection, {
   ConnectionOptions,
   ConnectionRequestParams,
   ConnectionRequestOptions,
+  ConnectionRequestOptionsAsStream,
   ConnectionRequestResponse,
+  ConnectionRequestResponseAsStream,
   getIssuerCertificate
 } from './BaseConnection'
 import { kCaFingerprint } from '../symbols'
@@ -87,7 +91,9 @@ export default class HttpConnection extends BaseConnection {
       : https.request
   }
 
-  async request (params: ConnectionRequestParams, options: ConnectionRequestOptions): Promise<ConnectionRequestResponse> {
+  async request (params: ConnectionRequestParams, options: ConnectionRequestOptions): Promise<ConnectionRequestResponse>
+  async request (params: ConnectionRequestParams, options: ConnectionRequestOptionsAsStream): Promise<ConnectionRequestResponseAsStream>
+  async request (params: ConnectionRequestParams, options: any): Promise<any> {
     return await new Promise((resolve, reject) => {
       let cleanedListeners = false
 
@@ -109,7 +115,6 @@ export default class HttpConnection extends BaseConnection {
 
       this._openRequests++
       if (options.signal != null) {
-        // @ts-expect-error
         options.signal.addEventListener(
           'abort',
           () => request.abort(),
@@ -120,6 +125,14 @@ export default class HttpConnection extends BaseConnection {
       const onResponse = (response: http.IncomingMessage): void => {
         cleanListeners()
         this._openRequests--
+
+        if (options.asStream === true) {
+          return resolve({
+            body: response,
+            statusCode: response.statusCode as number,
+            headers: response.headers
+          })
+        }
 
         const contentEncoding = (response.headers['content-encoding'] ?? '').toLowerCase()
         const isCompressed = contentEncoding.includes('gzip') || contentEncoding.includes('deflate')

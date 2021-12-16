@@ -402,9 +402,6 @@ export default class Transport {
       )
     }
 
-    // TODO: fixme
-    // if (options.asStream === true) params.asStream = true
-
     // handle compression
     if (connectionParams.body !== '' && connectionParams.body != null) {
       if (isStream(connectionParams.body)) {
@@ -454,13 +451,20 @@ export default class Transport {
           maxResponseSize,
           maxCompressedResponseSize,
           signal,
-          timeout: toMs(options.requestTimeout != null ? options.requestTimeout : this[kRequestTimeout])
+          timeout: toMs(options.requestTimeout != null ? options.requestTimeout : this[kRequestTimeout]),
+          ...(options.asStream === true ? { asStream: true } : null)
         })
         result.statusCode = statusCode
         result.headers = headers
 
         if (this[kProductCheck] != null && headers['x-elastic-product'] !== this[kProductCheck] && statusCode >= 200 && statusCode < 300) {
           throw new ProductNotSupportedError(this[kProductCheck] as string, result)
+        }
+
+        if (options.asStream === true) {
+          result.body = body
+          this[kDiagnostic].emit('response', null, result)
+          return returnMeta ? result : body
         }
 
         const contentEncoding = (headers['content-encoding'] ?? '').toLowerCase()
@@ -472,13 +476,6 @@ export default class Transport {
         if (Buffer.isBuffer(body) && !isVectorTile) {
           body = body.toString()
         }
-
-        // TODO: fixme
-        // if (options.asStream === true) {
-        //   result.body = response
-        //   this[kDiagnostic].emit('response', null, result)
-        //   return result
-        // }
 
         const isHead = params.method === 'HEAD'
         // we should attempt the payload deserialization only if:

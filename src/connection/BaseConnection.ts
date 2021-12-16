@@ -62,13 +62,22 @@ export interface ConnectionRequestOptions {
   context: any
   maxResponseSize?: number
   maxCompressedResponseSize?: number
-  asStream?: boolean
   signal?: AbortSignal
   timeout?: number
 }
 
+export interface ConnectionRequestOptionsAsStream extends ConnectionRequestOptions {
+  asStream: true
+}
+
 export interface ConnectionRequestResponse {
   body: string | Buffer
+  headers: http.IncomingHttpHeaders
+  statusCode: number
+}
+
+export interface ConnectionRequestResponseAsStream {
+  body: ReadableStream
   headers: http.IncomingHttpHeaders
   statusCode: number
 }
@@ -127,7 +136,9 @@ export default class BaseConnection {
   }
 
   /* istanbul ignore next */
-  async request (params: ConnectionRequestParams, options: ConnectionRequestOptions): Promise<ConnectionRequestResponse> {
+  async request (params: ConnectionRequestParams, options: ConnectionRequestOptions): Promise<ConnectionRequestResponse>
+  async request (params: ConnectionRequestParams, options: ConnectionRequestOptionsAsStream): Promise<ConnectionRequestResponseAsStream>
+  async request (params: ConnectionRequestParams, options: any): Promise<any> {
     throw new ConfigurationError('The request method should be implemented by extended classes')
   }
 

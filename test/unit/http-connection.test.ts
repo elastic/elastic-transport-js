@@ -467,37 +467,6 @@ test('Custom headers for connection', async t => {
   server.stop()
 })
 
-// // TODO: add a check that the response is not decompressed
-// test('asStream set to true', t => {
-//   t.plan(2)
-
-//   function handler (req, res) {
-//     res.end('ok')
-//   }
-
-//   buildServer(handler, ({ port }, server) => {
-//     const connection = new Connection({
-//       url: new URL(`http://localhost:${port}`)
-//     })
-//     connection.request({
-//       path: '/hello',
-//       method: 'GET',
-//       asStream: true
-//     }, (err, res) => {
-//       t.error(err)
-
-//       let payload = ''
-//       res.setEncoding('utf8')
-//       res.on('data', chunk => { payload += chunk })
-//       res.on('error', err => t.fail(err))
-//       res.on('end', () => {
-//         t.equal(payload, 'ok')
-//         server.stop()
-//       })
-//     })
-//   })
-// })
-
 test('Ipv6 support', t => {
   const connection = new HttpConnection({
     url: new URL('http://[::1]:9200')
@@ -1172,3 +1141,34 @@ test('Should decrease the request count if a request never sent', async t => {
   }
   t.equal(connection._openRequests, 0)
 })
+
+test('as stream', async t => {
+  t.plan(2)
+
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+    res.end('ok')
+  }
+
+  const [{ port }, server] = await buildServer(handler)
+  const connection = new HttpConnection({
+    url: new URL(`http://localhost:${port}`)
+  })
+  const res = await connection.request({
+    path: '/',
+    method: 'GET'
+  }, {
+    asStream: true,
+    requestId: 42,
+    name: 'test',
+    context: null
+  })
+  t.ok(res.body instanceof Readable)
+  res.body.setEncoding('utf8')
+  let payload = ''
+  for await (const chunk of res.body) {
+    payload += chunk
+  }
+  t.equal(payload, 'ok')
+  server.stop()
+})
+
