@@ -17,6 +17,8 @@
  * under the License.
  */
 
+/* eslint-disable @typescript-eslint/restrict-template-expressions */
+
 import { EventEmitter } from 'events'
 import Debug from 'debug'
 import buffer from 'buffer'
@@ -26,7 +28,9 @@ import BaseConnection, {
   ConnectionOptions,
   ConnectionRequestParams,
   ConnectionRequestOptions,
+  ConnectionRequestOptionsAsStream,
   ConnectionRequestResponse,
+  ConnectionRequestResponseAsStream,
   getIssuerCertificate
 } from './BaseConnection'
 import { Pool, buildConnector, Dispatcher } from 'undici'
@@ -109,7 +113,9 @@ export default class Connection extends BaseConnection {
     this.pool = new Pool(this.url.toString(), undiciOptions)
   }
 
-  async request (params: ConnectionRequestParams, options: ConnectionRequestOptions): Promise<ConnectionRequestResponse> {
+  async request (params: ConnectionRequestParams, options: ConnectionRequestOptions): Promise<ConnectionRequestResponse>
+  async request (params: ConnectionRequestParams, options: ConnectionRequestOptionsAsStream): Promise<ConnectionRequestResponseAsStream>
+  async request (params: ConnectionRequestParams, options: any): Promise<any> {
     const maxResponseSize = options.maxResponseSize ?? MAX_STRING_LENGTH
     const maxCompressedResponseSize = options.maxCompressedResponseSize ?? MAX_BUFFER_LENGTH
     const requestParams = {
@@ -135,7 +141,6 @@ export default class Connection extends BaseConnection {
       timeoutId = setTimeout(() => {
         timedout = true
         if (options.signal != null) {
-          // @ts-expect-error
           options.signal.dispatchEvent('abort')
         } else {
           this[kEmitter].emit('abort')
@@ -165,6 +170,14 @@ export default class Connection extends BaseConnection {
           throw new ConnectionError(`${err.message} - Local: ${err.socket?.localAddress ?? 'unknown'}:${err.socket?.localPort ?? 'unknown'}, Remote: ${err.socket?.remoteAddress ?? 'unknown'}:${err.socket?.remotePort ?? 'unknown'}`) // eslint-disable-line
         default:
           throw new ConnectionError(err.message)
+      }
+    }
+
+    if (options.asStream === true) {
+      return {
+        statusCode: response.statusCode,
+        headers: response.headers,
+        body: response.body
       }
     }
 
