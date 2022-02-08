@@ -69,7 +69,10 @@ import {
   kNodeSelector,
   kProductCheck,
   kMaxResponseSize,
-  kMaxCompressedResponseSize
+  kMaxCompressedResponseSize,
+  kJsonContentType,
+  kNdjsonContentType,
+  kAcceptHeader
 } from './symbols'
 
 const { version: clientVersion } = require('../package.json') // eslint-disable-line
@@ -101,6 +104,11 @@ export interface TransportOptions {
   productCheck?: string
   maxResponseSize?: number
   maxCompressedResponseSize?: number
+  vendoredHeaders?: {
+    jsonContentType?: string
+    ndjsonContentType?: string
+    accept?: string
+  }
 }
 
 export interface TransportRequestParams {
@@ -191,6 +199,9 @@ export default class Transport {
   [kProductCheck]: string | null
   [kMaxResponseSize]: number
   [kMaxCompressedResponseSize]: number
+  [kJsonContentType]: string
+  [kNdjsonContentType]: string
+  [kAcceptHeader]: string
 
   static sniffReasons = {
     SNIFF_ON_START: 'sniff-on-start',
@@ -247,6 +258,9 @@ export default class Transport {
     this[kProductCheck] = opts.productCheck ?? null
     this[kMaxResponseSize] = opts.maxResponseSize ?? buffer.constants.MAX_STRING_LENGTH
     this[kMaxCompressedResponseSize] = opts.maxCompressedResponseSize ?? buffer.constants.MAX_LENGTH
+    this[kJsonContentType] = opts.vendoredHeaders?.jsonContentType ?? 'application/json'
+    this[kNdjsonContentType] = opts.vendoredHeaders?.ndjsonContentType ?? 'application/x-ndjson'
+    this[kAcceptHeader] = opts.vendoredHeaders?.accept ?? 'application/json, text/plain'
 
     if (opts.sniffOnStart === true) {
       this.sniff({
@@ -370,8 +384,7 @@ export default class Transport {
       }
 
       if (params.body !== '') {
-        headers['content-type'] = headers['content-type'] ?? 'application/vnd.elasticsearch+json; compatible-with=8'
-        headers.accept = headers.accept ?? 'application/vnd.elasticsearch+json; compatible-with=8'
+        headers['content-type'] = headers['content-type'] ?? this[kJsonContentType]
       }
 
     // handle ndjson body
@@ -388,8 +401,7 @@ export default class Transport {
       }
 
       if (connectionParams.body !== '') {
-        headers['content-type'] = headers['content-type'] ?? 'application/vnd.elasticsearch+x-ndjson; compatible-with=8'
-        headers.accept = headers.accept ?? 'application/vnd.elasticsearch+json; compatible-with=8'
+        headers['content-type'] = headers['content-type'] ?? this[kNdjsonContentType]
       }
     }
 
@@ -425,7 +437,7 @@ export default class Transport {
       }
     }
 
-    headers.accept = headers.accept ?? 'application/vnd.elasticsearch+json; compatible-with=8,text/plain'
+    headers.accept = headers.accept ?? this[kAcceptHeader]
     connectionParams.headers = headers
     while (meta.attempts <= maxRetries) {
       try {
