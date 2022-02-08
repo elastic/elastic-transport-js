@@ -181,7 +181,14 @@ test('Send POST (json)', async t => {
   const pool = new WeightedConnectionPool({ Connection: Conn })
   pool.addConnection('http://localhost:9200')
 
-  const transport = new Transport({ connectionPool: pool })
+  const transport = new Transport({
+    connectionPool: pool,
+    vendoredHeaders: {
+      jsonContentType: 'application/vnd.elasticsearch+json; compatible-with=8',
+      ndjsonContentType: 'application/vnd.elasticsearch+x-ndjson; compatible-with=8',
+      accept: 'application/vnd.elasticsearch+json; compatible-with=8'
+    }
+  })
 
   const res = await transport.request({
     method: 'POST',
@@ -219,7 +226,14 @@ test('Send POST (ndjson)', async t => {
   const pool = new WeightedConnectionPool({ Connection: Conn })
   pool.addConnection('http://localhost:9200')
 
-  const transport = new Transport({ connectionPool: pool })
+  const transport = new Transport({
+    connectionPool: pool,
+    vendoredHeaders: {
+      jsonContentType: 'application/vnd.elasticsearch+json; compatible-with=8',
+      ndjsonContentType: 'application/vnd.elasticsearch+x-ndjson; compatible-with=8',
+      accept: 'application/vnd.elasticsearch+json; compatible-with=8'
+    }
+  })
 
   const res = await transport.request({
     method: 'POST',
@@ -303,7 +317,14 @@ test('Not JSON payload from server', async t => {
   const pool = new WeightedConnectionPool({ Connection: Conn })
   pool.addConnection('http://localhost:9200')
 
-  const transport = new Transport({ connectionPool: pool })
+  const transport = new Transport({
+    connectionPool: pool,
+    vendoredHeaders: {
+      jsonContentType: 'application/vnd.elasticsearch+json; compatible-with=8',
+      ndjsonContentType: 'application/vnd.elasticsearch+x-ndjson; compatible-with=8',
+      accept: 'application/vnd.elasticsearch+json; compatible-with=8,text/plain'
+    }
+  })
 
   const res = await transport.request({
     method: 'GET',
