@@ -380,9 +380,11 @@ export default class Transport {
           throw err
         }
         headers['content-type'] = headers['content-type'] ?? this[kJsonContentType]
+        headers.accept = headers.accept ?? headers['content-type']
       } else {
         if (params.body !== '') {
           headers['content-type'] = headers['content-type'] ?? 'text/plain'
+          headers.accept = headers.accept ?? this[kAcceptHeader]
         }
         connectionParams.body = params.body
       }
@@ -402,6 +404,7 @@ export default class Transport {
 
       if (connectionParams.body !== '') {
         headers['content-type'] = headers['content-type'] ?? this[kNdjsonContentType]
+        headers.accept = headers.accept ?? this[kJsonContentType]
       }
     }
 
@@ -437,7 +440,9 @@ export default class Transport {
       }
     }
 
-    headers.accept = headers.accept ?? this[kAcceptHeader]
+    if (headers['content-type'] == null) {
+      headers.accept = headers.accept ?? this[kAcceptHeader]
+    }
     connectionParams.headers = headers
     while (meta.attempts <= maxRetries) {
       try {
