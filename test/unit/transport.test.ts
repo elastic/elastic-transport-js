@@ -243,6 +243,36 @@ test('Send POST (ndjson)', async t => {
   t.equal(res.statusCode, 200)
 })
 
+test('Send POST (text/plain)', async t => {
+  t.plan(4)
+
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
+      t.equal(opts.headers?.accept, 'application/json, text/plain')
+      t.equal(opts.headers?.['content-type'], 'text/plain')
+      t.equal(opts.body, 'hello world')
+      return {
+        body: { hello: 'world' },
+        statusCode: 200
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool
+  })
+
+  const res = await transport.request({
+    method: 'POST',
+    path: '/hello',
+    body: 'hello world'
+  }, { meta: true })
+  t.equal(res.statusCode, 200)
+})
+
 test('Send stream (json)', async t => {
   t.plan(2)
   const Conn = buildMockConnection({
