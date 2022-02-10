@@ -379,12 +379,12 @@ export default class Transport {
           this[kDiagnostic].emit('request', err, result)
           throw err
         }
-      } else {
-        connectionParams.body = params.body
-      }
-
-      if (params.body !== '') {
         headers['content-type'] = headers['content-type'] ?? this[kJsonContentType]
+      } else {
+        if (params.body !== '') {
+          headers['content-type'] = headers['content-type'] ?? 'text/plain'
+        }
+        connectionParams.body = params.body
       }
 
     // handle ndjson body
