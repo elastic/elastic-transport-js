@@ -380,9 +380,11 @@ export default class Transport {
           throw err
         }
         headers['content-type'] = headers['content-type'] ?? this[kJsonContentType]
+        headers.accept = headers.accept ?? this[kJsonContentType]
       } else {
         if (params.body !== '') {
           headers['content-type'] = headers['content-type'] ?? 'text/plain'
+          headers.accept = headers.accept ?? this[kAcceptHeader]
         }
         connectionParams.body = params.body
       }
@@ -402,6 +404,7 @@ export default class Transport {
 
       if (connectionParams.body !== '') {
         headers['content-type'] = headers['content-type'] ?? this[kNdjsonContentType]
+        headers.accept = headers.accept ?? this[kJsonContentType]
       }
     }
 
