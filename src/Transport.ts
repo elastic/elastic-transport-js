@@ -380,7 +380,7 @@ export default class Transport {
           throw err
         }
         headers['content-type'] = headers['content-type'] ?? this[kJsonContentType]
-        headers.accept = headers.accept ?? headers['content-type']
+        headers.accept = headers.accept ?? this[kJsonContentType]
       } else {
         if (params.body !== '') {
           headers['content-type'] = headers['content-type'] ?? 'text/plain'
@@ -440,9 +440,7 @@ export default class Transport {
       }
     }
 
-    if (headers['content-type'] == null) {
-      headers.accept = headers.accept ?? this[kAcceptHeader]
-    }
+    headers.accept = headers.accept ?? this[kAcceptHeader]
     connectionParams.headers = headers
     while (meta.attempts <= maxRetries) {
       try {
