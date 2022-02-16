@@ -309,6 +309,7 @@ export default class Transport {
   async request<TResponse = unknown, TContext = any> (params: TransportRequestParams, options?: TransportRequestOptionsWithMeta): Promise<TransportResult<TResponse, TContext>>
   async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptions): Promise<TResponse>
   async request (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<any> {
+    const startTime = Date.now()
     const connectionParams: ConnectionRequestParams = {
       method: params.method,
       path: params.path
@@ -321,6 +322,7 @@ export default class Transport {
         options: options,
         id: options.id ?? this[kGenerateRequestId](params, options)
       },
+      duration: -1,
       name: this[kName],
       connection: null,
       attempts: 0,
@@ -478,6 +480,7 @@ export default class Transport {
 
         if (options.asStream === true) {
           result.body = body
+          result.meta.duration = Date.now() - startTime
           this[kDiagnostic].emit('response', null, result)
           return returnMeta ? result : body
         }
@@ -535,6 +538,7 @@ export default class Transport {
           if (isHead && statusCode === 404) {
             result.body = false
           }
+          result.meta.duration = Date.now() - startTime
           this[kDiagnostic].emit('response', null, result)
           return returnMeta ? result : result.body
         }
@@ -545,9 +549,11 @@ export default class Transport {
           case 'NoLivingConnectionsError':
           case 'DeserializationError':
           case 'ResponseError':
+            result.meta.duration = Date.now() - startTime
             this[kDiagnostic].emit('response', error, result)
             throw error
           case 'RequestAbortedError': {
+            result.meta.duration = Date.now() - startTime
             meta.aborted = true
             // Wrap the error to get a clean stack trace
             const wrappedError = new RequestAbortedError(error.message, result)
@@ -576,6 +582,7 @@ export default class Transport {
               continue
             }
 
+            result.meta.duration = Date.now() - startTime
             // Wrap the error to get a clean stack trace
             const wrappedError = error.name === 'TimeoutError'
               ? new TimeoutError(error.message, result)
@@ -586,6 +593,7 @@ export default class Transport {
 
           // edge cases, such as bad compression
           default:
+            result.meta.duration = Date.now() - startTime
             this[kDiagnostic].emit('response', error, result)
             throw error
         }
