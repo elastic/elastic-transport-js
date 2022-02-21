@@ -1172,3 +1172,30 @@ test('as stream', async t => {
   server.stop()
 })
 
+test('Cleanup abort listener', async t => {
+  t.plan(2)
+
+  const controller = new AbortController()
+
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+    // @ts-expect-error
+    t.equal(controller.signal.eventEmitter.listeners('abort').length, 1)
+    res.end('ok')
+  }
+
+  const [{ port }, server] = await buildServer(handler)
+  const connection = new HttpConnection({
+    url: new URL(`http://localhost:${port}`)
+  })
+
+  await connection.request({
+    path: '/hello',
+    method: 'GET',
+  }, {
+    ...options,
+    signal: controller.signal
+  })
+  // @ts-expect-error
+  t.equal(controller.signal.eventEmitter.listeners('abort').length, 0)
+  server.stop()
+})
