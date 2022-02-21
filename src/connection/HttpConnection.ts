@@ -113,11 +113,15 @@ export default class HttpConnection extends BaseConnection {
         return reject(err)
       }
 
+      const abortListener = (): void => {
+        request.abort()
+      }
+
       this._openRequests++
       if (options.signal != null) {
         options.signal.addEventListener(
           'abort',
-          () => request.abort(),
+          abortListener,
           { once: true }
         )
       }
@@ -276,6 +280,13 @@ export default class HttpConnection extends BaseConnection {
         request.removeListener('error', onError)
         request.removeListener('abort', onAbort)
         request.removeListener('socket', onSocket)
+        if (options.signal != null) {
+          if ('removeEventListener' in options.signal) {
+            options.signal.removeEventListener('abort', abortListener)
+          } else {
+            options.signal.removeListener('abort', abortListener)
+          }
+        }
         cleanedListeners = true
       }
     })
