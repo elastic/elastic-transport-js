@@ -69,7 +69,7 @@ export default class Connection extends BaseConnection {
 
     this[kEmitter] = new EventEmitter()
     const undiciOptions: Pool.Options = {
-      keepAliveTimeout: 4000,
+      keepAliveTimeout: 600e3,
       keepAliveMaxTimeout: 600e3,
       keepAliveTimeoutThreshold: 1000,
       pipelining: 1,
@@ -200,25 +200,16 @@ export default class Connection extends BaseConnection {
     this.diagnostic.emit('deserialization', null, options)
     try {
       if (isCompressed || isVectorTile) { // eslint-disable-line
-        const payload: Buffer[] = []
-        for await (const chunk of response.body) {
-          payload.push(chunk)
-        }
         return {
           statusCode: response.statusCode,
           headers: response.headers,
-          body: Buffer.concat(payload)
+          body: Buffer.from(await response.body.arrayBuffer())
         }
       } else {
-        let payload = ''
-        response.body.setEncoding('utf8')
-        for await (const chunk of response.body) {
-          payload += chunk as string
-        }
         return {
           statusCode: response.statusCode,
           headers: response.headers,
-          body: payload
+          body: await response.body.text()
         }
       }
     } catch (err: any) {
