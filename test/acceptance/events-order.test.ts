@@ -89,6 +89,7 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
       await client.request({ method: 'GET', path: '/' })
       t.equal(order.length, 0)
       server.stop()
+      await client.close()
     })
 
     t.test('Connection error', async t => {
@@ -132,6 +133,7 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
         t.ok(err instanceof ConnectionError)
         t.equal(order.length, 0)
       }
+      await client.close()
     })
 
     t.test('TimeoutError error', async t => {
@@ -187,6 +189,7 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
         t.equal(order.length, 0)
       }
       server.close()
+      await client.close()
     })
 
     t.test('RequestAbortedError error', async t => {
@@ -243,6 +246,7 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
         t.equal(order.length, 0)
       }
       server.stop()
+      await client.close()
     })
 
     t.test('ResponseError error (no retry)', async t => {
@@ -297,6 +301,7 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
         t.equal(order.length, 0)
       }
       server.stop()
+      await client.close()
     })
 
     t.test('ResponseError error (with retry)', async t => {
@@ -353,6 +358,7 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
         t.equal(order.length, 0)
       }
       server.stop()
+      await client.close()
     })
 
     t.test('Serialization Error', async t => {
@@ -404,6 +410,7 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
         t.equal(order.length, 0)
       }
       server.stop()
+      await client.close()
     })
 
     t.test('Deserialization Error', async t => {
@@ -456,6 +463,7 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
         t.equal(order.length, 0)
       }
       server.stop()
+      await client.close()
     })
 
     t.test('Socket destroyed while reading the body', async t => {
@@ -514,6 +522,7 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
         t.equal(order.length, 0)
       }
       server.stop()
+      await client.close()
     })
 
     t.end()
