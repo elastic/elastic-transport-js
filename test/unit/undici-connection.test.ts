@@ -24,7 +24,7 @@ import buffer from 'buffer'
 import { gzipSync, deflateSync } from 'zlib'
 import { Readable } from 'stream'
 import intoStream from 'into-stream'
-import AbortController from 'node-abort-controller'
+import { AbortController } from 'node-abort-controller'
 import { buildServer } from '../utils'
 import { UndiciConnection, errors, ConnectionOptions } from '../../'
 

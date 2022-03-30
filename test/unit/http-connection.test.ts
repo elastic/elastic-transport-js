@@ -26,7 +26,7 @@ import { gzipSync, deflateSync } from 'zlib'
 import { Readable } from 'stream'
 import hpagent from 'hpagent'
 import intoStream from 'into-stream'
-import AbortController from 'node-abort-controller'
+import { AbortController } from 'node-abort-controller'
 import { buildServer } from '../utils'
 import { HttpConnection, errors, ConnectionOptions } from '../../'
 

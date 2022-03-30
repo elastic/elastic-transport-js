@@ -92,6 +92,7 @@ test('Resurrect a node and handle 502/3/4 status code', async t => {
   const clock = FakeTimers.install({ toFake: ['Date'] })
 
   const cluster = await buildCluster({ handler, numberOfNodes: 2 })
+  await new Promise((resolve, reject) => setTimeout(resolve, 500))
   const client = new TestClient({
     nodes: [{
       url: new URL(cluster.nodes[Object.keys(cluster.nodes)[0]].url),
