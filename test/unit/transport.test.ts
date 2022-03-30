@@ -28,7 +28,7 @@ import os from 'os'
 import { Readable } from 'stream'
 import intoStream from 'into-stream'
 import * as http from 'http'
-import AbortController from 'node-abort-controller'
+import { AbortController } from 'node-abort-controller'
 import {
   Transport,
   Serializer,

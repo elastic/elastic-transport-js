@@ -19,7 +19,7 @@
 
 import { test } from 'tap'
 import * as http from 'http'
-import AbortController from 'node-abort-controller'
+import { AbortController } from 'node-abort-controller'
 import {
   HttpConnection,
   UndiciConnection,
