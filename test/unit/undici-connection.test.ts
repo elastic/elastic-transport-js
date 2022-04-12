@@ -833,7 +833,7 @@ test('Connection error', async t => {
 })
 
 test('Throw if detects http agent options', async t => {
-  t.plan(3)
+  t.plan(2)
 
   try {
     new UndiciConnection({
@@ -841,15 +841,6 @@ test('Throw if detects http agent options', async t => {
       agent: {
         keepAlive: false
       }
-    })
-  } catch (err: any) {
-    t.ok(err instanceof ConfigurationError)
-  }
-
-  try {
-    new UndiciConnection({
-      url: new URL('http://localhost:9200'),
-      agent: () => new http.Agent()
     })
   } catch (err: any) {
     t.ok(err instanceof ConfigurationError)
