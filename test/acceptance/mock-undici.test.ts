@@ -74,6 +74,6 @@ test('Mock not found', async t => {
     await client.request({ method: 'GET', path: '/my-index/_doc/my-id' })
   } catch (err: any) {
     t.ok(err instanceof errors.ConnectionError)
-    t.equal(err.message, 'getaddrinfo ENOTFOUND test-cluster')
+    t.ok(['getaddrinfo ENOTFOUND test-cluster', 'getaddrinfo EAI_AGAIN test-cluster'].includes(err.message))
   }
 })
