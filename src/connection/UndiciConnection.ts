@@ -59,8 +59,8 @@ export default class Connection extends BaseConnection {
       throw new ConfigurationError('Undici connection can\'t work with proxies')
     }
 
-    if (typeof opts.agent === 'function' || typeof opts.agent === 'boolean') {
-      throw new ConfigurationError('Undici connection agent options can\'t be a function or a boolean')
+    if (typeof opts.agent === 'boolean') {
+      throw new ConfigurationError('Undici connection agent options can\'t be a boolean')
     }
 
     if (opts.agent != null && !isUndiciAgentOptions(opts.agent)) {
@@ -110,7 +110,12 @@ export default class Connection extends BaseConnection {
       undiciOptions.connect = this.tls as buildConnector.BuildOptions
     }
 
-    this.pool = new Pool(this.url.toString(), undiciOptions)
+    if (typeof opts.agent === 'function') {
+      // @ts-expect-error
+      this.pool = opts.agent(opts)
+    } else {
+      this.pool = new Pool(this.url.toString(), undiciOptions)
+    }
   }
 
   async request (params: ConnectionRequestParams, options: ConnectionRequestOptions): Promise<ConnectionRequestResponse>
