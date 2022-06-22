@@ -451,6 +451,76 @@ test('DeserializationError', async t => {
   }
 })
 
+test('ResponseError (query failure)', async t => {
+  const queryError = {
+    "error": {
+      "root_cause": [
+        {
+          "type": "illegal_argument_exception",
+          "reason": "Field [some.field] of type [keyword] is not supported for aggregation [max]"
+        }
+      ],
+      "type": "search_phase_execution_exception",
+      "reason": "",
+      "phase": "fetch",
+      "grouped": true,
+      "failed_shards": [
+        {
+          "shard": 0,
+          "index": "some-index",
+          "node": "someNode",
+          "reason": {
+            "type": "illegal_argument_exception",
+            "reason": "Field [some.field] of type [keyword] is not supported for aggregation [max]"
+          }
+        }
+      ],
+      "caused_by": {
+        "type": "too_many_buckets_exception",
+        "reason": "Trying to create too many buckets. Must be less than or equal to: [65536] but this number of buckets was exceeded. This limit can be set by changing the [search.max_buckets] cluster level setting.",
+        "max_buckets": 65536
+      }
+    },
+    "status": 400
+  };
+
+  const formattedErrorMessage = [
+    'search_phase_execution_exception',
+    '\tCaused by:',
+    '\t\ttoo_many_buckets_exception: Trying to create too many buckets. Must be less than or equal to: [65536] but this number of buckets was exceeded. This limit can be set by changing the [search.max_buckets] cluster level setting.',
+    '\tRoot causes:',
+    '\t\tillegal_argument_exception: Field [some.field] of type [keyword] is not supported for aggregation [max]'
+  ].join('\n');
+
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
+      return {
+        body: queryError,
+        statusCode: 400
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection([
+    'http://localhost:9200',
+  ])
+
+  const transport = new Transport({ connectionPool: pool })
+
+  try {
+    await transport.request({
+      method: 'POST',
+      path: '/hello',
+      body: intoStream(JSON.stringify({ hello: 'world' }))
+    })
+  } catch (err: any) {
+    t.ok(err instanceof ResponseError)
+    t.same(err.message, formattedErrorMessage)
+    t.equal(err.statusCode, 400)
+  }
+})
+
 test('Retry mechanism', async t => {
   let count = 0
   const Conn = buildMockConnection({
