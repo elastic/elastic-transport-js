@@ -99,11 +99,27 @@ export class ResponseError extends ElasticsearchClientError {
     this.name = 'ResponseError'
     // TODO: this is for Elasticsearch
     if (isObject(meta.body) && meta.body.error != null && meta.body.error.type != null) {
-      if (Array.isArray(meta.body.error.root_cause)) {
-        this.message = meta.body.error.type as string + ': '
-        this.message += meta.body.error.root_cause.map((entry: Record<string, string>) => `[${entry.type}] Reason: ${entry.reason}`).join('; ') as string
-      } else {
-        this.message = meta.body.error.type
+      this.message = meta.body.error.type
+
+      if (isObject(meta.body.error.caused_by)) {
+        const { type, reason } = meta.body.error.caused_by
+        const causedBy = [
+          '\tCaused by:',
+          `\t\t${type as string}: ${reason as string}`
+        ].join('\n')
+        this.message += `\n${causedBy}`
+      }
+
+      if (Array.isArray(meta.body.error.root_cause) && meta.body.error.root_cause.length !== 0) {
+        const formatRootCause = (entry: Record<string, string>): string =>
+          `\t\t${entry.type}: ${entry.reason}`
+
+        const rootCauses = [
+          '\tRoot causes:',
+          ...meta.body.error.root_cause.map(formatRootCause)
+        ].join('\n')
+
+        this.message += `\n${rootCauses}`
       }
     } else if (typeof meta.body === 'object' && meta.body != null) {
       this.message = JSON.stringify(meta.body)
