@@ -149,3 +149,32 @@ function setStatusCode (path: string): number {
   }
   return 200
 }
+
+export class MockConnectionTimeoutForThefirstSevenRequests extends BaseConnection {
+  requestCount = -1
+  async request (params: ConnectionRequestParams, options: ConnectionRequestOptions): Promise<ConnectionRequestResponse>
+  async request (params: ConnectionRequestParams, options: ConnectionRequestOptionsAsStream): Promise<ConnectionRequestResponseAsStream>
+  async request (params: ConnectionRequestParams, options: any): Promise<any> {
+    
+    return new Promise((resolve, reject) => {
+
+      this.requestCount++;
+      if( this.requestCount<=6){
+      process.nextTick(reject, new TimeoutError('Request timed out'))
+      }
+  
+
+
+      const body = JSON.stringify({ hello: 'world' })
+      const statusCode = setStatusCode(params.path)
+      const headers = {
+        'content-type': 'application/json;utf=8',
+        date: new Date().toISOString(),
+        connection: 'keep-alive',
+        'content-length': '17',
+        'x-elastic-product': 'Elasticsearch'
+      }
+      process.nextTick(resolve, { body, statusCode, headers })
+    })
+  }
+}
