@@ -161,9 +161,33 @@ export default class HttpConnection extends BaseConnection {
         // if the response is compressed, we must handle it
         // as buffer for allowing decompression later
         let payload = isCompressed || isVectorTile ? new Array<Buffer>() : ''
-        const onData = isCompressed || isVectorTile
-          ? (chunk: Buffer) => { (payload as Buffer[]).push(chunk) }
-          : (chunk: string) => { payload = `${payload as string}${chunk}` }
+        const onData = isCompressed || isVectorTile ? onDataAsBuffer : onDataAsString
+
+        let currentLength = 0
+        function onDataAsBuffer (chunk: Buffer): void {
+          currentLength += Buffer.byteLength(chunk)
+          if (currentLength > maxCompressedResponseSize) {
+            // TODO: hacky solution, refactor to avoid using the deprecated aborted event
+            response.removeListener('aborted', onAbort)
+            response.destroy()
+            onEnd(new RequestAbortedError(`The content length (${currentLength}) is bigger than the maximum allowed buffer (${maxCompressedResponseSize})`))
+          } else {
+            (payload as Buffer[]).push(chunk)
+          }
+        }
+
+        function onDataAsString (chunk: string): void {
+          currentLength += Buffer.byteLength(chunk)
+          if (currentLength > maxResponseSize) {
+            // TODO: hacky solution, refactor to avoid using the deprecated aborted event
+            response.removeListener('aborted', onAbort)
+            response.destroy()
+            onEnd(new RequestAbortedError(`The content length (${currentLength}) is bigger than the maximum allowed string (${maxResponseSize})`))
+          } else {
+            payload = `${payload as string}${chunk}`
+          }
+        }
+
         const onEnd = (err: Error): void => {
           response.removeListener('data', onData)
           response.removeListener('end', onEnd)
@@ -171,6 +195,9 @@ export default class HttpConnection extends BaseConnection {
           response.removeListener('aborted', onAbort)
 
           if (err != null) {
+            if (err.name === 'RequestAbortedError') {
+              return reject(err)
+            }
             return reject(new ConnectionError(err.message))
           }
 

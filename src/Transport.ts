@@ -473,6 +473,7 @@ export default class Transport {
         result.headers = headers
 
         if (this[kProductCheck] != null && headers['x-elastic-product'] !== this[kProductCheck] && statusCode >= 200 && statusCode < 300) {
+          // @ts-expect-error
           throw new ProductNotSupportedError(this[kProductCheck], result)
         }
 
