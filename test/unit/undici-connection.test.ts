@@ -755,6 +755,71 @@ test('Content length too big custom option (string)', async t => {
   }
 })
 
+test('Body too big custom option (string)', async t => {
+  t.plan(2)
+
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+    res.writeHead(200, {
+      'content-type': 'application/json;utf=8',
+      'transfer-encoding': 'chunked'
+    })
+    res.write('{"hello":')
+    setTimeout(() => res.write('"world"}'), 500)
+    setTimeout(() => res.end(), 1000)
+  }
+
+  const [{ port }, server] = await buildServer(handler)
+  const connection = new UndiciConnection({
+    url: new URL(`http://localhost:${port}`)
+  })
+
+  try {
+    await connection.request({
+      method: 'GET',
+      path: '/'
+    }, { ...options, maxResponseSize: 1 })
+    t.fail('Shold throw')
+  } catch (err: any) {
+    t.ok(err instanceof RequestAbortedError)
+    t.equal(err.message, 'The content length (9) is bigger than the maximum allowed string (1)')
+  }
+
+  server.stop()
+})
+
+test('Body too big custom option (buffer)', async t => {
+  t.plan(2)
+
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+    res.writeHead(200, {
+      'content-type': 'application/json;utf=8',
+      'content-encoding': 'gzip',
+      'transfer-encoding': 'chunked'
+    })
+    res.write(gzipSync('{"hello":'))
+    setTimeout(() => res.write(gzipSync('"world"}')), 500)
+    setTimeout(() => res.end(), 1000)
+  }
+
+  const [{ port }, server] = await buildServer(handler)
+  const connection = new UndiciConnection({
+    url: new URL(`http://localhost:${port}`)
+  })
+
+  try {
+    await connection.request({
+      method: 'GET',
+      path: '/'
+    }, { ...options, maxCompressedResponseSize: 1 })
+    t.fail('Shold throw')
+  } catch (err: any) {
+    t.ok(err instanceof RequestAbortedError)
+    t.equal(err.message, 'The content length (29) is bigger than the maximum allowed buffer (1)')
+  }
+
+  server.stop()
+})
+
 test('Compressed responsed should return a buffer as body (gzip)', async t => {
   t.plan(2)
 

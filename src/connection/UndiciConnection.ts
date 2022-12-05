@@ -200,19 +200,43 @@ export default class Connection extends BaseConnection {
     this.diagnostic.emit('deserialization', null, options)
     try {
       if (isCompressed || isVectorTile) { // eslint-disable-line
+        let currentLength = 0
+        const payload: Buffer[] = []
+        for await (const chunk of response.body) {
+          currentLength += Buffer.byteLength(chunk)
+          if (currentLength > maxCompressedResponseSize) {
+            response.body.destroy()
+            throw new RequestAbortedError(`The content length (${currentLength}) is bigger than the maximum allowed buffer (${maxCompressedResponseSize})`)
+          }
+          payload.push(chunk)
+        }
         return {
           statusCode: response.statusCode,
           headers: response.headers,
-          body: Buffer.from(await response.body.arrayBuffer())
+          body: Buffer.concat(payload)
         }
       } else {
+        let payload = ''
+        let currentLength = 0
+        response.body.setEncoding('utf8')
+        for await (const chunk of response.body) {
+          currentLength += Buffer.byteLength(chunk)
+          if (currentLength > maxResponseSize) {
+            response.body.destroy()
+            throw new RequestAbortedError(`The content length (${currentLength}) is bigger than the maximum allowed string (${maxResponseSize})`)
+          }
+          payload += chunk as string
+        }
         return {
           statusCode: response.statusCode,
           headers: response.headers,
-          body: await response.body.text()
+          body: payload
         }
       }
     } catch (err: any) {
+      if (err.name === 'RequestAbortedError') {
+        throw err
+      }
       throw new ConnectionError(err.message)
     }
   }
