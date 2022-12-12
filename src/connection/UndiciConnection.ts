@@ -19,7 +19,6 @@
 
 /* eslint-disable @typescript-eslint/restrict-template-expressions */
 
-import { EventEmitter } from 'events'
 import Debug from 'debug'
 import buffer from 'buffer'
 import { TLSSocket } from 'tls'
@@ -41,7 +40,7 @@ import {
   TimeoutError
 } from '../errors'
 import { UndiciAgentOptions } from '../types'
-import { kCaFingerprint, kEmitter } from '../symbols'
+import { kCaFingerprint } from '../symbols'
 
 const debug = Debug('elasticsearch')
 const INVALID_PATH_REGEX = /[^\u0021-\u00ff]/
@@ -50,7 +49,6 @@ const MAX_STRING_LENGTH = buffer.constants.MAX_STRING_LENGTH
 
 export default class Connection extends BaseConnection {
   pool: Pool
-  [kEmitter]: EventEmitter
 
   constructor (opts: ConnectionOptions) {
     super(opts)
@@ -67,7 +65,6 @@ export default class Connection extends BaseConnection {
       throw new ConfigurationError('Bad agent configuration for Undici agent')
     }
 
-    this[kEmitter] = new EventEmitter()
     const undiciOptions: Pool.Options = {
       keepAliveTimeout: 600e3,
       keepAliveMaxTimeout: 600e3,
@@ -123,7 +120,7 @@ export default class Connection extends BaseConnection {
       path: params.path + (params.querystring == null || params.querystring === '' ? '' : `?${params.querystring}`),
       headers: Object.assign({}, this.headers, params.headers),
       body: params.body,
-      signal: options.signal ?? this[kEmitter]
+      signal: options.signal ?? new AbortController().signal
     }
 
     if (requestParams.path[0] !== '/') {
@@ -140,11 +137,7 @@ export default class Connection extends BaseConnection {
     if (options.timeout != null && options.timeout !== this.timeout) {
       timeoutId = setTimeout(() => {
         timedout = true
-        if (options.signal != null) {
-          options.signal.dispatchEvent('abort')
-        } else {
-          this[kEmitter].emit('abort')
-        }
+        requestParams.signal.dispatchEvent('abort')
       }, options.timeout)
     }
 
