@@ -43,6 +43,8 @@ const options = {
   context: null
 }
 
+const nodeKeepAliveByDefault = Number(process.versions.node.split('.')[0]) >= 19
+
 test('Basic (http)', async t => {
   t.plan(3)
 
@@ -176,9 +178,12 @@ test('Disable keep alive', async t => {
   }
 
   const [{ port }, server] = await buildServer(handler)
+  const agent = nodeKeepAliveByDefault
+    ? new http.Agent({ keepAlive: false })
+    : false
   const connection = new HttpConnection({
     url: new URL(`http://localhost:${port}`),
-    agent: false
+    agent
   })
   const res = await connection.request({
     path: '/hello',
@@ -188,6 +193,9 @@ test('Disable keep alive', async t => {
     }
   }, options)
   t.match(res.headers, { connection: /close/ })
+  if (agent) {
+    agent.destroy()
+  }
   server.stop()
 })
 

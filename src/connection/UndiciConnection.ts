@@ -181,6 +181,7 @@ export default class Connection extends BaseConnection {
       }
     }
 
+    // @ts-expect-error Assume header is not string[] for now.
     const contentEncoding = (response.headers['content-encoding'] ?? '').toLowerCase()
     const isCompressed = contentEncoding.includes('gzip') || contentEncoding.includes('deflate') // eslint-disable-line
     const isVectorTile = (response.headers['content-type'] ?? '').includes('application/vnd.mapbox-vector-tile')
