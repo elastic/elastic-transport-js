@@ -332,17 +332,14 @@ export default class HttpConnection extends BaseConnection {
 
   buildRequestObject (params: ConnectionRequestParams, options: ConnectionRequestOptions): http.ClientRequestArgs {
     const url = this.url
+    let search = url.search
+    let pathname = url.pathname
     const request = {
       protocol: url.protocol,
       hostname: url.hostname[0] === '['
         ? url.hostname.slice(1, -1)
         : url.hostname,
-      hash: url.hash,
-      search: url.search,
-      pathname: url.pathname,
       path: '',
-      href: url.href,
-      origin: url.origin,
       // https://github.com/elastic/elasticsearch-js/issues/843
       port: url.port !== '' ? url.port : undefined,
       headers: this.headers,
@@ -354,12 +351,12 @@ export default class HttpConnection extends BaseConnection {
     for (let i = 0, len = paramsKeys.length; i < len; i++) {
       const key = paramsKeys[i]
       if (key === 'path') {
-        request.pathname = resolve(request.pathname, params[key])
+        pathname = resolve(pathname, params[key])
       } else if (key === 'querystring' && Boolean(params[key])) {
-        if (request.search === '') {
-          request.search = `?${params[key] as string}`
+        if (search === '') {
+          search = `?${params[key] as string}`
         } else {
-          request.search += `&${params[key] as string}`
+          search += `&${params[key] as string}`
         }
       } else if (key === 'headers') {
         request.headers = Object.assign({}, request.headers, params.headers)
@@ -369,7 +366,7 @@ export default class HttpConnection extends BaseConnection {
       }
     }
 
-    request.path = request.pathname + request.search
+    request.path = pathname + search
 
     return request
   }
