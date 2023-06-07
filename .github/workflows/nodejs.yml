@@ -21,6 +21,12 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
 
+    # workaround for failing tests on Node.js 14.x
+    # see https://github.com/actions/setup-node/issues/411
+    - name: Force install specific npm version
+      run: |
+        npm install --global npm@9.7.1
+
     - name: Install
       run: |
         npm install
