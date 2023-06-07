@@ -30,6 +30,7 @@ jobs:
       # see https://github.com/actions/setup-node/issues/411
       - name: Force install specific npm version
         run: |
+          npm install --global npm@8.3.1
           npm install --global npm@9.7.1
 
       - name: Install
