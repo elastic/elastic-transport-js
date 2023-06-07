@@ -1,6 +1,6 @@
 {
   "name": "@elastic/transport",
-  "version": "8.3.1",
+  "version": "8.3.2",
   "description": "Transport classes and utilities shared among Node.js Elastic client libraries",
   "main": "index.js",
   "types": "index.d.ts",
@@ -62,7 +62,7 @@
     "ms": "^2.1.3",
     "secure-json-parse": "^2.4.0",
     "tslib": "^2.4.0",
-    "undici": "^5.5.1"
+    "undici": "^5.22.1"
   },
   "tap": {
     "ts": true,
