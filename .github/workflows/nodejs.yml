@@ -1,6 +1,11 @@
+---
 name: Node CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main
+  pull_request: {}
 
 jobs:
   test:
@@ -14,34 +19,34 @@ jobs:
         os: [ubuntu-latest, windows-latest, macOS-latest]
 
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v2
-      with:
-        node-version: ${{ matrix.node-version }}
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node-version }}
 
-    # workaround for failing tests on Node.js 14.x
-    # see https://github.com/actions/setup-node/issues/411
-    - name: Force install specific npm version
-      run: |
-        npm install --global npm@9.7.1
+      # workaround for failing tests on Node.js 14.x
+      # see https://github.com/actions/setup-node/issues/411
+      - name: Force install specific npm version
+        run: |
+          npm install --global npm@9.7.1
 
-    - name: Install
-      run: |
-        npm install
+      - name: Install
+        run: |
+          npm install
 
-    - name: Lint
-      run: |
-        npm run lint
+      - name: Lint
+        run: |
+          npm run lint
 
-    - name: Unit test
-      run: |
-        npm run test:unit
+      - name: Unit test
+        run: |
+          npm run test:unit
 
-    - name: Acceptance test
-      run: |
-        npm run test:acceptance
+      - name: Acceptance test
+        run: |
+          npm run test:acceptance
 
   code-coverage:
     name: Code coverage
@@ -52,26 +57,26 @@ jobs:
         node-version: [18.x]
 
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v2
-      with:
-        node-version: ${{ matrix.node-version }}
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node-version }}
 
-    - name: Install
-      run: |
-        npm install
+      - name: Install
+        run: |
+          npm install
 
-    - name: Code coverage report
-      run: |
-        npm run test:coverage-report
+      - name: Code coverage report
+        run: |
+          npm run test:coverage-report
 
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./coverage.lcov
-        fail_ci_if_error: true
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.lcov
+          fail_ci_if_error: true
 
     # TODO: renabled this as soon as the project is back at 100%
     # - name: Code coverage 100%
@@ -87,17 +92,17 @@ jobs:
         node-version: [20.x]
 
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v2
-      with:
-        node-version: ${{ matrix.node-version }}
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node-version }}
 
-    - name: Install
-      run: |
-        npm install
+      - name: Install
+        run: |
+          npm install
 
-    - name: License checker
-      run: |
-        npm run license-checker
+      - name: License checker
+        run: |
+          npm run license-checker
