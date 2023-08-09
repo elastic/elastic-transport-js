@@ -8,7 +8,7 @@ improving the documentation,
 submitting bug reports and feature requests or writing code.
 
 ## Repository structure
-The `master` branch is considered unstable, and it's compatible with Elasticsearch master. Unless you are patching an issue, new features should always be sent to the `master` branch, in case of a bugfix, it depends if the bug affects all the release lines.<br/>
+The `main` branch is considered unstable, and it's compatible with Elasticsearch main. Unless you are patching an issue, new features should always be sent to the `main` branch, in case of a bugfix, it depends if the bug affects all the release lines.<br/>
 There is a branch for every supported release line, such as `7.x` or `6.x`. We release bugfixes as soon as possible, while minor and major releases are published at the same time of the Elastic Stack.
 
 Usually for every release line there will be a *published* version and a *next* version. Eg: the `7.x` branch contains the version published on npm, and bugfixes should be sent there, while `7.2` *(assuming that 7.1.x is released)* contains the next version, and new features should be sent there.
