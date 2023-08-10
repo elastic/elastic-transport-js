@@ -29,6 +29,7 @@ import intoStream from 'into-stream'
 import { AbortController } from 'node-abort-controller'
 import { buildServer } from '../utils'
 import { HttpConnection, errors, ConnectionOptions } from '../../'
+import net from "net";
 
 const {
   TimeoutError,
@@ -1267,4 +1268,51 @@ test('Cleanup abort listener', async t => {
   // @ts-expect-error
   t.equal(controller.signal.eventEmitter.listeners('abort').length, 0)
   server.stop()
+})
+
+test('Handles malformed HTML responses (HEAD response with body)', async t => {
+  t.plan(2)
+
+  // Creating a custom TCP server because `http.createServer` handles
+  // the method accordingly and skips sending the body if the request is HEAD
+  function createTcpServer() {
+    const server = net.createServer();
+    server.on('connection', (socket) => {
+      socket.write(`HTTP/1.1 200 OK\r\n`)
+      socket.write(`Content-Type: text/html\r\n`)
+      socket.write(`Content-Length: 155\r\n`)
+      socket.write(`\r\n`)
+      socket.write(`<!DOCTYPE html>
+<html>
+<head>
+ <meta charset="UTF-8">
+</head>
+<body>
+<h1>Hi there</h1>
+<p>This is a bad implementation of an HTTP server</p></body>
+</html>`)
+
+      socket.end()
+    })
+    return new Promise<{port: number, server: net.Server}>((resolve) => server.listen(0, () => {
+      const port = (server.address() as net.AddressInfo).port
+      resolve({port, server})
+    }));
+  }
+
+  const {port, server} = await createTcpServer()
+  const connection = new HttpConnection({
+    url: new URL(`http://localhost:${port}`)
+  })
+
+  const res = await connection.request({
+    path: '/hello',
+    method: 'HEAD',
+    headers: {
+      'X-Custom-Test': 'true'
+    }
+  }, options)
+  t.match(res.headers, { 'content-length': 155 })
+  t.equal(res.body, '')
+  server.close()
 })
