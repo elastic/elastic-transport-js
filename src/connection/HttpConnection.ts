@@ -48,6 +48,7 @@ const debug = Debug('elasticsearch')
 const INVALID_PATH_REGEX = /[^\u0021-\u00ff]/
 const MAX_BUFFER_LENGTH = buffer.constants.MAX_LENGTH
 const MAX_STRING_LENGTH = buffer.constants.MAX_STRING_LENGTH
+const noop = (): void => {}
 
 export default class HttpConnection extends BaseConnection {
   agent?: http.Agent | https.Agent | hpagent.HttpProxyAgent | hpagent.HttpsProxyAgent
@@ -128,6 +129,7 @@ export default class HttpConnection extends BaseConnection {
 
       const onResponse = (response: http.IncomingMessage): void => {
         cleanListeners()
+        request.on('error', noop) // There are some edge cases where the request emits an error while processing the response.
         this._openRequests--
 
         if (options.asStream === true) {
@@ -193,6 +195,7 @@ export default class HttpConnection extends BaseConnection {
           response.removeListener('end', onEnd)
           response.removeListener('error', onEnd)
           response.removeListener('aborted', onAbort)
+          request.removeListener('error', noop)
 
           if (err != null) {
             if (err.name === 'RequestAbortedError') {
