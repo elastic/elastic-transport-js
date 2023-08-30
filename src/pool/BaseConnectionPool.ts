@@ -254,6 +254,9 @@ export default class BaseConnectionPool {
 
     for (let i = 0, len = ids.length; i < len; i++) {
       const node = nodes[ids[i]]
+      // newly-added nodes do not have http assigned yet, so skip
+      if (node.http === undefined) continue
+
       // If there is no protocol in
       // the `publish_address` new URL will throw
       // the publish_address can have two forms:
