@@ -50,6 +50,7 @@ const sleep = promisify(setTimeout)
 const {
   MockConnection,
   MockConnectionTimeout,
+  MockConnectionTimeoutForThefirstSevenRequests,
   MockConnectionError,
   buildMockConnection
 } = connection
@@ -2029,6 +2030,28 @@ test('As stream', async t => {
   t.ok(res.body instanceof ReadableStream)
   t.equal(res.statusCode, 200)
   server.stop()
+})
+
+test('upstreams are down for the first 7 requests', async t => {
+
+
+  const pool = new WeightedConnectionPool({ Connection: MockConnectionTimeoutForThefirstSevenRequests })
+
+  pool.addConnection('https://localhost:9200')
+  pool.addConnection('https://localhost:9201')
+
+  const transport = new Transport({ connectionPool: pool, maxRetries: 0 })
+  for(let i=0;i<20;i++){
+  try {
+    await transport.request({
+      method: 'GET',
+      path: '/hello'
+    })
+  } catch (err: any) {
+    console.log(err.name)
+    t.equal(err.name, 'TimeoutError')
+  }
+}
 })
 
 // test('Lowercase headers utilty', t => {
