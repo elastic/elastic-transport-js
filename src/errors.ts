@@ -19,6 +19,7 @@
 
 import * as http from 'http'
 import { DiagnosticResult } from './types'
+import { redactObject } from './security'
 
 export class ElasticsearchClientError extends Error {
   constructor (message: string) {
@@ -34,7 +35,7 @@ export class TimeoutError extends ElasticsearchClientError {
     Error.captureStackTrace(this, TimeoutError)
     this.name = 'TimeoutError'
     this.message = message ?? 'Timeout Error'
-    this.meta = meta
+    this.meta = isObject(meta) ? redactObject(meta) as DiagnosticResult : meta
   }
 }
 
@@ -45,7 +46,7 @@ export class ConnectionError extends ElasticsearchClientError {
     Error.captureStackTrace(this, ConnectionError)
     this.name = 'ConnectionError'
     this.message = message ?? 'Connection Error'
-    this.meta = meta
+    this.meta = isObject(meta) ? redactObject(meta) as DiagnosticResult : meta
   }
 }
 
@@ -56,7 +57,7 @@ export class NoLivingConnectionsError extends ElasticsearchClientError {
     Error.captureStackTrace(this, NoLivingConnectionsError)
     this.name = 'NoLivingConnectionsError'
     this.message = message ?? 'Given the configuration, the ConnectionPool was not able to find a usable Connection for this request.'
-    this.meta = meta
+    this.meta = redactObject(meta) as DiagnosticResult
   }
 }
 
@@ -68,6 +69,7 @@ export class SerializationError extends ElasticsearchClientError {
     this.name = 'SerializationError'
     this.message = message ?? 'Serialization Error'
     this.data = data
+    this.data = isObject(data) ? redactObject(data) : data
   }
 }
 
@@ -97,6 +99,7 @@ export class ResponseError extends ElasticsearchClientError {
     super('Response Error')
     Error.captureStackTrace(this, ResponseError)
     this.name = 'ResponseError'
+
     // TODO: this is for Elasticsearch
     if (isObject(meta.body) && meta.body.error != null && meta.body.error.type != null) {
       this.message = meta.body.error.type
@@ -126,7 +129,8 @@ export class ResponseError extends ElasticsearchClientError {
     } else {
       this.message = meta.body as string ?? 'Response Error'
     }
-    this.meta = meta
+
+    this.meta = redactObject(meta) as DiagnosticResult
   }
 
   get body (): any | undefined {
@@ -152,7 +156,7 @@ export class RequestAbortedError extends ElasticsearchClientError {
     Error.captureStackTrace(this, RequestAbortedError)
     this.name = 'RequestAbortedError'
     this.message = message ?? 'Request aborted'
-    this.meta = meta
+    this.meta = isObject(meta) ? redactObject(meta) as DiagnosticResult : meta
   }
 }
 
@@ -163,10 +167,10 @@ export class ProductNotSupportedError extends ElasticsearchClientError {
     Error.captureStackTrace(this, ProductNotSupportedError)
     this.name = 'ProductNotSupportedError'
     this.message = `The client noticed that the server is not ${product} and we do not support this unknown product.`
-    this.meta = meta
+    this.meta = isObject(meta) ? redactObject(meta) as DiagnosticResult : meta
   }
 }
 
 function isObject (obj: any): obj is Record<string, any> {
-  return typeof obj === 'object'
+  return typeof obj === 'object' && obj !== null
 }
