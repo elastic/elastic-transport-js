@@ -19,6 +19,9 @@
 
 import { test } from 'tap'
 import { inspect } from 'node:util'
+// structuredClone is available in the Node.js stdlib starting in v18
+// drop this dev dependency when this lib (explicitly) stops supporting v14 and v16
+import structuredClone from '@ungap/structured-clone'
 import { errors, DiagnosticResult } from '../../'
 import { HttpConnection, UndiciConnection } from '../../'
 

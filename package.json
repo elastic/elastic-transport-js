@@ -45,6 +45,8 @@
     "@types/stoppable": "^1.1.1",
     "@types/tap": "^15.0.7",
     "@types/traverse": "^0.6.35",
+    "@types/ungap__structured-clone": "^0.3.3",
+    "@ungap/structured-clone": "^1.2.0",
     "into-stream": "^6.0.0",
     "license-checker": "^25.0.1",
     "node-abort-controller": "^3.0.1",
