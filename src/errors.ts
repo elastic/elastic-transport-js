@@ -21,43 +21,100 @@ import * as http from 'http'
 import { DiagnosticResult } from './types'
 import { redactObject } from './security'
 
+export interface ErrorOptions {
+  redactDiagnostics: boolean
+  redactConnection: boolean
+  additionalRedactionKeys: string[]
+}
+
 export class ElasticsearchClientError extends Error {
-  constructor (message: string) {
+  options: ErrorOptions
+  constructor (message: string, options?: ErrorOptions) {
     super(message)
     this.name = 'ElasticsearchClientError'
+
+    this.options = {
+      redactDiagnostics: true,
+      redactConnection: false,
+      additionalRedactionKeys: []
+    }
+
+    if (isObject(options)) {
+      this.options = { ...this.options, ...options }
+    }
   }
 }
 
 export class TimeoutError extends ElasticsearchClientError {
   meta?: DiagnosticResult
-  constructor (message: string, meta?: DiagnosticResult) {
-    super(message)
+  constructor (message: string, meta?: DiagnosticResult, options?: ErrorOptions) {
+    if (isObject(meta) && !isObject(options)) {
+      throw new ConfigurationError("If 'meta' is provided, 'options' must also be provided")
+    }
+
+    super(message, options)
     Error.captureStackTrace(this, TimeoutError)
     this.name = 'TimeoutError'
     this.message = message ?? 'Timeout Error'
-    this.meta = isObject(meta) ? redactObject(meta) as DiagnosticResult : meta
+
+    if (isObject(meta)) {
+      if (this.options.redactConnection) {
+        meta.meta.connection = null
+      }
+
+      if (this.options.redactDiagnostics) {
+        meta = redactObject(meta, this.options.additionalRedactionKeys) as DiagnosticResult
+      }
+    }
+    this.meta = meta
   }
 }
 
 export class ConnectionError extends ElasticsearchClientError {
   meta?: DiagnosticResult
-  constructor (message: string, meta?: DiagnosticResult) {
-    super(message)
+  constructor (message: string, meta?: DiagnosticResult, options?: ErrorOptions) {
+    if (isObject(meta) && !isObject(options)) {
+      throw new ConfigurationError("If 'meta' is provided, 'options' must also be provided")
+    }
+
+    super(message, options)
     Error.captureStackTrace(this, ConnectionError)
     this.name = 'ConnectionError'
     this.message = message ?? 'Connection Error'
-    this.meta = isObject(meta) ? redactObject(meta) as DiagnosticResult : meta
+
+    if (isObject(meta)) {
+      if (this.options.redactConnection) {
+        meta.meta.connection = null
+      }
+
+      if (this.options.redactDiagnostics) {
+        meta = redactObject(meta, this.options.additionalRedactionKeys ?? []) as DiagnosticResult
+      }
+    }
+    this.meta = meta
   }
 }
 
 export class NoLivingConnectionsError extends ElasticsearchClientError {
   meta: DiagnosticResult
-  constructor (message: string, meta: DiagnosticResult) {
-    super(message)
+  constructor (message: string, meta: DiagnosticResult, options: ErrorOptions) {
+    if (isObject(meta) && !isObject(options)) {
+      throw new ConfigurationError("If 'meta' is provided, 'options' must also be provided")
+    }
+
+    super(message, options)
     Error.captureStackTrace(this, NoLivingConnectionsError)
     this.name = 'NoLivingConnectionsError'
     this.message = message ?? 'Given the configuration, the ConnectionPool was not able to find a usable Connection for this request.'
-    this.meta = redactObject(meta) as DiagnosticResult
+
+    if (this.options.redactConnection) {
+      meta.meta.connection = null
+    }
+
+    if (this.options.redactDiagnostics) {
+      meta = redactObject(meta, this.options.additionalRedactionKeys ?? []) as DiagnosticResult
+    }
+    this.meta = meta
   }
 }
 
@@ -69,7 +126,6 @@ export class SerializationError extends ElasticsearchClientError {
     this.name = 'SerializationError'
     this.message = message ?? 'Serialization Error'
     this.data = data
-    this.data = isObject(data) ? redactObject(data) : data
   }
 }
 
@@ -95,8 +151,12 @@ export class ConfigurationError extends ElasticsearchClientError {
 
 export class ResponseError extends ElasticsearchClientError {
   meta: DiagnosticResult
-  constructor (meta: DiagnosticResult) {
-    super('Response Error')
+  constructor (meta: DiagnosticResult, options: ErrorOptions) {
+    if (isObject(meta) && !isObject(options)) {
+      throw new ConfigurationError("If 'meta' is provided, 'options' must also be provided")
+    }
+
+    super('Response Error', options)
     Error.captureStackTrace(this, ResponseError)
     this.name = 'ResponseError'
 
@@ -130,7 +190,14 @@ export class ResponseError extends ElasticsearchClientError {
       this.message = meta.body as string ?? 'Response Error'
     }
 
-    this.meta = redactObject(meta) as DiagnosticResult
+    if (this.options.redactConnection) {
+      meta.meta.connection = null
+    }
+
+    if (this.options.redactDiagnostics) {
+      meta = redactObject(meta, this.options.additionalRedactionKeys ?? []) as DiagnosticResult
+    }
+    this.meta = meta
   }
 
   get body (): any | undefined {
@@ -151,23 +218,51 @@ export class ResponseError extends ElasticsearchClientError {
 
 export class RequestAbortedError extends ElasticsearchClientError {
   meta?: DiagnosticResult
-  constructor (message: string, meta?: DiagnosticResult) {
-    super(message)
+  constructor (message: string, meta?: DiagnosticResult, options?: ErrorOptions) {
+    if (isObject(meta) && !isObject(options)) {
+      throw new ConfigurationError("If 'meta' is provided, 'options' must also be provided")
+    }
+
+    super(message, options)
     Error.captureStackTrace(this, RequestAbortedError)
     this.name = 'RequestAbortedError'
     this.message = message ?? 'Request aborted'
-    this.meta = isObject(meta) ? redactObject(meta) as DiagnosticResult : meta
+
+    if (isObject(meta)) {
+      if (this.options.redactConnection) {
+        meta.meta.connection = null
+      }
+
+      if (this.options.redactDiagnostics) {
+        meta = redactObject(meta, this.options.additionalRedactionKeys ?? []) as DiagnosticResult
+      }
+    }
+    this.meta = meta
   }
 }
 
 export class ProductNotSupportedError extends ElasticsearchClientError {
   meta?: DiagnosticResult
-  constructor (product: string, meta?: DiagnosticResult) {
-    super('Product Not Supported Error')
+  constructor (product: string, meta?: DiagnosticResult, options?: ErrorOptions) {
+    if (isObject(meta) && !isObject(options)) {
+      throw new ConfigurationError("If 'meta' is provided, 'options' must also be provided")
+    }
+
+    super('Product Not Supported Error', options)
     Error.captureStackTrace(this, ProductNotSupportedError)
     this.name = 'ProductNotSupportedError'
     this.message = `The client noticed that the server is not ${product} and we do not support this unknown product.`
-    this.meta = isObject(meta) ? redactObject(meta) as DiagnosticResult : meta
+
+    if (isObject(meta)) {
+      if (this.options.redactConnection) {
+        meta.meta.connection = null
+      }
+
+      if (this.options.redactDiagnostics) {
+        meta = redactObject(meta, this.options.additionalRedactionKeys ?? []) as DiagnosticResult
+      }
+    }
+    this.meta = meta
   }
 }
 

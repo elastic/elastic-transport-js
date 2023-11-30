@@ -23,12 +23,14 @@ import { errors, DiagnosticResult } from '../../'
 import { HttpConnection, UndiciConnection } from '../../'
 
 const theSecret = '**foo-bar-baz-bat**'
+const theOtherSecret = '///tab-zab-rab-oof///'
 
 function makeDiagnostics(): DiagnosticResult[] {
   const diagnosticBase: DiagnosticResult = {
     headers: {
-      'accept': 'text/plain',
+      'content-type': 'text/plain',
       'authorization': theSecret,
+      'x-another-header': theOtherSecret,
     },
     warnings: null,
     meta: {
@@ -40,11 +42,13 @@ function makeDiagnostics(): DiagnosticResult[] {
           path: '/',
           headers: {
             authorization: theSecret,
+            'x-another-header': theOtherSecret,
           }
         },
         options: {
           headers: {
             authorization: theSecret,
+            'x-another-header': theOtherSecret,
           }
         },
         id: 'foo',
@@ -78,96 +82,132 @@ function makeDiagnostics(): DiagnosticResult[] {
   })
 
   return diagnostics
-
-  // TODO: figure out which of these could also contain secrets
-  //   auth?: BasicAuth | ApiKeyAuth | BearerAuth;
-  //   diagnostic?: Diagnostic;
-  //   timeout?: number;
-  //   agent?: HttpAgentOptions | UndiciAgentOptions | agentFn | boolean;
-  //   proxy?: string | URL;
-  //   caFingerprint?: string;
 }
 
-test('redact sensitive data when logging a TimeoutError', t => {
+function errFactory (message: string, meta: DiagnosticResult, options: errors.ErrorOptions) {
+  return [
+    new errors.TimeoutError(message, meta, options),
+    new errors.ConnectionError(message, meta, options),
+    new errors.NoLivingConnectionsError(message, meta, options),
+    new errors.ResponseError(meta, options),
+    new errors.RequestAbortedError(message, meta, options),
+    new errors.ProductNotSupportedError(message, meta, options),
+  ]
+}
+
+test('redact sensitive data when logging errors', t => {
   const diags = makeDiagnostics()
 
+  const errorOptions = {
+    redactConnection: false,
+    redactDiagnostics: true,
+    additionalRedactionKeys: []
+  }
+
   diags.forEach(diag => {
-    const err = new errors.TimeoutError('err', diag)
-    t.notMatch(inspect(err), theSecret, 'TimeoutError should redact sensitive data')
-    t.notMatch(inspect(err.meta), theSecret, 'TimeoutError should redact sensitive data')
-    t.notMatch(JSON.stringify(err.meta ?? ''), theSecret)
-    t.notMatch(err.meta?.toString(), theSecret)
+    errFactory('err', diag, errorOptions).forEach(err => {
+      t.notMatch(inspect(err), theSecret, `${err.name} should redact sensitive data`)
+      t.notMatch(inspect(err.meta), theSecret, `${err.name} should redact sensitive data`)
+      t.notMatch(JSON.stringify(err.meta ?? ''), theSecret)
+      t.notMatch(err.meta?.toString(), theSecret)
+    })
   })
 
   t.end()
 })
 
-test('redact sensitive data when logging a ConnectionError', t => {
+test('do not redact data if redactDiagnostics is false', t => {
   const diags = makeDiagnostics()
 
+  const errorOptions = {
+    redactConnection: false,
+    redactDiagnostics: false,
+    additionalRedactionKeys: []
+  }
+
   diags.forEach(diag => {
-    const err = new errors.ConnectionError('err', diag)
-    t.notMatch(inspect(err), theSecret, 'ConnectionError should redact sensitive data')
-    t.notMatch(inspect(err.meta), theSecret, 'ConnectionError should redact sensitive data')
-    t.notMatch(JSON.stringify(err.meta ?? ''), theSecret)
-    t.notMatch(err.meta?.toString(), theSecret)
+    errFactory('err', diag, errorOptions).forEach(err => {
+      t.match(inspect(err), theSecret, `${err.name} should not redact sensitive data`)
+      t.match(inspect(err.meta), theSecret, `${err.name} should not redact sensitive data`)
+      t.match(JSON.stringify(err.meta ?? ''), theSecret)
+    })
   })
 
   t.end()
 })
 
-test('redact sensitive data when logging a NoLivingConnectionsError', t => {
+test('redact entire connection if redactConnection is true', t => {
   const diags = makeDiagnostics()
 
+  const errorOptions = {
+    redactConnection: true,
+    redactDiagnostics: true,
+    additionalRedactionKeys: []
+  }
+
   diags.forEach(diag => {
-    const err = new errors.NoLivingConnectionsError('err', diag)
-    t.notMatch(inspect(err), theSecret, 'NoLivingConnectionsError should redact sensitive data')
-    t.notMatch(inspect(err.meta), theSecret, 'NoLivingConnectionsError should redact sensitive data')
-    t.notMatch(JSON.stringify(err.meta ?? ''), theSecret)
-    t.notMatch(err.meta?.toString(), theSecret)
+    errFactory('err', diag, errorOptions).forEach(err => {
+      if (err.meta !== undefined) {
+        t.equal(err.meta.meta.connection, null, `${err.name} should redact the connection object`)
+      } else {
+        t.fail('should not be called')
+      }
+    })
   })
 
   t.end()
 })
 
-test('redact sensitive data when logging a ResponseError', t => {
+test('redact extra keys when passed', t => {
   const diags = makeDiagnostics()
 
+  const errorOptions = {
+    redactConnection: false,
+    redactDiagnostics: true,
+    additionalRedactionKeys: ['X-Another-Header']
+  }
+
   diags.forEach(diag => {
-    const err = new errors.ResponseError(diag)
-    t.notMatch(inspect(err), theSecret, 'ResponseError should redact sensitive data')
-    t.notMatch(inspect(err.meta), theSecret, 'ResponseError should redact sensitive data')
-    t.notMatch(JSON.stringify(err.meta ?? ''), theSecret)
-    t.notMatch(err.meta?.toString(), theSecret)
+    errFactory('err', diag, errorOptions).forEach(err => {
+      const paramHeaders = err.meta?.meta.request.params.headers ?? {}
+      t.equal(paramHeaders['x-another-header'], '[redacted]', `${err.name} should redact extra key`)
+
+      const optHeaders = err.meta?.meta.request.options.headers ?? {}
+      t.equal(optHeaders['x-another-header'], '[redacted]', `${err.name} should redact extra key`)
+    })
   })
 
   t.end()
 })
 
-test('redact sensitive data when logging a RequestAbortedError', t => {
-  const diags = makeDiagnostics()
+test('ConfigurationError should be thrown if meta is set but no error options are provided', t => {
+  const diag = makeDiagnostics()[0]
 
-  diags.forEach(diag => {
-    const err = new errors.RequestAbortedError('err', diag)
-    t.notMatch(inspect(err), theSecret, 'RequestAbortedError should redact sensitive data')
-    t.notMatch(inspect(err.meta), theSecret, 'RequestAbortedError should redact sensitive data')
-    t.notMatch(JSON.stringify(err.meta ?? ''), theSecret)
-    t.notMatch(err.meta?.toString(), theSecret)
-  })
+  t.throws(() => {
+    new errors.TimeoutError('err', diag)
+  }, errors.ConfigurationError)
 
-  t.end()
-})
+  t.throws(() => {
+    new errors.ConnectionError('err', diag)
+  }, errors.ConfigurationError)
 
-test('redact sensitive data when logging a ProductNotSupportedError', t => {
-  const diags = makeDiagnostics()
+  t.throws(() => {
+    // @ts-expect-error Testing argument interdependence for the vanilla JS users that won't get TypeScript errors
+    new errors.NoLivingConnectionsError('err', diag)
+  }, errors.ConfigurationError)
 
-  diags.forEach(diag => {
-    const err = new errors.ProductNotSupportedError('err', diag)
-    t.notMatch(inspect(err), theSecret, 'ProductNotSupportedError should redact sensitive data')
-    t.notMatch(inspect(err.meta), theSecret, 'ProductNotSupportedError should redact sensitive data')
-    t.notMatch(JSON.stringify(err.meta ?? ''), theSecret)
-    t.notMatch(err.meta?.toString(), theSecret)
-  })
+  t.throws(() => {
+    // @ts-expect-error Testing argument interdependence for the vanilla JS users that won't get TypeScript errors
+    new errors.ResponseError(diag)
+  }, errors.ConfigurationError)
+
+  t.throws(() => {
+    new errors.RequestAbortedError('err', diag)
+  }, errors.ConfigurationError)
+
+  t.throws(() => {
+    new errors.ProductNotSupportedError('err', diag)
+  }, errors.ConfigurationError)
 
   t.end()
 })
