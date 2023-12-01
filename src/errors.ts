@@ -48,10 +48,6 @@ export class ElasticsearchClientError extends Error {
 export class TimeoutError extends ElasticsearchClientError {
   meta?: DiagnosticResult
   constructor (message: string, meta?: DiagnosticResult, options?: ErrorOptions) {
-    if (isObject(meta) && !isObject(options)) {
-      throw new ConfigurationError("If 'meta' is provided, 'options' must also be provided")
-    }
-
     super(message, options)
     Error.captureStackTrace(this, TimeoutError)
     this.name = 'TimeoutError'
@@ -73,10 +69,6 @@ export class TimeoutError extends ElasticsearchClientError {
 export class ConnectionError extends ElasticsearchClientError {
   meta?: DiagnosticResult
   constructor (message: string, meta?: DiagnosticResult, options?: ErrorOptions) {
-    if (isObject(meta) && !isObject(options)) {
-      throw new ConfigurationError("If 'meta' is provided, 'options' must also be provided")
-    }
-
     super(message, options)
     Error.captureStackTrace(this, ConnectionError)
     this.name = 'ConnectionError'
@@ -98,10 +90,6 @@ export class ConnectionError extends ElasticsearchClientError {
 export class NoLivingConnectionsError extends ElasticsearchClientError {
   meta: DiagnosticResult
   constructor (message: string, meta: DiagnosticResult, options: ErrorOptions) {
-    if (isObject(meta) && !isObject(options)) {
-      throw new ConfigurationError("If 'meta' is provided, 'options' must also be provided")
-    }
-
     super(message, options)
     Error.captureStackTrace(this, NoLivingConnectionsError)
     this.name = 'NoLivingConnectionsError'
@@ -152,10 +140,6 @@ export class ConfigurationError extends ElasticsearchClientError {
 export class ResponseError extends ElasticsearchClientError {
   meta: DiagnosticResult
   constructor (meta: DiagnosticResult, options: ErrorOptions) {
-    if (isObject(meta) && !isObject(options)) {
-      throw new ConfigurationError("If 'meta' is provided, 'options' must also be provided")
-    }
-
     super('Response Error', options)
     Error.captureStackTrace(this, ResponseError)
     this.name = 'ResponseError'
@@ -219,10 +203,6 @@ export class ResponseError extends ElasticsearchClientError {
 export class RequestAbortedError extends ElasticsearchClientError {
   meta?: DiagnosticResult
   constructor (message: string, meta?: DiagnosticResult, options?: ErrorOptions) {
-    if (isObject(meta) && !isObject(options)) {
-      throw new ConfigurationError("If 'meta' is provided, 'options' must also be provided")
-    }
-
     super(message, options)
     Error.captureStackTrace(this, RequestAbortedError)
     this.name = 'RequestAbortedError'
@@ -244,10 +224,6 @@ export class RequestAbortedError extends ElasticsearchClientError {
 export class ProductNotSupportedError extends ElasticsearchClientError {
   meta?: DiagnosticResult
   constructor (product: string, meta?: DiagnosticResult, options?: ErrorOptions) {
-    if (isObject(meta) && !isObject(options)) {
-      throw new ConfigurationError("If 'meta' is provided, 'options' must also be provided")
-    }
-
     super('Product Not Supported Error', options)
     Error.captureStackTrace(this, ProductNotSupportedError)
     this.name = 'ProductNotSupportedError'

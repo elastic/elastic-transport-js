@@ -182,35 +182,3 @@ test('redact extra keys when passed', t => {
 
   t.end()
 })
-
-test('ConfigurationError should be thrown if meta is set but no error options are provided', t => {
-  const diag = makeDiagnostics()[0]
-
-  t.throws(() => {
-    new errors.TimeoutError('err', diag)
-  }, errors.ConfigurationError)
-
-  t.throws(() => {
-    new errors.ConnectionError('err', diag)
-  }, errors.ConfigurationError)
-
-  t.throws(() => {
-    // @ts-expect-error Testing argument interdependence for the vanilla JS users that won't get TypeScript errors
-    new errors.NoLivingConnectionsError('err', diag)
-  }, errors.ConfigurationError)
-
-  t.throws(() => {
-    // @ts-expect-error Testing argument interdependence for the vanilla JS users that won't get TypeScript errors
-    new errors.ResponseError(diag)
-  }, errors.ConfigurationError)
-
-  t.throws(() => {
-    new errors.RequestAbortedError('err', diag)
-  }, errors.ConfigurationError)
-
-  t.throws(() => {
-    new errors.ProductNotSupportedError('err', diag)
-  }, errors.ConfigurationError)
-
-  t.end()
-})
