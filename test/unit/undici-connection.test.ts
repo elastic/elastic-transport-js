@@ -24,7 +24,6 @@ import buffer from 'buffer'
 import { gzipSync, deflateSync } from 'zlib'
 import { Readable } from 'stream'
 import intoStream from 'into-stream'
-import { AbortController } from 'node-abort-controller'
 import { buildServer } from '../utils'
 import { UndiciConnection, errors, ConnectionOptions } from '../../'
 
@@ -221,6 +220,7 @@ test('Timeout support / 4', async t => {
       timeout: 50,
       ...options
     })
+    t.fail('Timeout was not reached')
   } catch (err: any) {
     t.ok(err instanceof TimeoutError)
     t.equal(err.message, 'Request timed out')
@@ -448,7 +448,7 @@ test('Should disallow two-byte characters in URL path', async t => {
 })
 
 test('Abort a request syncronously', async t => {
-  t.plan(1)
+  t.plan(2)
 
   function handler (req: http.IncomingMessage, res: http.ServerResponse) {
     t.fail('The server should not be contacted')
@@ -469,6 +469,7 @@ test('Abort a request syncronously', async t => {
     ...options
   }).catch(err => {
     t.ok(err instanceof RequestAbortedError)
+    t.ok(controller.signal.aborted, 'Signal should be aborted')
     server.stop()
   })
 
