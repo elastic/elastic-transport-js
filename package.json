@@ -34,7 +34,7 @@
   },
   "homepage": "https://github.com/elastic/elastic-transport-js#readme",
   "engines": {
-    "node": ">=14"
+    "node": ">=16"
   },
   "devDependencies": {
     "@sinonjs/fake-timers": "github:sinonjs/fake-timers#0bfffc1",
