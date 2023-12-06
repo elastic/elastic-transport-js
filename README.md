@@ -14,7 +14,7 @@ npm install @elastic/transport
 
 ### Node.js support
 
-NOTE: The minimum supported version of Node.js is `v14`.
+NOTE: The minimum supported version of Node.js is `v16`.
 
 The client versioning follows the Elastc Stack versioning, this means that
 major, minor, and patch releases are done following a precise schedule that
@@ -23,9 +23,7 @@ often does not coincide with the [Node.js release](https://nodejs.org/en/about/r
 To avoid support insecure and unsupported versions of Node.js, the
 client **will drop the support of EOL versions of Node.js between minor releases**.
 Typically, as soon as a Node.js version goes into EOL, the client will continue
-to support that version for at least another minor release. If you are using the client
-with a version of Node.js that will be unsupported soon, you will see a warning
-in your logs (the client will start logging the warning with two minors in advance).
+to support that version for at least another minor release.
 
 Unless you are **always** using a supported version of Node.js, 
 we recommend defining the client dependency in your

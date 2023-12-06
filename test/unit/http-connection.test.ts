@@ -26,7 +26,7 @@ import { gzipSync, deflateSync } from 'zlib'
 import { Readable } from 'stream'
 import hpagent from 'hpagent'
 import intoStream from 'into-stream'
-import { AbortController } from 'node-abort-controller'
+import { AbortController as LegacyAbortController } from 'node-abort-controller'
 import { buildServer } from '../utils'
 import { HttpConnection, errors, ConnectionOptions } from '../../'
 import net from "net";
@@ -1245,7 +1245,10 @@ test('as stream', async t => {
 test('Cleanup abort listener', async t => {
   t.plan(2)
 
-  const controller = new AbortController()
+  // uses legacy node-abort-controller polyfill package because the global
+  // AbortController's signal does not let expose an `eventEmitter` property for
+  // us to inspect, but the legacy package does!
+  const controller = new LegacyAbortController()
 
   function handler (req: http.IncomingMessage, res: http.ServerResponse) {
     // @ts-expect-error

@@ -141,7 +141,8 @@ export default class Connection extends BaseConnection {
       timeoutId = setTimeout(() => {
         timedout = true
         if (options.signal != null) {
-          options.signal.dispatchEvent('abort')
+          // @ts-expect-error Event is a Node.js global
+          options.signal.dispatchEvent(new Event('abort'))
         } else {
           this[kEmitter].emit('abort')
         }
