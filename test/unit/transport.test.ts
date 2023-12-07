@@ -2058,7 +2058,7 @@ test('Error redaction defaults', async t => {
       })
   } catch (err: any) {
     if (err instanceof TimeoutError) {
-      t.equal(err.meta?.meta?.request?.options?.headers?.authorization, '[redacted]')
+      t.notMatch(JSON.stringify(err.meta?.meta?.request?.options?.headers), '"authorization":"foo"')
     } else {
       t.fail('should not be called')
     }
@@ -2099,7 +2099,7 @@ test('Error connection redaction', async t => {
 })
 
 test('Error sensitive key redaction', async t => {
-  t.plan(2)
+  t.plan(4)
 
   function handler (req: http.IncomingMessage, res: http.ServerResponse) {
     setTimeout(() => res.end('ok'), 100)
@@ -2128,8 +2128,10 @@ test('Error sensitive key redaction', async t => {
       })
   } catch (err: any) {
     if (err instanceof TimeoutError) {
-      t.equal(err.meta?.meta?.request?.options?.headers?.authorization, '[redacted]')
-      t.equal(err.meta?.meta?.request?.options?.headers?.['x-elastic-secrets'], '[redacted]')
+      t.notMatch(JSON.stringify(err.meta?.meta?.request?.options?.headers), '"authorization":"foo"')
+      t.notMatch(JSON.stringify(err.meta?.meta?.request?.options?.headers), 'foo')
+      t.notMatch(JSON.stringify(err.meta?.meta?.request?.options?.headers), '"x-elastic-secrets":"bar"')
+      t.notMatch(JSON.stringify(err.meta?.meta?.request?.options?.headers), 'bar')
     } else {
       t.fail('should not be called')
     }

@@ -74,7 +74,6 @@ import {
   kJsonContentType,
   kNdjsonContentType,
   kAcceptHeader,
-  kRedactDiagnostics,
   kRedactConnection,
   kAdditionalRedactionKeys
 } from './symbols'
@@ -113,7 +112,6 @@ export interface TransportOptions {
     ndjsonContentType?: string
     accept?: string
   }
-  redactDiagnostics?: boolean
   redactConnection?: boolean
   additionalRedactionKeys?: string[]
 }
@@ -162,7 +160,6 @@ export interface TransportRequestOptions {
     * ```
     */
   meta?: boolean
-  redactDiagnostics?: boolean
   redactConnection?: boolean
   additionalRedactionKeys?: string[]
 }
@@ -212,7 +209,6 @@ export default class Transport {
   [kJsonContentType]: string
   [kNdjsonContentType]: string
   [kAcceptHeader]: string
-  [kRedactDiagnostics]: boolean
   [kRedactConnection]: boolean
   [kAdditionalRedactionKeys]: string[]
 
@@ -274,7 +270,6 @@ export default class Transport {
     this[kJsonContentType] = opts.vendoredHeaders?.jsonContentType ?? 'application/json'
     this[kNdjsonContentType] = opts.vendoredHeaders?.ndjsonContentType ?? 'application/x-ndjson'
     this[kAcceptHeader] = opts.vendoredHeaders?.accept ?? 'application/json, text/plain'
-    this[kRedactDiagnostics] = typeof opts.redactDiagnostics === 'boolean' ? opts.redactDiagnostics : true
     this[kRedactConnection] = typeof opts.redactConnection === 'boolean' ? opts.redactConnection : false
     this[kAdditionalRedactionKeys] = Array.isArray(opts.additionalRedactionKeys) ? opts.additionalRedactionKeys : []
 
@@ -378,7 +373,6 @@ export default class Transport {
     const maxCompressedResponseSize = options.maxCompressedResponseSize ?? this[kMaxCompressedResponseSize]
 
     const errorOptions: ErrorOptions = {
-      redactDiagnostics: typeof options.redactDiagnostics === 'boolean' ? options.redactDiagnostics : this[kRedactDiagnostics],
       redactConnection: typeof options.redactConnection === 'boolean' ? options.redactConnection : this[kRedactConnection],
       additionalRedactionKeys: Array.isArray(options.additionalRedactionKeys) ? options.additionalRedactionKeys : this[kAdditionalRedactionKeys]
     }

@@ -22,7 +22,6 @@ import { DiagnosticResult } from './types'
 import { redactObject } from './security'
 
 export interface ErrorOptions {
-  redactDiagnostics: boolean
   redactConnection: boolean
   additionalRedactionKeys: string[]
 }
@@ -34,7 +33,6 @@ export class ElasticsearchClientError extends Error {
     this.name = 'ElasticsearchClientError'
 
     this.options = {
-      redactDiagnostics: true,
       redactConnection: false,
       additionalRedactionKeys: []
     }
@@ -58,9 +56,7 @@ export class TimeoutError extends ElasticsearchClientError {
         meta.meta.connection = null
       }
 
-      if (this.options.redactDiagnostics) {
-        meta = redactObject(meta, this.options.additionalRedactionKeys) as DiagnosticResult
-      }
+      meta = redactObject(meta, this.options.additionalRedactionKeys) as DiagnosticResult
     }
     this.meta = meta
   }
@@ -79,9 +75,7 @@ export class ConnectionError extends ElasticsearchClientError {
         meta.meta.connection = null
       }
 
-      if (this.options.redactDiagnostics) {
-        meta = redactObject(meta, this.options.additionalRedactionKeys ?? []) as DiagnosticResult
-      }
+      meta = redactObject(meta, this.options.additionalRedactionKeys ?? []) as DiagnosticResult
     }
     this.meta = meta
   }
@@ -99,9 +93,7 @@ export class NoLivingConnectionsError extends ElasticsearchClientError {
       meta.meta.connection = null
     }
 
-    if (this.options.redactDiagnostics) {
-      meta = redactObject(meta, this.options.additionalRedactionKeys ?? []) as DiagnosticResult
-    }
+    meta = redactObject(meta, this.options.additionalRedactionKeys ?? []) as DiagnosticResult
     this.meta = meta
   }
 }
@@ -178,9 +170,7 @@ export class ResponseError extends ElasticsearchClientError {
       meta.meta.connection = null
     }
 
-    if (this.options.redactDiagnostics) {
-      meta = redactObject(meta, this.options.additionalRedactionKeys ?? []) as DiagnosticResult
-    }
+    meta = redactObject(meta, this.options.additionalRedactionKeys ?? []) as DiagnosticResult
     this.meta = meta
   }
 
@@ -213,9 +203,7 @@ export class RequestAbortedError extends ElasticsearchClientError {
         meta.meta.connection = null
       }
 
-      if (this.options.redactDiagnostics) {
-        meta = redactObject(meta, this.options.additionalRedactionKeys ?? []) as DiagnosticResult
-      }
+      meta = redactObject(meta, this.options.additionalRedactionKeys ?? []) as DiagnosticResult
     }
     this.meta = meta
   }
@@ -234,9 +222,7 @@ export class ProductNotSupportedError extends ElasticsearchClientError {
         meta.meta.connection = null
       }
 
-      if (this.options.redactDiagnostics) {
-        meta = redactObject(meta, this.options.additionalRedactionKeys ?? []) as DiagnosticResult
-      }
+      meta = redactObject(meta, this.options.additionalRedactionKeys ?? []) as DiagnosticResult
     }
     this.meta = meta
   }

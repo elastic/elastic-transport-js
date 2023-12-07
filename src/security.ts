@@ -17,8 +17,6 @@
  * under the License.
  */
 
-import traverse from 'traverse'
-
 const secretKeys = [
   'authorization',
   'password',
@@ -33,21 +31,39 @@ const secretKeys = [
  */
 export function redactObject (obj: Record<string, any>, additionalKeys: string[] = []): Record<string, any> {
   const toRedact = [...secretKeys, ...additionalKeys].map(key => key.toLowerCase())
-  return traverse(obj)
-    // ts-standard thinks this is Array.prototype.map but it isn't
-    .map(function (node) { // eslint-disable-line array-callback-return
-      // represent URLs as strings with no username/password
-      // @ts-expect-error current typedef for `pre` is inaccurate
-      this.pre(function (childNode, key) {
-        if (childNode instanceof URL) {
-          node[key] = `${childNode.origin}${childNode.pathname}${childNode.search}`
-        }
-      })
+  // `seen` stores each Object it sees, so we can prevent infinite recursion due to circular references
+  const seen = new Map()
+  return doRedact(obj)
 
-      if (this.circular !== null && this.circular !== undefined) {
-        this.remove()
-      } else if (this.key !== undefined && toRedact.includes(this.key.toLowerCase())) {
-        this.update('[redacted]')
+  function doRedact (obj: Record<string, any>): Record<string, any> {
+    const newObj: Record<string, any> = {}
+    Object.entries(obj).forEach(([key, value]) => {
+      // pull auth info out of URL objects
+      if (value instanceof URL) {
+        value = `${value.origin}${value.pathname}${value.search}`
+      }
+
+      if (typeof value === 'object' && value !== null) {
+        if (seen.get(value) !== true) {
+          // if this Object hasn't been seen, recursively redact it
+          seen.set(value, true)
+          value = doRedact(value)
+        } else {
+          // if it has been seen, set the value that goes in newObj to null
+          // this is what prevents the circular references
+          value = null
+        }
+      }
+
+      // check if redaction is needed for this key
+      if (toRedact.includes(key.toLowerCase())) {
+        // Object.defineProperty getter ensures the property can be directly accessed just as before,
+        // but hides it from all serialization methods. Cheers to @delvedor for the idea.
+        Object.defineProperty(newObj, key, { get: () => value })
+      } else {
+        newObj[key] = value
       }
     })
+    return newObj
+  }
 }

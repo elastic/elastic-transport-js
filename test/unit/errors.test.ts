@@ -103,7 +103,6 @@ test('redact sensitive data when logging errors', t => {
 
   const errorOptions = {
     redactConnection: false,
-    redactDiagnostics: true,
     additionalRedactionKeys: []
   }
 
@@ -119,32 +118,11 @@ test('redact sensitive data when logging errors', t => {
   t.end()
 })
 
-test('do not redact data if redactDiagnostics is false', t => {
-  const diags = makeDiagnostics()
-
-  const errorOptions = {
-    redactConnection: false,
-    redactDiagnostics: false,
-    additionalRedactionKeys: []
-  }
-
-  diags.forEach(diag => {
-    errFactory('err', diag, errorOptions).forEach(err => {
-      t.match(inspect(err), theSecret, `${err.name} should not redact sensitive data`)
-      t.match(inspect(err.meta), theSecret, `${err.name} should not redact sensitive data`)
-      t.match(JSON.stringify(err.meta ?? ''), theSecret)
-    })
-  })
-
-  t.end()
-})
-
 test('redact entire connection if redactConnection is true', t => {
   const diags = makeDiagnostics()
 
   const errorOptions = {
     redactConnection: true,
-    redactDiagnostics: true,
     additionalRedactionKeys: []
   }
 
@@ -166,17 +144,18 @@ test('redact extra keys when passed', t => {
 
   const errorOptions = {
     redactConnection: false,
-    redactDiagnostics: true,
     additionalRedactionKeys: ['X-Another-Header']
   }
 
   diags.forEach(diag => {
     errFactory('err', diag, errorOptions).forEach(err => {
       const paramHeaders = err.meta?.meta.request.params.headers ?? {}
-      t.equal(paramHeaders['x-another-header'], '[redacted]', `${err.name} should redact extra key`)
+      t.notMatch(JSON.stringify(paramHeaders), `"x-another-header":"${theOtherSecret}"`, `${err.name} should redact extra key`)
+      t.notMatch(JSON.stringify(paramHeaders), theOtherSecret, `${err.name} should redact extra key`)
 
       const optHeaders = err.meta?.meta.request.options.headers ?? {}
-      t.equal(optHeaders['x-another-header'], '[redacted]', `${err.name} should redact extra key`)
+      t.notMatch(JSON.stringify(optHeaders), `"x-another-header":"${theOtherSecret}"`, `${err.name} should redact extra key`)
+      t.notMatch(JSON.stringify(optHeaders), theOtherSecret, `${err.name} should redact extra key`)
     })
   })
 

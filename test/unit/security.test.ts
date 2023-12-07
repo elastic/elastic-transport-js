@@ -18,11 +18,12 @@
  */
 
 import { test } from 'tap'
+import { inspect} from 'util'
 import { redactObject } from '../../src/security'
 
 test('redactObject', t => {
   t.test('redacts values for matching keys at 8+ levels of nesting', t => {
-    t.plan(4)
+    t.plan(8)
     const result = redactObject({
       foo: {
         bar: {
@@ -45,43 +46,121 @@ test('redactObject', t => {
         }
       }
     })
-    t.equal(result.foo.bar.baz.bat.bit.but.biz.fiz.authorization, '[redacted]')
-    t.equal(result.foo.bar.baz.bat.bit.but.biz.fiz.password, '[redacted]')
-    t.equal(result.foo.bar.baz.bat.bit.but.biz.fiz.apiKey, '[redacted]')
-    t.equal(result.foo.bar.baz.bat.bit.but.biz.fiz['x-elastic-app-auth'], '[redacted]')
+    t.notMatch(JSON.stringify(result.foo.bar.baz.bat.bit.but.biz.fiz), '"authorization":"a secret"')
+    t.notMatch(inspect(result.foo.bar.baz.bat.bit.but.biz.fiz), "authorization: 'a secret'")
+    t.notMatch(JSON.stringify(result.foo.bar.baz.bat.bit.but.biz.fiz), '"password":"another secret"')
+    t.notMatch(inspect(result.foo.bar.baz.bat.bit.but.biz.fiz), "password: 'another secret'")
+    t.notMatch(JSON.stringify(result.foo.bar.baz.bat.bit.but.biz.fiz), '"api_key":"bar"')
+    t.notMatch(inspect(result.foo.bar.baz.bat.bit.but.biz.fiz), "api_key: 'bar'")
+    t.notMatch(JSON.stringify(result.foo.bar.baz.bat.bit.but.biz.fiz), '"x-elastic-app-auth":"abcd1234"')
+    t.notMatch(inspect(result.foo.bar.baz.bat.bit.but.biz.fiz), "'x-elastic-app-auth': 'abcd1234'")
+  })
+
+
+  t.test('Object.keys does not expose secret', t => {
+    const result = redactObject({
+      authorization: 'secret1',
+      password: 'secret2'
+    })
+
+    t.notOk(Object.keys(result).includes('authorization'))
+    t.notOk(Object.keys(result).includes('password'))
+    t.end()
+  })
+
+  t.test('Object.values does not expose secret', t => {
+    const result = redactObject({
+      authorization: 'secret1',
+      password: 'secret2'
+    })
+
+    t.notOk(Object.values(result).includes('secret1'))
+    t.notOk(Object.values(result).includes('secret2'))
+    t.end()
+  })
+
+  t.test('Object.entries does not expose secret', t => {
+    const result = redactObject({
+      apiKey: 'secret1',
+      'x-elastic-app-auth': 'secret2',
+    })
+
+    Object.entries(result).forEach(([key, value]) => {
+      t.not(key, 'apiKey')
+      t.not(key, 'x-elastic-app-auth')
+      t.not(value, 'secret1')
+      t.not(value, 'secret2')
+    })
+    t.end()
+  })
+
+  t.test('for..in loop does not expose secret', t => {
+    const result = redactObject({
+      authorization: 'secret-a',
+      password: 'secret-b',
+    })
+
+    for (const key in result) {
+      t.not(key, 'authorization')
+      t.not(key, 'password')
+    }
+    t.end()
+  })
+
+  t.test('keeps actual values accessible', t => {
+    t.plan(2)
+    const result = redactObject({ password: 'secret' })
+    t.equal(JSON.stringify(result), '{}')
+    t.equal(result.password, 'secret')
   })
 
   t.test('does not redact keys that do not match', t => {
-    t.plan(2)
+    t.plan(4)
     const result = redactObject({
       foo: 'bar',
       baz: 'bat',
     })
+    t.match(JSON.stringify(result), '"foo":"bar"')
+    t.match(JSON.stringify(result), '"baz":"bat"')
     t.equal(result.foo, 'bar')
     t.equal(result.baz, 'bat')
   })
 
   t.test('key-matching is case-insensitive', t => {
-    t.plan(4)
+    t.plan(8)
     const result = redactObject({
       AuthorIzaTiON: 'something',
       pAsSwOrD: 'another thing',
       apiKEY: 'some key',
       'X-ELASTIC-app-auth': 'another key'
     })
-    t.equal(result.AuthorIzaTiON, '[redacted]')
-    t.equal(result.pAsSwOrD, '[redacted]')
-    t.equal(result.apiKEY, '[redacted]')
-    t.equal(result['X-ELASTIC-app-auth'], '[redacted]')
+    t.notMatch(JSON.stringify(result), '"AuthorIzaTiON":"something"')
+    t.notMatch(JSON.stringify(result), 'something')
+    t.notMatch(JSON.stringify(result), '"pAsSwOrD":"another thing"')
+    t.notMatch(JSON.stringify(result), 'another thing')
+    t.notMatch(JSON.stringify(result), '"apiKEY":"some key"')
+    t.notMatch(JSON.stringify(result), 'some key')
+    t.notMatch(JSON.stringify(result), '"X-ELASTIC-app-auth":"another key"')
+    t.notMatch(JSON.stringify(result), 'another key')
   })
 
   t.test('avoids infinite loops on circular references', t => {
     t.plan(1)
-    const obj: Record<string, any> = { foo: 'bar' }
-    obj.baz = obj
+    // simple circular reference
+    const obj1: Record<string, any> = { foo: 'bar' }
+    obj1.baz = { foo: obj1 }
+
+    // ugly circular reference
+    const obj2: Record<string, any> = { baz: 'bat' }
+    obj2.biz = { foo: { bar: obj2 }}
+    obj2.biz.foo.bar.bit = obj2.foo
+    obj2.biz.foo.buz = obj1
+    obj1.baz.zab = obj2.biz.foo
+
     try {
-      const result = redactObject(obj)
-      t.equal(result.baz, undefined)
+      redactObject(obj1)
+      redactObject(obj2)
+      t.pass('Got here')
     } catch (err) {
       if (err instanceof RangeError) {
         t.fail("Should not exceed max stack depth")
@@ -111,7 +190,7 @@ test('redactObject', t => {
   })
 
   t.test('supports redacting a custom list of keys', t => {
-    t.plan(3)
+    t.plan(5)
     const customKeys = ['foo', 'bar']
     const result = redactObject({
       foo: 'abc',
@@ -119,13 +198,15 @@ test('redactObject', t => {
       baz: 'asdf',
     }, customKeys)
 
-    t.equal(result.foo, '[redacted]')
-    t.equal(result.bar, '[redacted]')
-    t.equal(result.baz, 'asdf')
+    t.notMatch(JSON.stringify(result), '"foo":"abc"')
+    t.notMatch(JSON.stringify(result), 'abc')
+    t.notMatch(JSON.stringify(result), '"bar":123')
+    t.notMatch(JSON.stringify(result), '123')
+    t.match(JSON.stringify(result), '"baz":"asdf"')
   })
 
   t.test('providing custom keys works in addition to default keys, not in replacement', t => {
-    t.plan(1)
+    t.plan(2)
     const customKeys = ['foo', 'bar']
     const result = redactObject({
       foo: 'abc',
@@ -133,7 +214,8 @@ test('redactObject', t => {
       baz: 'asdf',
       authorization: 'secret',
     }, customKeys)
-    t.equal(result.authorization, '[redacted]')
+    t.notMatch(JSON.stringify(result), '"authorization":"secret"')
+    t.notMatch(JSON.stringify(result), 'secret')
   })
 
   t.test('redacts username and password from a URL object', t => {
