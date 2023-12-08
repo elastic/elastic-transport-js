@@ -98,12 +98,11 @@ function errFactory (message: string, meta: DiagnosticResult, options: errors.Er
   ]
 }
 
-test('redact sensitive data when logging errors', t => {
+test('replace sensitive data for redaction type "replace"', t => {
   const diags = makeDiagnostics()
 
-  const errorOptions = {
-    redactConnection: false,
-    additionalRedactionKeys: []
+  const errorOptions: errors.ErrorOptions = {
+    redaction: { type: 'replace' }
   }
 
   diags.forEach(diag => {
@@ -118,18 +117,21 @@ test('redact sensitive data when logging errors', t => {
   t.end()
 })
 
-test('redact entire connection if redactConnection is true', t => {
+test('strip most optional properties when redaction type is "remove"', t => {
   const diags = makeDiagnostics()
 
-  const errorOptions = {
-    redactConnection: true,
-    additionalRedactionKeys: []
+  const errorOptions: errors.ErrorOptions = {
+    redaction: { type: 'remove' }
   }
 
   diags.forEach(diag => {
     errFactory('err', diag, errorOptions).forEach(err => {
       if (err.meta !== undefined) {
-        t.equal(err.meta.meta.connection, null, `${err.name} should redact the connection object`)
+        t.equal(typeof err.meta.headers, 'undefined', `${err.name} should remove meta.headers`)
+        t.equal(typeof err.meta.meta.sniff, 'undefined', `${err.name} should remove meta.meta.sniff`)
+        t.equal(typeof err.meta.meta.request.params.headers, 'undefined', `${err.name} should remove meta.meta.request.params.headers`)
+        t.same(err.meta.meta.request.options, {}, `${err.name} should remove meta.meta.request.options`)
+        t.equal(err.meta.meta.connection, null, `${err.name} should remove the connection object`)
       } else {
         t.fail('should not be called')
       }
@@ -142,9 +144,11 @@ test('redact entire connection if redactConnection is true', t => {
 test('redact extra keys when passed', t => {
   const diags = makeDiagnostics()
 
-  const errorOptions = {
-    redactConnection: false,
-    additionalRedactionKeys: ['X-Another-Header']
+  const errorOptions: errors.ErrorOptions = {
+    redaction: {
+      type: 'replace',
+      additionalKeys: ['X-Another-Header']
+    }
   }
 
   diags.forEach(diag => {

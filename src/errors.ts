@@ -19,11 +19,11 @@
 
 import * as http from 'http'
 import { DiagnosticResult } from './types'
-import { redactObject } from './security'
+import { RedactionOptions } from './Transport'
+import { redactDiagnostic } from './security'
 
 export interface ErrorOptions {
-  redactConnection: boolean
-  additionalRedactionKeys: string[]
+  redaction: RedactionOptions
 }
 
 export class ElasticsearchClientError extends Error {
@@ -33,12 +33,14 @@ export class ElasticsearchClientError extends Error {
     this.name = 'ElasticsearchClientError'
 
     this.options = {
-      redactConnection: false,
-      additionalRedactionKeys: []
+      redaction: {
+        type: 'replace',
+        additionalKeys: []
+      }
     }
 
     if (isObject(options)) {
-      this.options = { ...this.options, ...options }
+      this.options.redaction = { ...this.options.redaction, ...options.redaction }
     }
   }
 }
@@ -51,13 +53,7 @@ export class TimeoutError extends ElasticsearchClientError {
     this.name = 'TimeoutError'
     this.message = message ?? 'Timeout Error'
 
-    if (isObject(meta)) {
-      if (this.options.redactConnection) {
-        meta.meta.connection = null
-      }
-
-      meta = redactObject(meta, this.options.additionalRedactionKeys) as DiagnosticResult
-    }
+    if (isObject(meta)) meta = redactDiagnostic(meta, this.options.redaction)
     this.meta = meta
   }
 }
@@ -70,13 +66,7 @@ export class ConnectionError extends ElasticsearchClientError {
     this.name = 'ConnectionError'
     this.message = message ?? 'Connection Error'
 
-    if (isObject(meta)) {
-      if (this.options.redactConnection) {
-        meta.meta.connection = null
-      }
-
-      meta = redactObject(meta, this.options.additionalRedactionKeys ?? []) as DiagnosticResult
-    }
+    if (isObject(meta)) meta = redactDiagnostic(meta, this.options.redaction)
     this.meta = meta
   }
 }
@@ -89,12 +79,7 @@ export class NoLivingConnectionsError extends ElasticsearchClientError {
     this.name = 'NoLivingConnectionsError'
     this.message = message ?? 'Given the configuration, the ConnectionPool was not able to find a usable Connection for this request.'
 
-    if (this.options.redactConnection) {
-      meta.meta.connection = null
-    }
-
-    meta = redactObject(meta, this.options.additionalRedactionKeys ?? []) as DiagnosticResult
-    this.meta = meta
+    this.meta = redactDiagnostic(meta, this.options.redaction)
   }
 }
 
@@ -166,12 +151,7 @@ export class ResponseError extends ElasticsearchClientError {
       this.message = meta.body as string ?? 'Response Error'
     }
 
-    if (this.options.redactConnection) {
-      meta.meta.connection = null
-    }
-
-    meta = redactObject(meta, this.options.additionalRedactionKeys ?? []) as DiagnosticResult
-    this.meta = meta
+    this.meta = redactDiagnostic(meta, this.options.redaction)
   }
 
   get body (): any | undefined {
@@ -198,13 +178,7 @@ export class RequestAbortedError extends ElasticsearchClientError {
     this.name = 'RequestAbortedError'
     this.message = message ?? 'Request aborted'
 
-    if (isObject(meta)) {
-      if (this.options.redactConnection) {
-        meta.meta.connection = null
-      }
-
-      meta = redactObject(meta, this.options.additionalRedactionKeys ?? []) as DiagnosticResult
-    }
+    if (isObject(meta)) meta = redactDiagnostic(meta, this.options.redaction)
     this.meta = meta
   }
 }
@@ -217,13 +191,7 @@ export class ProductNotSupportedError extends ElasticsearchClientError {
     this.name = 'ProductNotSupportedError'
     this.message = `The client noticed that the server is not ${product} and we do not support this unknown product.`
 
-    if (isObject(meta)) {
-      if (this.options.redactConnection) {
-        meta.meta.connection = null
-      }
-
-      meta = redactObject(meta, this.options.additionalRedactionKeys ?? []) as DiagnosticResult
-    }
+    if (isObject(meta)) meta = redactDiagnostic(meta, this.options.redaction)
     this.meta = meta
   }
 }

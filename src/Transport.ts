@@ -74,8 +74,7 @@ import {
   kJsonContentType,
   kNdjsonContentType,
   kAcceptHeader,
-  kRedactConnection,
-  kAdditionalRedactionKeys
+  kRedaction
 } from './symbols'
 
 const { version: clientVersion } = require('../package.json') // eslint-disable-line
@@ -112,8 +111,7 @@ export interface TransportOptions {
     ndjsonContentType?: string
     accept?: string
   }
-  redactConnection?: boolean
-  additionalRedactionKeys?: string[]
+  redaction?: RedactionOptions
 }
 
 export interface TransportRequestParams {
@@ -160,8 +158,7 @@ export interface TransportRequestOptions {
     * ```
     */
   meta?: boolean
-  redactConnection?: boolean
-  additionalRedactionKeys?: string[]
+  redaction?: RedactionOptions
 }
 
 export interface TransportRequestOptionsWithMeta extends TransportRequestOptions {
@@ -181,6 +178,11 @@ export interface SniffOptions {
   requestId?: string | number
   reason: string
   context: any
+}
+
+export interface RedactionOptions {
+  type: 'off' | 'replace' | 'remove'
+  additionalKeys?: string[]
 }
 
 export default class Transport {
@@ -209,8 +211,7 @@ export default class Transport {
   [kJsonContentType]: string
   [kNdjsonContentType]: string
   [kAcceptHeader]: string
-  [kRedactConnection]: boolean
-  [kAdditionalRedactionKeys]: string[]
+  [kRedaction]: RedactionOptions
 
   static sniffReasons = {
     SNIFF_ON_START: 'sniff-on-start',
@@ -270,8 +271,7 @@ export default class Transport {
     this[kJsonContentType] = opts.vendoredHeaders?.jsonContentType ?? 'application/json'
     this[kNdjsonContentType] = opts.vendoredHeaders?.ndjsonContentType ?? 'application/x-ndjson'
     this[kAcceptHeader] = opts.vendoredHeaders?.accept ?? 'application/json, text/plain'
-    this[kRedactConnection] = typeof opts.redactConnection === 'boolean' ? opts.redactConnection : false
-    this[kAdditionalRedactionKeys] = Array.isArray(opts.additionalRedactionKeys) ? opts.additionalRedactionKeys : []
+    this[kRedaction] = opts.redaction ?? { type: 'replace', additionalKeys: [] }
 
     if (opts.sniffOnStart === true) {
       this.sniff({
@@ -373,8 +373,7 @@ export default class Transport {
     const maxCompressedResponseSize = options.maxCompressedResponseSize ?? this[kMaxCompressedResponseSize]
 
     const errorOptions: ErrorOptions = {
-      redactConnection: typeof options.redactConnection === 'boolean' ? options.redactConnection : this[kRedactConnection],
-      additionalRedactionKeys: Array.isArray(options.additionalRedactionKeys) ? options.additionalRedactionKeys : this[kAdditionalRedactionKeys]
+      redaction: typeof options.redaction === 'object' ? options.redaction : this[kRedaction]
     }
 
     this[kDiagnostic].emit('serialization', null, result)

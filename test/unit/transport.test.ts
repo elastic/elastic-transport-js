@@ -2053,12 +2053,12 @@ test('Error redaction defaults', async t => {
     }, {
         meta: true,
         headers: {
-          authorization: 'foo'
+          authorization: '**-the--secret--code-**'
         }
       })
   } catch (err: any) {
     if (err instanceof TimeoutError) {
-      t.notMatch(JSON.stringify(err.meta?.meta?.request?.options?.headers), '"authorization":"foo"')
+      t.notMatch(JSON.stringify(err.meta?.meta?.request?.options?.headers), '**-the--secret--code-**')
     } else {
       t.fail('should not be called')
     }
@@ -2066,7 +2066,7 @@ test('Error redaction defaults', async t => {
   server.stop()
 })
 
-test('Error connection redaction', async t => {
+test('Error "remove" redaction', async t => {
   t.plan(1)
 
   function handler (req: http.IncomingMessage, res: http.ServerResponse) {
@@ -2080,7 +2080,7 @@ test('Error connection redaction', async t => {
   const transport = new Transport({
     connectionPool: pool,
     requestTimeout: 50,
-    redactConnection: true
+    redaction: { type: 'remove' }
   })
 
   try {
@@ -2092,13 +2092,13 @@ test('Error connection redaction', async t => {
     if (err instanceof TimeoutError && err.meta !== undefined) {
       t.equal(err.meta.meta.connection, null)
     } else {
-      t.fail('should not be called')
+      t.fail(`should not be called, got error: ${err}`)
     }
   }
   server.stop()
 })
 
-test('Error sensitive key redaction', async t => {
+test('Error additional key redaction', async t => {
   t.plan(4)
 
   function handler (req: http.IncomingMessage, res: http.ServerResponse) {
@@ -2112,7 +2112,7 @@ test('Error sensitive key redaction', async t => {
   const transport = new Transport({
     connectionPool: pool,
     requestTimeout: 50,
-    additionalRedactionKeys: ['x-elastic-secrets']
+    redaction: { type: 'replace', additionalKeys: ['x-elastic-secrets'] }
   })
 
   try {

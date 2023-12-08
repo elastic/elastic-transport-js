@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { DiagnosticResult } from './types'
+import { RedactionOptions } from './Transport'
 
 const secretKeys = [
   'authorization',
@@ -57,13 +59,36 @@ export function redactObject (obj: Record<string, any>, additionalKeys: string[]
 
       // check if redaction is needed for this key
       if (toRedact.includes(key.toLowerCase())) {
-        // Object.defineProperty getter ensures the property can be directly accessed just as before,
-        // but hides it from all serialization methods. Cheers to @delvedor for the idea.
-        Object.defineProperty(newObj, key, { get: () => value })
+        newObj[key] = '[redacted]'
       } else {
         newObj[key] = value
       }
     })
     return newObj
   }
+}
+
+/**
+ * Redacts a DiagnosticResult object using the provided options.
+ * - 'off' does nothing
+ * - 'remove' removes most optional properties, replaces non-optional properties with the simplest possible alternative
+ * - 'replace' runs `redactObject`, which replaces secret keys with `[redacted]`
+ */
+export function redactDiagnostic (diag: DiagnosticResult, options: RedactionOptions): DiagnosticResult {
+  switch (options.type) {
+    case 'off':
+      break
+    case 'remove':
+      delete diag.headers
+      delete diag.meta.sniff
+      delete diag.meta.request.params.headers
+      diag.meta.request.options = {}
+      diag.meta.connection = null
+      break
+    case 'replace':
+      diag = redactObject(diag, options.additionalKeys ?? []) as DiagnosticResult
+      break
+  }
+
+  return diag
 }

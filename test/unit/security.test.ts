@@ -56,18 +56,6 @@ test('redactObject', t => {
     t.notMatch(inspect(result.foo.bar.baz.bat.bit.but.biz.fiz), "'x-elastic-app-auth': 'abcd1234'")
   })
 
-
-  t.test('Object.keys does not expose secret', t => {
-    const result = redactObject({
-      authorization: 'secret1',
-      password: 'secret2'
-    })
-
-    t.notOk(Object.keys(result).includes('authorization'))
-    t.notOk(Object.keys(result).includes('password'))
-    t.end()
-  })
-
   t.test('Object.values does not expose secret', t => {
     const result = redactObject({
       authorization: 'secret1',
@@ -86,32 +74,10 @@ test('redactObject', t => {
     })
 
     Object.entries(result).forEach(([key, value]) => {
-      t.not(key, 'apiKey')
-      t.not(key, 'x-elastic-app-auth')
       t.not(value, 'secret1')
       t.not(value, 'secret2')
     })
     t.end()
-  })
-
-  t.test('for..in loop does not expose secret', t => {
-    const result = redactObject({
-      authorization: 'secret-a',
-      password: 'secret-b',
-    })
-
-    for (const key in result) {
-      t.not(key, 'authorization')
-      t.not(key, 'password')
-    }
-    t.end()
-  })
-
-  t.test('keeps actual values accessible', t => {
-    t.plan(2)
-    const result = redactObject({ password: 'secret' })
-    t.equal(JSON.stringify(result), '{}')
-    t.equal(result.password, 'secret')
   })
 
   t.test('does not redact keys that do not match', t => {
