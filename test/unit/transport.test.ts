@@ -1050,7 +1050,7 @@ test('Compress stream', async t => {
 })
 
 test('Warning header (single)', async t => {
-  const warn = '112 - "cache down" "Wed, 21 Oct 2015 07:28:00 GMT"'
+  const warn = '299 Elasticsearch-7.17.10-fecd68e3150eda0c307ab9a9d7557f5d5fd71349 "the default value for the ?wait_for_active_shards parameter will change"'
   const Conn = buildMockConnection({
     onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
       return {
@@ -1079,13 +1079,14 @@ test('Warning header (single)', async t => {
 test('Warning header (multiple)', async t => {
   const warn1 = '112 - "cache down" "Wed, 21 Oct 2015 07:28:00 GMT"'
   const warn2 = '199 agent "Error message" "2015-01-01"'
+  const warn3 = '299 Elasticsearch-7.17.10-fecd68e3150eda0c307ab9a9d7557f5d5fd71349 "the default value for the ?wait_for_active_shards parameter will change"'
 
   const Conn = buildMockConnection({
     onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
       return {
         body: { hello: 'world' },
         statusCode: 200,
-        headers: { warning: `${warn1},${warn2}` }
+        headers: { warning: `${warn1},${warn2},${warn3}` }
       }
     }
   })
@@ -1102,7 +1103,7 @@ test('Warning header (multiple)', async t => {
     method: 'GET',
     path: '/hello'
   }, { meta: true })
-  t.same(res.warnings, [warn1, warn2])
+  t.same(res.warnings, [warn3])
 })
 
 test('No warnings', async t => {
