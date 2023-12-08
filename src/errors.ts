@@ -73,7 +73,7 @@ export class ConnectionError extends ElasticsearchClientError {
 
 export class NoLivingConnectionsError extends ElasticsearchClientError {
   meta: DiagnosticResult
-  constructor (message: string, meta: DiagnosticResult, options: ErrorOptions) {
+  constructor (message: string, meta: DiagnosticResult, options?: ErrorOptions) {
     super(message, options)
     Error.captureStackTrace(this, NoLivingConnectionsError)
     this.name = 'NoLivingConnectionsError'
@@ -116,7 +116,7 @@ export class ConfigurationError extends ElasticsearchClientError {
 
 export class ResponseError extends ElasticsearchClientError {
   meta: DiagnosticResult
-  constructor (meta: DiagnosticResult, options: ErrorOptions) {
+  constructor (meta: DiagnosticResult, options?: ErrorOptions) {
     super('Response Error', options)
     Error.captureStackTrace(this, ResponseError)
     this.name = 'ResponseError'
