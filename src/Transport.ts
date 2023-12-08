@@ -31,7 +31,8 @@ import {
   ResponseError,
   ConfigurationError,
   ProductNotSupportedError,
-  TimeoutError
+  TimeoutError,
+  ErrorOptions
 } from './errors'
 import { Connection, ConnectionRequestParams } from './connection'
 import Diagnostic from './Diagnostic'
@@ -72,7 +73,8 @@ import {
   kMaxCompressedResponseSize,
   kJsonContentType,
   kNdjsonContentType,
-  kAcceptHeader
+  kAcceptHeader,
+  kRedaction
 } from './symbols'
 
 const { version: clientVersion } = require('../package.json') // eslint-disable-line
@@ -109,6 +111,7 @@ export interface TransportOptions {
     ndjsonContentType?: string
     accept?: string
   }
+  redaction?: RedactionOptions
 }
 
 export interface TransportRequestParams {
@@ -155,6 +158,7 @@ export interface TransportRequestOptions {
     * ```
     */
   meta?: boolean
+  redaction?: RedactionOptions
 }
 
 export interface TransportRequestOptionsWithMeta extends TransportRequestOptions {
@@ -174,6 +178,11 @@ export interface SniffOptions {
   requestId?: string | number
   reason: string
   context: any
+}
+
+export interface RedactionOptions {
+  type: 'off' | 'replace' | 'remove'
+  additionalKeys?: string[]
 }
 
 export default class Transport {
@@ -202,6 +211,7 @@ export default class Transport {
   [kJsonContentType]: string
   [kNdjsonContentType]: string
   [kAcceptHeader]: string
+  [kRedaction]: RedactionOptions
 
   static sniffReasons = {
     SNIFF_ON_START: 'sniff-on-start',
@@ -261,6 +271,7 @@ export default class Transport {
     this[kJsonContentType] = opts.vendoredHeaders?.jsonContentType ?? 'application/json'
     this[kNdjsonContentType] = opts.vendoredHeaders?.ndjsonContentType ?? 'application/x-ndjson'
     this[kAcceptHeader] = opts.vendoredHeaders?.accept ?? 'application/json, text/plain'
+    this[kRedaction] = opts.redaction ?? { type: 'replace', additionalKeys: [] }
 
     if (opts.sniffOnStart === true) {
       this.sniff({
@@ -354,12 +365,16 @@ export default class Transport {
     // We should not retry if we are sending a stream body, because we should store in memory
     // a copy of the stream to be able to send it again, but since we don't know in advance
     // the size of the stream, we risk to take too much memory.
-    // Furthermore, copying everytime the stream is very a expensive operation.
+    // Furthermore, copying every time the stream is very a expensive operation.
     const maxRetries = isStream(params.body ?? params.bulkBody) ? 0 : (typeof options.maxRetries === 'number' ? options.maxRetries : this[kMaxRetries])
     const compression = typeof options.compression === 'boolean' ? options.compression : this[kCompression]
     const signal = options.signal
     const maxResponseSize = options.maxResponseSize ?? this[kMaxResponseSize]
     const maxCompressedResponseSize = options.maxCompressedResponseSize ?? this[kMaxCompressedResponseSize]
+
+    const errorOptions: ErrorOptions = {
+      redaction: typeof options.redaction === 'object' ? options.redaction : this[kRedaction]
+    }
 
     this[kDiagnostic].emit('serialization', null, result)
     const headers = Object.assign({}, this[kHeaders], lowerCaseHeaders(options.headers))
@@ -445,7 +460,7 @@ export default class Transport {
     while (meta.attempts <= maxRetries) {
       try {
         if (signal?.aborted) { // eslint-disable-line
-          throw new RequestAbortedError('Request has been aborted by the user', result)
+          throw new RequestAbortedError('Request has been aborted by the user', result, errorOptions)
         }
 
         meta.connection = this.getConnection({
@@ -453,7 +468,7 @@ export default class Transport {
           context: meta.context
         })
         if (meta.connection === null) {
-          throw new NoLivingConnectionsError('There are no living connections', result)
+          throw new NoLivingConnectionsError('There are no living connections', result, errorOptions)
         }
 
         this[kDiagnostic].emit('request', null, result)
@@ -475,7 +490,7 @@ export default class Transport {
         if (this[kProductCheck] != null && headers['x-elastic-product'] !== this[kProductCheck] && statusCode >= 200 && statusCode < 300) {
           /* eslint-disable @typescript-eslint/prefer-ts-expect-error */
           // @ts-ignore
-          throw new ProductNotSupportedError(this[kProductCheck], result)
+          throw new ProductNotSupportedError(this[kProductCheck], result, errorOptions)
           /* eslint-enable @typescript-eslint/prefer-ts-expect-error */
         }
 
@@ -532,7 +547,7 @@ export default class Transport {
         }
 
         if (!ignoreStatusCode && statusCode >= 400) {
-          throw new ResponseError(result)
+          throw new ResponseError(result, errorOptions)
         } else {
           // cast to boolean if the request method was HEAD
           if (isHead && statusCode === 404) {
@@ -553,7 +568,7 @@ export default class Transport {
           case 'RequestAbortedError': {
             meta.aborted = true
             // Wrap the error to get a clean stack trace
-            const wrappedError = new RequestAbortedError(error.message, result)
+            const wrappedError = new RequestAbortedError(error.message, result, errorOptions)
             this[kDiagnostic].emit('response', wrappedError, result)
             throw wrappedError
           }
@@ -581,8 +596,8 @@ export default class Transport {
 
             // Wrap the error to get a clean stack trace
             const wrappedError = error.name === 'TimeoutError'
-              ? new TimeoutError(error.message, result)
-              : new ConnectionError(error.message, result)
+              ? new TimeoutError(error.message, result, errorOptions)
+              : new ConnectionError(error.message, result, errorOptions)
             this[kDiagnostic].emit('response', wrappedError, result)
             throw wrappedError
           }

@@ -19,44 +19,67 @@
 
 import * as http from 'http'
 import { DiagnosticResult } from './types'
+import { RedactionOptions } from './Transport'
+import { redactDiagnostic } from './security'
+
+export interface ErrorOptions {
+  redaction: RedactionOptions
+}
 
 export class ElasticsearchClientError extends Error {
-  constructor (message: string) {
+  options: ErrorOptions
+  constructor (message: string, options?: ErrorOptions) {
     super(message)
     this.name = 'ElasticsearchClientError'
+
+    this.options = {
+      redaction: {
+        type: 'replace',
+        additionalKeys: []
+      }
+    }
+
+    if (isObject(options)) {
+      this.options.redaction = { ...this.options.redaction, ...options.redaction }
+    }
   }
 }
 
 export class TimeoutError extends ElasticsearchClientError {
   meta?: DiagnosticResult
-  constructor (message: string, meta?: DiagnosticResult) {
-    super(message)
+  constructor (message: string, meta?: DiagnosticResult, options?: ErrorOptions) {
+    super(message, options)
     Error.captureStackTrace(this, TimeoutError)
     this.name = 'TimeoutError'
     this.message = message ?? 'Timeout Error'
+
+    if (isObject(meta)) meta = redactDiagnostic(meta, this.options.redaction)
     this.meta = meta
   }
 }
 
 export class ConnectionError extends ElasticsearchClientError {
   meta?: DiagnosticResult
-  constructor (message: string, meta?: DiagnosticResult) {
-    super(message)
+  constructor (message: string, meta?: DiagnosticResult, options?: ErrorOptions) {
+    super(message, options)
     Error.captureStackTrace(this, ConnectionError)
     this.name = 'ConnectionError'
     this.message = message ?? 'Connection Error'
+
+    if (isObject(meta)) meta = redactDiagnostic(meta, this.options.redaction)
     this.meta = meta
   }
 }
 
 export class NoLivingConnectionsError extends ElasticsearchClientError {
   meta: DiagnosticResult
-  constructor (message: string, meta: DiagnosticResult) {
-    super(message)
+  constructor (message: string, meta: DiagnosticResult, options?: ErrorOptions) {
+    super(message, options)
     Error.captureStackTrace(this, NoLivingConnectionsError)
     this.name = 'NoLivingConnectionsError'
     this.message = message ?? 'Given the configuration, the ConnectionPool was not able to find a usable Connection for this request.'
-    this.meta = meta
+
+    this.meta = redactDiagnostic(meta, this.options.redaction)
   }
 }
 
@@ -93,10 +116,11 @@ export class ConfigurationError extends ElasticsearchClientError {
 
 export class ResponseError extends ElasticsearchClientError {
   meta: DiagnosticResult
-  constructor (meta: DiagnosticResult) {
-    super('Response Error')
+  constructor (meta: DiagnosticResult, options?: ErrorOptions) {
+    super('Response Error', options)
     Error.captureStackTrace(this, ResponseError)
     this.name = 'ResponseError'
+
     // TODO: this is for Elasticsearch
     if (isObject(meta.body) && meta.body.error != null && meta.body.error.type != null) {
       this.message = meta.body.error.type
@@ -126,7 +150,8 @@ export class ResponseError extends ElasticsearchClientError {
     } else {
       this.message = meta.body as string ?? 'Response Error'
     }
-    this.meta = meta
+
+    this.meta = redactDiagnostic(meta, this.options.redaction)
   }
 
   get body (): any | undefined {
@@ -147,26 +172,30 @@ export class ResponseError extends ElasticsearchClientError {
 
 export class RequestAbortedError extends ElasticsearchClientError {
   meta?: DiagnosticResult
-  constructor (message: string, meta?: DiagnosticResult) {
-    super(message)
+  constructor (message: string, meta?: DiagnosticResult, options?: ErrorOptions) {
+    super(message, options)
     Error.captureStackTrace(this, RequestAbortedError)
     this.name = 'RequestAbortedError'
     this.message = message ?? 'Request aborted'
+
+    if (isObject(meta)) meta = redactDiagnostic(meta, this.options.redaction)
     this.meta = meta
   }
 }
 
 export class ProductNotSupportedError extends ElasticsearchClientError {
   meta?: DiagnosticResult
-  constructor (product: string, meta?: DiagnosticResult) {
-    super('Product Not Supported Error')
+  constructor (product: string, meta?: DiagnosticResult, options?: ErrorOptions) {
+    super('Product Not Supported Error', options)
     Error.captureStackTrace(this, ProductNotSupportedError)
     this.name = 'ProductNotSupportedError'
     this.message = `The client noticed that the server is not ${product} and we do not support this unknown product.`
+
+    if (isObject(meta)) meta = redactDiagnostic(meta, this.options.redaction)
     this.meta = meta
   }
 }
 
 function isObject (obj: any): obj is Record<string, any> {
-  return typeof obj === 'object'
+  return typeof obj === 'object' && obj !== null
 }

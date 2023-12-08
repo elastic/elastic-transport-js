@@ -2013,7 +2013,6 @@ test('As stream', async t => {
 
   const [{ port }, server] = await buildServer(handler)
 
-
   const pool = new WeightedConnectionPool({ Connection: UndiciConnection })
   pool.addConnection(`http://localhost:${port}`)
   const transport = new Transport({ connectionPool: pool })
@@ -2030,31 +2029,111 @@ test('As stream', async t => {
   server.stop()
 })
 
-// test('Lowercase headers utilty', t => {
-//   t.plan(4)
-//   const { lowerCaseHeaders } = Transport.internals
+test('Error redaction defaults', async t => {
+  t.plan(1)
 
-//   t.same(lowerCaseHeaders({
-//     Foo: 'bar',
-//     Faz: 'baz',
-//     'X-Hello': 'world'
-//   }), {
-//     foo: 'bar',
-//     faz: 'baz',
-//     'x-hello': 'world'
-//   })
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+    setTimeout(() => res.end('ok'), 100)
+  }
+  const [{ port }, server] = await buildServer(handler)
 
-//   t.same(lowerCaseHeaders({
-//     Foo: 'bar',
-//     faz: 'baz',
-//     'X-hello': 'world'
-//   }), {
-//     foo: 'bar',
-//     faz: 'baz',
-//     'x-hello': 'world'
-//   })
+  const pool = new WeightedConnectionPool({ Connection: UndiciConnection })
+  pool.addConnection(`http://localhost:${port}`)
 
-//   t.equal(lowerCaseHeaders(null), null)
+  const transport = new Transport({
+    connectionPool: pool,
+    requestTimeout: 50,
+  })
 
-//   t.equal(lowerCaseHeaders(undefined), undefined)
-// })
+  try {
+    await transport.request({
+      path: '/hello',
+      method: 'GET'
+    }, {
+        meta: true,
+        headers: {
+          authorization: '**-the--secret--code-**'
+        }
+      })
+  } catch (err: any) {
+    if (err instanceof TimeoutError) {
+      t.notMatch(JSON.stringify(err.meta?.meta?.request?.options?.headers), '**-the--secret--code-**')
+    } else {
+      t.fail('should not be called')
+    }
+  }
+  server.stop()
+})
+
+test('Error "remove" redaction', async t => {
+  t.plan(1)
+
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+    setTimeout(() => res.end('ok'), 100)
+  }
+  const [{ port }, server] = await buildServer(handler)
+
+  const pool = new WeightedConnectionPool({ Connection: UndiciConnection })
+  pool.addConnection(`http://localhost:${port}`)
+
+  const transport = new Transport({
+    connectionPool: pool,
+    requestTimeout: 50,
+    redaction: { type: 'remove' }
+  })
+
+  try {
+    await transport.request({
+      path: '/hello',
+      method: 'GET'
+    })
+  } catch (err: any) {
+    if (err instanceof TimeoutError && err.meta !== undefined) {
+      t.equal(err.meta.meta.connection, null)
+    } else {
+      t.fail(`should not be called, got error: ${err}`)
+    }
+  }
+  server.stop()
+})
+
+test('Error additional key redaction', async t => {
+  t.plan(4)
+
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+    setTimeout(() => res.end('ok'), 100)
+  }
+  const [{ port }, server] = await buildServer(handler)
+
+  const pool = new WeightedConnectionPool({ Connection: UndiciConnection })
+  pool.addConnection(`http://localhost:${port}`)
+
+  const transport = new Transport({
+    connectionPool: pool,
+    requestTimeout: 50,
+    redaction: { type: 'replace', additionalKeys: ['x-elastic-secrets'] }
+  })
+
+  try {
+    await transport.request({
+      path: '/hello',
+      method: 'GET'
+    }, {
+        meta: true,
+        headers: {
+          authorization: 'foo',
+          'x-elastic-secrets': 'bar'
+        }
+      })
+  } catch (err: any) {
+    if (err instanceof TimeoutError) {
+      t.notMatch(JSON.stringify(err.meta?.meta?.request?.options?.headers), '"authorization":"foo"')
+      t.notMatch(JSON.stringify(err.meta?.meta?.request?.options?.headers), 'foo')
+      t.notMatch(JSON.stringify(err.meta?.meta?.request?.options?.headers), '"x-elastic-secrets":"bar"')
+      t.notMatch(JSON.stringify(err.meta?.meta?.request?.options?.headers), 'bar')
+    } else {
+      t.fail('should not be called')
+    }
+  }
+  server.stop()
+})
