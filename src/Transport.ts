@@ -356,9 +356,12 @@ export default class Transport {
       headers: {},
       meta,
       get warnings () {
-        return this.headers?.warning != null
-          ? this.headers.warning.split(/(?!\B"[^"]*),(?![^"]*"\B)/)
-          : null
+        if (this.headers?.warning == null) {
+          return null
+        }
+        return this.headers.warning
+          .split(/(?!\B"[^"]*),(?![^"]*"\B)/)
+          .filter((warning) => warning.match(/^\d\d\d Elasticsearch-/))
       }
     }
 
