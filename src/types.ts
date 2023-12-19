@@ -42,6 +42,7 @@ export interface DiagnosticResult<TResponse = unknown, TContext = unknown> {
       options: TransportRequestOptions
       id: any
     }
+    duration: number
     connection: Connection | null
     attempts: number
     aborted: boolean

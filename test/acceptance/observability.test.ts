@@ -425,3 +425,32 @@ test('event.meta.request.params.body should be a string', t => {
     .then(() => t.pass('ok'))
     .catch(err => t.fail(err))
 })
+
+test('request duration', t => {
+  t.plan(7)
+
+  const client = new TestClient({
+    node: 'http://localhost:9200',
+    Connection: MockConnection
+  })
+
+  client.diagnostic.on(events.SERIALIZATION, (err, event) => {
+    t.error(err)
+    t.equal(event?.meta.duration, -1)
+  })
+
+  client.diagnostic.on(events.REQUEST, (err, event) => {
+    t.error(err)
+    t.equal(event?.meta.duration, -1)
+  })
+
+  client.diagnostic.on(events.RESPONSE, (err, event) => {
+    t.error(err)
+    // @ts-expect-error
+    t.ok(event?.meta.duration >= 0)
+  })
+
+  client.request({ method: 'POST', path: '/', body: { foo: 'bar' } })
+    .then(() => t.pass('ok'))
+    .catch(err => t.fail(err))
+})
