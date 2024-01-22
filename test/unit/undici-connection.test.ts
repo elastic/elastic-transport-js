@@ -1059,6 +1059,26 @@ test('Path without intial slash', async t => {
   server.stop()
 })
 
+test('Should increase number of max event listeners', async t => {
+  t.plan(1)
+
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+    res.end('ok')
+  }
+
+  const [{ port }, server] = await buildServer(handler, { secure: true })
+  const connection = new UndiciConnection({
+    url: new URL(`https://localhost:${port}`),
+    maxEventListeners: 100,
+  })
+  const res = await connection.request({
+    path: '/hello',
+    method: 'GET'
+  }, options)
+  t.equal(res.body, 'ok')
+  server.stop()
+})
+
 test('as stream', async t => {
   t.plan(2)
 

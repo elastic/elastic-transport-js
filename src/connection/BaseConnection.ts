@@ -46,6 +46,7 @@ export interface ConnectionOptions {
   agent?: HttpAgentOptions | UndiciAgentOptions | agentFn | boolean
   proxy?: string | URL
   caFingerprint?: string
+  maxEventListeners?: number
 }
 
 export interface ConnectionRequestParams {
@@ -92,6 +93,7 @@ export default class BaseConnection {
   resurrectTimeout: number
   _openRequests: number
   weight: number
+  maxEventListeners: number
   [kStatus]: string
   [kCaFingerprint]: string | null
   [kDiagnostic]: Diagnostic
@@ -111,10 +113,10 @@ export default class BaseConnection {
     this.resurrectTimeout = 0
     this.weight = 0
     this._openRequests = 0
+    this.maxEventListeners = opts.maxEventListeners ?? 100
     this[kStatus] = opts.status ?? BaseConnection.statuses.ALIVE
     this[kDiagnostic] = opts.diagnostic ?? new Diagnostic()
     this[kCaFingerprint] = opts.caFingerprint ?? null
-
     if (!['http:', 'https:'].includes(this.url.protocol)) {
       throw new ConfigurationError(`Invalid protocol: '${this.url.protocol}'`)
     }
