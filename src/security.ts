@@ -45,7 +45,7 @@ export function redactObject (obj: Record<string, any>, additionalKeys: string[]
         value = `${value.origin}${value.pathname}${value.search}`
       }
 
-      if (typeof value === 'object' && value !== null) {
+      if (typeof value === 'object' && !Array.isArray(value) && value !== null) {
         if (seen.get(value) !== true) {
           // if this Object hasn't been seen, recursively redact it
           seen.set(value, true)

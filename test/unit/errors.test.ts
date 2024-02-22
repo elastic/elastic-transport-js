@@ -165,3 +165,26 @@ test('redact extra keys when passed', t => {
 
   t.end()
 })
+
+test('redaction does not transform array properties into objects', t => {
+  const errResponse = new errors.ResponseError({
+    body: {
+      error: {
+        root_cause: [
+          {
+            type: 'index_not_found_exception',
+            reason: 'no such index [poop]',
+          },
+        ],
+      },
+      status: 404,
+    },
+    statusCode: 404,
+    headers: {},
+    warnings: [],
+    meta: {} as any,
+  });
+
+  t.equal(Array.isArray(errResponse.body.error.root_cause), true)
+  t.end()
+})
