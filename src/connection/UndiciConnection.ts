@@ -68,6 +68,7 @@ export default class Connection extends BaseConnection {
     }
 
     this[kEmitter] = new EventEmitter()
+    this[kEmitter].setMaxListeners(this.maxEventListeners)
     const undiciOptions: Pool.Options = {
       keepAliveTimeout: 600e3,
       keepAliveMaxTimeout: 600e3,
