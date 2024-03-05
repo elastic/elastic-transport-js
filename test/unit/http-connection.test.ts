@@ -1266,7 +1266,7 @@ test('Cleanup abort listener', async t => {
     method: 'GET',
   }, {
     ...options,
-    signal: controller.signal
+    signal: controller.signal as AbortSignal
   })
   // @ts-expect-error
   t.equal(controller.signal.eventEmitter.listeners('abort').length, 0)
