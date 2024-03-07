@@ -192,5 +192,18 @@ test('redactObject', t => {
     t.equal(result.url, 'http://foo.com/path/to/endpoint?query=true')
   })
 
+  t.test('properly recurses into arrays', t => {
+    t.plan(2)
+    const result = redactObject({
+      foo: [
+        { authorization: 'foo' },
+        { password: 'bar' },
+      ]
+    })
+
+    t.notMatch(result.foo[0].authorization, 'foo')
+    t.notMatch(result.foo[1].password, 'bar')
+  })
+
   t.end()
 })
