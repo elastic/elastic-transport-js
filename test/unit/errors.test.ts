@@ -188,3 +188,12 @@ test('redaction does not transform array properties into objects', t => {
   t.equal(Array.isArray(errResponse.body.error.root_cause), true)
   t.end()
 })
+
+test('redaction does leak back to original object', t => {
+  const diags = makeDiagnostics()
+  diags.forEach(diag => {
+    const err = new errors.TimeoutError('timeout', diag)
+    t.not(err?.meta?.headers?.authorization, diag.headers?.authorization)
+  })
+  t.end()
+})
