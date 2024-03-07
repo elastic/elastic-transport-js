@@ -45,15 +45,20 @@ export function redactObject (obj: Record<string, any>, additionalKeys: string[]
         value = `${value.origin}${value.pathname}${value.search}`
       }
 
-      if (typeof value === 'object' && !Array.isArray(value) && value !== null) {
-        if (seen.get(value) !== true) {
-          // if this Object hasn't been seen, recursively redact it
-          seen.set(value, true)
-          value = doRedact(value)
+      if (typeof value === 'object' && value !== null) {
+        if (Array.isArray(value)) {
+          // if it's an array, redact each item
+          value = value.map(v => doRedact(v))
         } else {
-          // if it has been seen, set the value that goes in newObj to null
-          // this is what prevents the circular references
-          value = null
+          if (seen.get(value) !== true) {
+            // if this Object hasn't been seen, recursively redact it
+            seen.set(value, true)
+            value = doRedact(value)
+          } else {
+            // if it has been seen, set the value that goes in newObj to null
+            // this is what prevents the circular references
+            value = null
+          }
         }
       }
 
