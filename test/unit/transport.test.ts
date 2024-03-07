@@ -2138,3 +2138,40 @@ test('Error additional key redaction', async t => {
   }
   server.stop()
 })
+
+test('redaction does not get leaked to original object', async t => {
+  t.plan(1)
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+    setTimeout(() => res.end('ok'), 100)
+  }
+  const [{ port }, server] = await buildServer(handler)
+
+  const pool = new WeightedConnectionPool({ Connection: UndiciConnection })
+  pool.addConnection(`http://localhost:${port}`)
+
+  const transport = new Transport({
+    connectionPool: pool,
+    requestTimeout: 50,
+  })
+
+  const original = {
+    meta: true,
+    headers: {
+      authorization: '**-the--secret--code-**'
+    }
+  }
+
+  try {
+    await transport.request({
+      path: '/hello',
+      method: 'GET'
+    }, original)
+  } catch (err: any) {
+    if (err instanceof TimeoutError) {
+      t.match(original.headers.authorization, '**-the--secret--code-**')
+    } else {
+      t.fail(`should not be called, got error: ${err}`)
+    }
+  }
+  server.stop()
+})
