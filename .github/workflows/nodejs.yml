@@ -26,13 +26,6 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      # workaround for failing tests on Node.js 14.x
-      # see https://github.com/actions/setup-node/issues/411
-      - name: Force install specific npm version
-        run: |
-          npm install --global npm@8.3.1
-          npm install --global npm@9.7.1
-
       - name: Install
         run: |
           npm install
@@ -48,42 +41,6 @@ jobs:
       - name: Acceptance test
         run: |
           npm run test:acceptance
-
-  # TODO: migrate to Buildkite, Codecov is no longer used at Elastic
-  # code-coverage:
-  #   name: Code coverage
-  #   runs-on: ubuntu-latest
-
-  #   strategy:
-  #     matrix:
-  #       node-version: [18.x]
-
-  #   steps:
-  #     - uses: actions/checkout@v3
-
-  #     - name: Use Node.js ${{ matrix.node-version }}
-  #       uses: actions/setup-node@v2
-  #       with:
-  #         node-version: ${{ matrix.node-version }}
-
-  #     - name: Install
-  #       run: |
-  #         npm install
-
-  #     - name: Code coverage report
-  #       run: |
-  #         npm run test:coverage-report
-
-  #     - name: Upload coverage to Codecov
-  #       uses: codecov/codecov-action@v3
-  #       with:
-  #         file: ./coverage.lcov
-  #         fail_ci_if_error: true
-
-    # TODO: renabled this as soon as the project is back at 100%
-    # - name: Code coverage 100%
-    #   run: |
-    #     npm run test:coverage-100
 
   license:
     name: License check
