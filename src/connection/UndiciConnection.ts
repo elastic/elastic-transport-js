@@ -142,7 +142,6 @@ export default class Connection extends BaseConnection {
       timeoutId = setTimeout(() => {
         timedout = true
         if (options.signal != null) {
-          // @ts-expect-error Event is a Node.js global
           options.signal.dispatchEvent(new Event('abort'))
         } else {
           this[kEmitter].emit('abort')
@@ -165,6 +164,7 @@ export default class Connection extends BaseConnection {
       if (timeoutId != null) clearTimeout(timeoutId)
       switch (err.code) {
         case 'UND_ERR_ABORTED':
+        case DOMException.ABORT_ERR:
           throw (timedout ? new TimeoutError('Request timed out') : new RequestAbortedError('Request aborted'))
         case 'UND_ERR_HEADERS_TIMEOUT':
           throw new TimeoutError('Request timed out')
