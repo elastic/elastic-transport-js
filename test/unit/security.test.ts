@@ -205,5 +205,15 @@ test('redactObject', t => {
     t.notMatch(result.foo[1].password, 'bar')
   })
 
+  t.test('does not fail on undefined or null', t => {
+    // @ts-expect-error
+    t.doesNotThrow(() => redactObject(null))
+    // @ts-expect-error
+    t.doesNotThrow(() => redactObject(undefined))
+    t.doesNotThrow(() => redactObject({ foo: undefined }))
+    t.doesNotThrow(() => redactObject({ foo: null }))
+    t.end()
+  })
+
   t.end()
 })

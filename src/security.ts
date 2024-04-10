@@ -38,14 +38,14 @@ export function redactObject (obj: Record<string, any>, additionalKeys: string[]
   return doRedact(obj)
 
   function doRedact (obj: Record<string, any>): Record<string, any> {
+    if (typeof obj !== 'object' || obj == null) return obj
+
     const newObj: Record<string, any> = {}
     Object.entries(obj).forEach(([key, value]) => {
       // pull auth info out of URL objects
       if (value instanceof URL) {
         value = `${value.origin}${value.pathname}${value.search}`
-      }
-
-      if (typeof value === 'object' && value !== null) {
+      } else if (typeof value === 'object' && value !== null) {
         if (Array.isArray(value)) {
           // if it's an array, redact each item
           value = value.map(v => doRedact(v))
