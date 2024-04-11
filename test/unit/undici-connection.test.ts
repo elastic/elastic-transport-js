@@ -513,8 +513,12 @@ test('Abort with a slow body', async t => {
   t.plan(1)
 
   const controller = new AbortController()
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+    res.end('ok')
+  }
+  const [{ port }, server] = await buildServer(handler)
   const connection = new UndiciConnection({
-    url: new URL('https://localhost:9200')
+    url: new URL(`http://localhost:${port}`)
   })
 
   const slowBody = new Readable({
@@ -540,6 +544,7 @@ test('Abort with a slow body', async t => {
   } catch (err: any) {
     t.ok(err instanceof RequestAbortedError)
   }
+  server.stop()
 })
 
 // The nodejs http agent will try to wait for the whole
