@@ -17,7 +17,6 @@
  * under the License.
  */
 
-import { URL } from 'url'
 import { ConnectionOptions as TlsConnectionOptions } from 'tls'
 import Debug from 'debug'
 import Diagnostic from '../Diagnostic'

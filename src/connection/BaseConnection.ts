@@ -18,8 +18,7 @@
  */
 
 import { inspect } from 'util'
-import * as http from 'http'
-import { URL } from 'url'
+import type http from 'http'
 import { ConnectionOptions as TlsConnectionOptions, TLSSocket, DetailedPeerCertificate } from 'tls'
 import { Readable as ReadableStream } from 'stream'
 import Diagnostic from '../Diagnostic'

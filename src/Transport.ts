@@ -19,7 +19,7 @@
 
 import Debug from 'debug'
 import os from 'os'
-import * as http from 'http'
+import type http from 'http'
 import zlib from 'zlib'
 import buffer from 'buffer'
 import { promisify } from 'util'

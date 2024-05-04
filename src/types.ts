@@ -18,8 +18,7 @@
  */
 
 import { Readable as ReadableStream } from 'stream'
-import { URL } from 'url'
-import * as http from 'http'
+import type http from 'http'
 import { Connection, ConnectionOptions, ConnectionRequestParams } from './connection'
 import { TransportRequestParams, TransportRequestOptions } from './Transport'
 
