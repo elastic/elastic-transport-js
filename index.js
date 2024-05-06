@@ -24,6 +24,7 @@ const Transport = require('./lib/Transport').default
 const {
   BaseConnection,
   HttpConnection,
+  FetchConnection,
   UndiciConnection
 } = require('./lib/connection')
 const {
@@ -39,6 +40,7 @@ module.exports = {
   Diagnostic,
   Transport,
   BaseConnection,
+  FetchConnection,
   HttpConnection,
   UndiciConnection,
   BaseConnectionPool,

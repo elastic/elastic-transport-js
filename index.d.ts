@@ -22,6 +22,7 @@ import Transport from './lib/Transport'
 import {
   BaseConnection,
   HttpConnection,
+  FetchConnection,
   UndiciConnection
 } from './lib/connection'
 import {
@@ -77,6 +78,7 @@ export {
   CloudConnectionPool,
   BaseConnection,
   HttpConnection,
+  FetchConnection,
   UndiciConnection,
   Serializer,
   errors,

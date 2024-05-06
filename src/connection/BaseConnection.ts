@@ -17,9 +17,8 @@
  * under the License.
  */
 
-import { inspect } from 'util'
 import type http from 'http'
-import { ConnectionOptions as TlsConnectionOptions, TLSSocket, DetailedPeerCertificate } from 'tls'
+import type { ConnectionOptions as TlsConnectionOptions, TLSSocket, DetailedPeerCertificate } from 'tls'
 import { Readable as ReadableStream } from 'stream'
 import Diagnostic from '../Diagnostic'
 import {
@@ -152,7 +151,7 @@ export default class BaseConnection {
   // We want to hide `auth`, `agent` and `tls` since they made
   // the logs very hard to read. The user can still
   // access them with `instance.agent` and `instance.tls`.
-  [inspect.custom] (depth: number, options: Record<string, any>): Record<string, any> {
+  [Symbol.for('util.inspect.custom')] (depth: number, options: Record<string, any>): Record<string, any> {
     const {
       authorization,
       ...headers
