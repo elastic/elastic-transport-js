@@ -504,7 +504,7 @@ export default class Transport {
         }
 
         const contentEncoding = (headers['content-encoding'] ?? '').toLowerCase()
-        if (contentEncoding.includes('gzip') || contentEncoding.includes('deflate')) {
+        if (compression && (contentEncoding.includes('gzip') || contentEncoding.includes('deflate'))) {
           body = await unzip(body)
         }
 

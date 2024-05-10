@@ -85,16 +85,12 @@ export default class FetchConnection extends BaseConnection {
         response = await this.feth(
           url,
           {
+            method: params.method,
             // @ts-expect-error
             body: params.body,
             headers,
             keepalive: this.keepAlive,
-            // @ts-expect-error
-            signal: AbortSignal.any([
-              abrotController.signal,
-              options.signal,
-              timeoutSignal
-            ].filter(Boolean))
+            signal: null
           })
       } finally {
         this._openRequests--

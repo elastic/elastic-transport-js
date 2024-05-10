@@ -17,7 +17,6 @@
  * under the License.
  */
 
-// import BaseConnection from './BaseConnection'
 // import HttpConnection from './HttpConnection'
 // import UndiciConnection from './UndiciConnection'
 import BaseConnection from './BaseConnection'

@@ -21,9 +21,9 @@ import Diagnostic, { events } from './lib/Diagnostic'
 import Transport from './lib/Transport'
 import {
   BaseConnection,
-  HttpConnection,
+  // HttpConnection,
   FetchConnection,
-  UndiciConnection
+  // UndiciConnection
 } from './lib/connection'
 import {
   WeightedConnectionPool,
@@ -77,9 +77,9 @@ export {
   BaseConnectionPool,
   CloudConnectionPool,
   BaseConnection,
-  HttpConnection,
+  // HttpConnection,
   FetchConnection,
-  UndiciConnection,
+  // UndiciConnection,
   Serializer,
   errors,
   events
