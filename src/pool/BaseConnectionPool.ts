@@ -144,8 +144,8 @@ export default class BaseConnectionPool {
   /**
    * Adds a new connection to the pool.
    *
-   * @param {object|string} host
-   * @returns {ConnectionPool}
+   * @param connection Connection options, or the URL of a node
+   * @returns This ConnectionPool instance
    */
   addConnection (connection: AddConnectionOptions | AddConnectionOptions[]): this {
     if (Array.isArray(connection)) {
@@ -160,10 +160,10 @@ export default class BaseConnectionPool {
   }
 
   /**
-   * Removes a new connection to the pool.
+   * Removes a connection from the pool.
    *
-   * @param {object} connection
-   * @returns {ConnectionPool}
+   * @param connection The connection to remove
+   * @returns This ConnectionPool instance
    */
   removeConnection (connection: Connection): this {
     debug('Removing connection', connection)

@@ -523,7 +523,7 @@ test('ResponseError (query failure)', async t => {
 test('Retry mechanism', async t => {
   let count = 0
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
+    onRequest(_opts: ConnectionRequestParams): { body: any, statusCode: number } {
       count += 1
       return {
         body: { hello: 'world' },
@@ -553,7 +553,7 @@ test('Retry mechanism', async t => {
 test('Should not retry if the body is a stream', async t => {
   let count = 0
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
+    onRequest(_opts: ConnectionRequestParams): { body: any, statusCode: number } {
       count += 1
       return {
         body: { hello: 'world' },
@@ -588,7 +588,7 @@ test('Should not retry if the body is a stream', async t => {
 test('Should not retry if the bulkBody is a stream', async t => {
   let count = 0
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
+    onRequest(_opts: ConnectionRequestParams): { body: any, statusCode: number } {
       count += 1
       return {
         body: { hello: 'world' },
@@ -724,7 +724,7 @@ test('Retry on timeout error', async t => {
 
 test('Abort a request', async t => {
   const Conn = buildMockConnection({
-    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
+    onRequest(_opts: ConnectionRequestParams): { body: any, statusCode: number } {
       return {
         body: { hello: 'world' },
         statusCode: 200

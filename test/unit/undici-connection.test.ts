@@ -125,7 +125,7 @@ test('Basic (https with tls agent)', async t => {
 test('Timeout support / 1', async t => {
   t.plan(1)
 
-  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
     setTimeout(() => res.end('ok'), 100)
   }
 
@@ -149,7 +149,7 @@ test('Timeout support / 1', async t => {
 test('Timeout support / 2', async t => {
   t.plan(2)
 
-  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
     res.writeHead(200, { 'content-type': 'text/plain' })
     setTimeout(() => res.end('ok'), 100)
   }
@@ -174,7 +174,7 @@ test('Timeout support / 2', async t => {
 test('Timeout support / 3', async t => {
   t.plan(2)
 
-  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
     setTimeout(() => res.end('ok'), 100)
   }
 
@@ -201,7 +201,7 @@ test('Timeout support / 3', async t => {
 test('Timeout support / 4', async t => {
   t.plan(2)
 
-  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
     setTimeout(() => res.end('ok'), 100)
   }
 
@@ -231,7 +231,7 @@ test('Timeout support / 4', async t => {
 test('Timeout support / 5', async t => {
   t.plan(1)
 
-  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
     res.end('ok')
   }
 
@@ -356,7 +356,7 @@ test('Send body as stream', async t => {
 test('Should not close a connection if there are open requests', async t => {
   t.plan(1)
 
-  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
     setTimeout(() => res.end('ok'), 100)
   }
 
@@ -450,7 +450,7 @@ test('Should disallow two-byte characters in URL path', async t => {
 test('Abort a request syncronously', async t => {
   t.plan(2)
 
-  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+  function handler (_req: http.IncomingMessage, _res: http.ServerResponse) {
     t.fail('The server should not be contacted')
   }
 
@@ -480,7 +480,7 @@ test('Abort a request syncronously', async t => {
 test('Abort a request asyncronously', async t => {
   t.plan(1)
 
-  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
     // might be called or not
     res.end('ok')
   }
@@ -522,7 +522,7 @@ test('Abort with a slow body', async t => {
   })
 
   const slowBody = new Readable({
-    read (size: number) {
+    read (_size: number) {
       setTimeout(() => {
         this.push('{"size":1, "query":{"match_all":{}}}')
         this.push(null) // EOF
@@ -553,7 +553,7 @@ test('Abort with a slow body', async t => {
 test('Bad content length', async t => {
   t.plan(2)
 
-  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
     const body = JSON.stringify({ hello: 'world' })
     res.setHeader('Content-Type', 'application/json;utf=8')
     res.setHeader('Content-Length', body.length + '')
@@ -579,7 +579,7 @@ test('Bad content length', async t => {
 test('Socket destryed while reading the body', async t => {
   t.plan(2)
 
-  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
     const body = JSON.stringify({ hello: 'world' })
     res.setHeader('Content-Type', 'application/json;utf=8')
     res.setHeader('Content-Length', body.length + '')
@@ -764,7 +764,7 @@ test('Content length too big custom option (string)', async t => {
 test('Body too big custom option (string)', async t => {
   t.plan(2)
 
-  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
     res.writeHead(200, {
       'content-type': 'application/json;utf=8',
       'transfer-encoding': 'chunked'
@@ -796,7 +796,7 @@ test('Body too big custom option (string)', async t => {
 test('Body too big custom option (buffer)', async t => {
   t.plan(2)
 
-  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
     res.writeHead(200, {
       'content-type': 'application/json;utf=8',
       'content-encoding': 'gzip',
@@ -954,7 +954,7 @@ test('Support mapbox vector tile', async t => {
 
   const mvtContent = 'GoMCCgRtZXRhEikSFAAAAQACAQMBBAAFAgYDBwAIBAkAGAMiDwkAgEAagEAAAP8//z8ADxoOX3NoYXJkcy5mYWlsZWQaD19zaGFyZHMuc2tpcHBlZBoSX3NoYXJkcy5zdWNjZXNzZnVsGg1fc2hhcmRzLnRvdGFsGhlhZ2dyZWdhdGlvbnMuX2NvdW50LmNvdW50GhdhZ2dyZWdhdGlvbnMuX2NvdW50LnN1bRoTaGl0cy50b3RhbC5yZWxhdGlvbhoQaGl0cy50b3RhbC52YWx1ZRoJdGltZWRfb3V0GgR0b29rIgIwACICMAIiCRkAAAAAAAAAACIECgJlcSICOAAogCB4Ag=='
 
-  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
     res.setHeader('Content-Type', 'application/vnd.mapbox-vector-tile')
     res.end(Buffer.from(mvtContent, 'base64'))
   }
@@ -974,7 +974,7 @@ test('Support mapbox vector tile', async t => {
 test('Check server fingerprint (success)', async t => {
   t.plan(1)
 
-  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
     res.end('ok')
   }
 
@@ -994,7 +994,7 @@ test('Check server fingerprint (success)', async t => {
 test('Check server fingerprint (failure)', async t => {
   t.plan(2)
 
-  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
     res.end('ok')
   }
 
@@ -1019,7 +1019,7 @@ test('Check server fingerprint (failure)', async t => {
 test('Should show local/remote socket addres in case of ECONNRESET', async t => {
   t.plan(2)
 
-  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
     res.destroy()
   }
 
@@ -1067,7 +1067,7 @@ test('Path without intial slash', async t => {
 test('as stream', async t => {
   t.plan(2)
 
-  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
     res.end('ok')
   }
 

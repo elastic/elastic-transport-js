@@ -115,7 +115,7 @@ export default class HttpConnection extends BaseConnection {
       }
 
       const abortListener = (): void => {
-        request.abort()
+        request.destroy(new RequestAbortedError('Request aborted'))
       }
 
       this._openRequests++
@@ -169,10 +169,7 @@ export default class HttpConnection extends BaseConnection {
         function onDataAsBuffer (chunk: Buffer): void {
           currentLength += Buffer.byteLength(chunk)
           if (currentLength > maxCompressedResponseSize) {
-            // TODO: hacky solution, refactor to avoid using the deprecated aborted event
-            response.removeListener('aborted', onAbort)
-            response.destroy()
-            onEnd(new RequestAbortedError(`The content length (${currentLength}) is bigger than the maximum allowed buffer (${maxCompressedResponseSize})`))
+            response.destroy(new RequestAbortedError(`The content length (${currentLength}) is bigger than the maximum allowed buffer (${maxCompressedResponseSize})`))
           } else {
             (payload as Buffer[]).push(chunk)
           }
@@ -181,10 +178,7 @@ export default class HttpConnection extends BaseConnection {
         function onDataAsString (chunk: string): void {
           currentLength += Buffer.byteLength(chunk)
           if (currentLength > maxResponseSize) {
-            // TODO: hacky solution, refactor to avoid using the deprecated aborted event
-            response.removeListener('aborted', onAbort)
-            response.destroy()
-            onEnd(new RequestAbortedError(`The content length (${currentLength}) is bigger than the maximum allowed string (${maxResponseSize})`))
+            response.destroy(new RequestAbortedError(`The content length (${currentLength}) is bigger than the maximum allowed string (${maxResponseSize})`))
           } else {
             payload = `${payload as string}${chunk}`
           }
@@ -194,10 +188,14 @@ export default class HttpConnection extends BaseConnection {
           response.removeListener('data', onData)
           response.removeListener('end', onEnd)
           response.removeListener('error', onEnd)
-          response.removeListener('aborted', onAbort)
           request.removeListener('error', noop)
 
           if (err != null) {
+            // @ts-expect-error
+            if (err.message === 'aborted' && err.code === 'ECONNRESET') {
+              response.destroy()
+              return reject(new ConnectionError('Response aborted while reading the body'))
+            }
             if (err.name === 'RequestAbortedError') {
               return reject(err)
             }
@@ -211,11 +209,6 @@ export default class HttpConnection extends BaseConnection {
           })
         }
 
-        const onAbort = (): void => {
-          response.destroy()
-          onEnd(new Error('Response aborted while reading the body'))
-        }
-
         if (!isCompressed && !isVectorTile) {
           response.setEncoding('utf8')
         }
@@ -224,14 +217,13 @@ export default class HttpConnection extends BaseConnection {
         response.on('data', onData)
         response.on('error', onEnd)
         response.on('end', onEnd)
-        response.on('aborted', onAbort)
       }
 
       const onTimeout = (): void => {
         cleanListeners()
         this._openRequests--
         request.once('error', () => {}) // we need to catch the request aborted error
-        request.abort()
+        request.destroy()
         reject(new TimeoutError('Request timed out'))
       }
 
@@ -239,19 +231,14 @@ export default class HttpConnection extends BaseConnection {
         cleanListeners()
         this._openRequests--
         let message = err.message
+        if (err.name === 'RequestAbortedError') {
+          return reject(err)
+        }
         // @ts-expect-error
         if (err.code === 'ECONNRESET') {
           message += ` - Local: ${request.socket?.localAddress ?? 'unknown'}:${request.socket?.localPort ?? 'unknown'}, Remote: ${request.socket?.remoteAddress ?? 'unknown'}:${request.socket?.remotePort ?? 'unknown'}`
         }
         reject(new ConnectionError(message))
-      }
-
-      const onAbort = (): void => {
-        cleanListeners()
-        request.once('error', () => {}) // we need to catch the request aborted error
-        debug('Request aborted', params)
-        this._openRequests--
-        reject(new RequestAbortedError('Request aborted'))
       }
 
       const onSocket = (socket: TLSSocket): void => {
@@ -263,7 +250,7 @@ export default class HttpConnection extends BaseConnection {
             if (issuerCertificate == null) {
               onError(new Error('Invalid or malformed certificate'))
               request.once('error', () => {}) // we need to catch the request aborted error
-              return request.abort()
+              return request.destroy()
             }
 
             // Check if fingerprint matches
@@ -271,7 +258,7 @@ export default class HttpConnection extends BaseConnection {
             if (this[kCaFingerprint] !== issuerCertificate.fingerprint256) {
               onError(new Error('Server certificate CA fingerprint does not match the value configured in caFingerprint'))
               request.once('error', () => {}) // we need to catch the request aborted error
-              return request.abort()
+              return request.destroy()
             }
           })
         }
@@ -280,7 +267,6 @@ export default class HttpConnection extends BaseConnection {
       request.on('response', onResponse)
       request.on('timeout', onTimeout)
       request.on('error', onError)
-      request.on('abort', onAbort)
       if (this[kCaFingerprint] != null && requestParams.protocol === 'https:') {
         request.on('socket', onSocket)
       }
@@ -308,7 +294,6 @@ export default class HttpConnection extends BaseConnection {
         request.removeListener('response', onResponse)
         request.removeListener('timeout', onTimeout)
         request.removeListener('error', onError)
-        request.removeListener('abort', onAbort)
         request.removeListener('socket', onSocket)
         if (options.signal != null) {
           if ('removeEventListener' in options.signal) {
