@@ -56,6 +56,7 @@ import {
   kSniffOnConnectionFault,
   kSniffEndpoint,
   kRequestTimeout,
+  kRetryOnTimeout,
   kCompression,
   kMaxRetries,
   kName,
@@ -91,6 +92,7 @@ export interface TransportOptions {
   serializer?: Serializer
   maxRetries?: number
   requestTimeout?: number | string
+  retryOnTimeout?: boolean
   compression?: boolean
   sniffInterval?: number | boolean
   sniffOnConnectionFault?: boolean
@@ -125,6 +127,7 @@ export interface TransportRequestParams {
 export interface TransportRequestOptions {
   ignore?: number[]
   requestTimeout?: number | string
+  retryOnTimeout?: boolean
   maxRetries?: number
   asStream?: boolean
   headers?: http.IncomingHttpHeaders
@@ -199,6 +202,7 @@ export default class Transport {
   [kMaxRetries]: number
   [kCompression]: boolean
   [kRequestTimeout]: number
+  [kRetryOnTimeout]: boolean
   [kSniffEnabled]: boolean
   [kNextSniff]: number
   [kIsSniffing]: boolean
@@ -259,6 +263,7 @@ export default class Transport {
     this[kMaxRetries] = typeof opts.maxRetries === 'number' ? opts.maxRetries : 3
     this[kCompression] = opts.compression === true
     this[kRequestTimeout] = opts.requestTimeout != null ? toMs(opts.requestTimeout) : 30000
+    this[kRetryOnTimeout] = opts.retryOnTimeout != null ? opts.retryOnTimeout : false
     this[kSniffInterval] = opts.sniffInterval ?? false
     this[kSniffEnabled] = typeof this[kSniffInterval] === 'number'
     this[kNextSniff] = this[kSniffEnabled] ? (Date.now() + (this[kSniffInterval] as number)) : 0
@@ -575,8 +580,16 @@ export default class Transport {
             this[kDiagnostic].emit('response', wrappedError, result)
             throw wrappedError
           }
-          // should retry
+          // should maybe retry
+          // @ts-expect-error `case` fallthrough is intentional: should retry if retryOnTimeout is true
           case 'TimeoutError':
+            if (!this[kRetryOnTimeout]) {
+              const wrappedError = new TimeoutError(error.message, result, errorOptions)
+              this[kDiagnostic].emit('response', wrappedError, result)
+              throw wrappedError
+            }
+          // should retry
+          // eslint-disable-next-line no-fallthrough
           case 'ConnectionError': {
             // if there is an error in the connection
             // let's mark the connection as dead

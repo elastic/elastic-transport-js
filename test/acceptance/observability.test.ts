@@ -115,7 +115,8 @@ test('Request id', t => {
         nodes: ['http://localhost:9200', 'http://localhost:9201'],
         Connection: MockConnectionSniff,
         sniffOnConnectionFault: true,
-        maxRetries: 0
+        maxRetries: 0,
+        retryOnTimeout: true
       })
 
       client.diagnostic.on(events.REQUEST, (e, event) => {
@@ -349,7 +350,8 @@ test('Client name', t => {
         nodes: ['http://localhost:9200', 'http://localhost:9201'],
         Connection: MockConnectionSniff,
         sniffOnConnectionFault: true,
-        maxRetries: 0
+        maxRetries: 0,
+        retryOnTimeout: true
       })
 
       client.diagnostic.on(events.REQUEST, (e, event) => {
