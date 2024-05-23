@@ -115,7 +115,7 @@ export default class HttpConnection extends BaseConnection {
       }
 
       const abortListener = (): void => {
-        request.abort()
+        request.destroy(new RequestAbortedError('Request aborted'))
       }
 
       this._openRequests++
@@ -223,7 +223,7 @@ export default class HttpConnection extends BaseConnection {
         cleanListeners()
         this._openRequests--
         request.once('error', () => {}) // we need to catch the request aborted error
-        request.abort()
+        request.destroy()
         reject(new TimeoutError('Request timed out'))
       }
 
@@ -231,19 +231,14 @@ export default class HttpConnection extends BaseConnection {
         cleanListeners()
         this._openRequests--
         let message = err.message
+        if (err.name === 'RequestAbortedError') {
+          return reject(err)
+        }
         // @ts-expect-error
         if (err.code === 'ECONNRESET') {
           message += ` - Local: ${request.socket?.localAddress ?? 'unknown'}:${request.socket?.localPort ?? 'unknown'}, Remote: ${request.socket?.remoteAddress ?? 'unknown'}:${request.socket?.remotePort ?? 'unknown'}`
         }
         reject(new ConnectionError(message))
-      }
-
-      const onAbort = (): void => {
-        cleanListeners()
-        request.once('error', () => {}) // we need to catch the request aborted error
-        debug('Request aborted', params)
-        this._openRequests--
-        reject(new RequestAbortedError('Request aborted'))
       }
 
       const onSocket = (socket: TLSSocket): void => {
@@ -255,7 +250,7 @@ export default class HttpConnection extends BaseConnection {
             if (issuerCertificate == null) {
               onError(new Error('Invalid or malformed certificate'))
               request.once('error', () => {}) // we need to catch the request aborted error
-              return request.abort()
+              return request.destroy()
             }
 
             // Check if fingerprint matches
@@ -263,7 +258,7 @@ export default class HttpConnection extends BaseConnection {
             if (this[kCaFingerprint] !== issuerCertificate.fingerprint256) {
               onError(new Error('Server certificate CA fingerprint does not match the value configured in caFingerprint'))
               request.once('error', () => {}) // we need to catch the request aborted error
-              return request.abort()
+              return request.destroy()
             }
           })
         }
@@ -272,7 +267,6 @@ export default class HttpConnection extends BaseConnection {
       request.on('response', onResponse)
       request.on('timeout', onTimeout)
       request.on('error', onError)
-      request.on('abort', onAbort)
       if (this[kCaFingerprint] != null && requestParams.protocol === 'https:') {
         request.on('socket', onSocket)
       }
@@ -300,7 +294,6 @@ export default class HttpConnection extends BaseConnection {
         request.removeListener('response', onResponse)
         request.removeListener('timeout', onTimeout)
         request.removeListener('error', onError)
-        request.removeListener('abort', onAbort)
         request.removeListener('socket', onSocket)
         if (options.signal != null) {
           if ('removeEventListener' in options.signal) {
