@@ -169,10 +169,7 @@ export default class HttpConnection extends BaseConnection {
         function onDataAsBuffer (chunk: Buffer): void {
           currentLength += Buffer.byteLength(chunk)
           if (currentLength > maxCompressedResponseSize) {
-            // TODO: hacky solution, refactor to avoid using the deprecated aborted event
-            response.removeListener('aborted', onAbort)
-            response.destroy()
-            onEnd(new RequestAbortedError(`The content length (${currentLength}) is bigger than the maximum allowed buffer (${maxCompressedResponseSize})`))
+            response.destroy(new RequestAbortedError(`The content length (${currentLength}) is bigger than the maximum allowed buffer (${maxCompressedResponseSize})`))
           } else {
             (payload as Buffer[]).push(chunk)
           }
@@ -181,10 +178,7 @@ export default class HttpConnection extends BaseConnection {
         function onDataAsString (chunk: string): void {
           currentLength += Buffer.byteLength(chunk)
           if (currentLength > maxResponseSize) {
-            // TODO: hacky solution, refactor to avoid using the deprecated aborted event
-            response.removeListener('aborted', onAbort)
-            response.destroy()
-            onEnd(new RequestAbortedError(`The content length (${currentLength}) is bigger than the maximum allowed string (${maxResponseSize})`))
+            response.destroy(new RequestAbortedError(`The content length (${currentLength}) is bigger than the maximum allowed string (${maxResponseSize})`))
           } else {
             payload = `${payload as string}${chunk}`
           }
@@ -194,10 +188,14 @@ export default class HttpConnection extends BaseConnection {
           response.removeListener('data', onData)
           response.removeListener('end', onEnd)
           response.removeListener('error', onEnd)
-          response.removeListener('aborted', onAbort)
           request.removeListener('error', noop)
 
           if (err != null) {
+            // @ts-expect-error
+            if (err.message === 'aborted' && err.code === 'ECONNRESET') {
+              response.destroy()
+              return reject(new ConnectionError('Response aborted while reading the body'))
+            }
             if (err.name === 'RequestAbortedError') {
               return reject(err)
             }
@@ -211,11 +209,6 @@ export default class HttpConnection extends BaseConnection {
           })
         }
 
-        const onAbort = (): void => {
-          response.destroy()
-          onEnd(new Error('Response aborted while reading the body'))
-        }
-
         if (!isCompressed && !isVectorTile) {
           response.setEncoding('utf8')
         }
@@ -224,7 +217,6 @@ export default class HttpConnection extends BaseConnection {
         response.on('data', onData)
         response.on('error', onEnd)
         response.on('end', onEnd)
-        response.on('aborted', onAbort)
       }
 
       const onTimeout = (): void => {
