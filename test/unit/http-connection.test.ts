@@ -219,7 +219,7 @@ test('Timeout support / 1', async t => {
       method: 'GET'
     }, options)
   } catch (err: any) {
-    t.ok(err instanceof TimeoutError)
+    t.ok(err instanceof TimeoutError, `Not a TimeoutError: ${err}`)
   }
   server.stop()
 })
@@ -245,7 +245,7 @@ test('Timeout support / 2', async t => {
       ...options
     })
   } catch (err: any) {
-    t.ok(err instanceof TimeoutError)
+    t.ok(err instanceof TimeoutError, `Not a TimeoutError: ${err}`)
   }
   server.stop()
 })
@@ -272,7 +272,7 @@ test('Timeout support / 3', async t => {
       ...options
     })
   } catch (err: any) {
-    t.ok(err instanceof TimeoutError)
+    t.ok(err instanceof TimeoutError, `Not a TimeoutError: ${err}`)
   }
   server.stop()
 })
@@ -538,7 +538,7 @@ test('Port handling', t => {
 test('Abort a request syncronously', async t => {
   t.plan(1)
 
-  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+  function handler (_req: http.IncomingMessage, _res: http.ServerResponse) {
     t.fail('The server should not be contacted')
   }
 
@@ -549,16 +549,13 @@ test('Abort a request syncronously', async t => {
   })
 
   const controller = new AbortController()
-  connection.request({
-    path: '/hello',
-    method: 'GET'
-  }, {
-    signal: controller.signal,
-    ...options
-  }).catch(err => {
-    t.ok(err instanceof RequestAbortedError)
-    server.stop()
-  })
+  connection.request(
+    { path: '/hello', method: 'GET' },
+    { signal: controller.signal, ...options })
+    .catch(err => {
+      t.ok(err instanceof RequestAbortedError, `Not a RequestAbortedError: ${err}`)
+      server.stop()
+    })
 
   controller.abort()
   await connection.close()
@@ -567,7 +564,7 @@ test('Abort a request syncronously', async t => {
 test('Abort a request asyncronously', async t => {
   t.plan(1)
 
-  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
     // might be called or not
     res.end('ok')
   }
@@ -589,7 +586,7 @@ test('Abort a request asyncronously', async t => {
       ...options
     })
   } catch (err: any) {
-    t.ok(err instanceof RequestAbortedError)
+    t.ok(err instanceof RequestAbortedError, `Not a RequestAbortedError: ${err}`)
   }
 
   await connection.close()
@@ -656,11 +653,10 @@ test('Abort with a slow body', async t => {
   const controller = new AbortController()
   const connection = new HttpConnection({
     url: new URL('https://localhost:9200'),
-    proxy: 'http://localhost:8080'
   })
 
   const slowBody = new Readable({
-    read (size: number) {
+    read (_size: number) {
       setTimeout(() => {
         this.push('{"size":1, "query":{"match_all":{}}}')
         this.push(null) // EOF
@@ -680,7 +676,7 @@ test('Abort with a slow body', async t => {
       ...options
     })
   } catch (err: any) {
-    t.ok(err instanceof RequestAbortedError)
+    t.ok(err instanceof RequestAbortedError, `Not a RequestAbortedError: ${err}`)
   }
 })
 
@@ -690,7 +686,7 @@ test('Abort with a slow body', async t => {
 test('Bad content length', async t => {
   t.plan(2)
 
-  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
     const body = JSON.stringify({ hello: 'world' })
     res.setHeader('Content-Type', 'application/json;utf=8')
     res.setHeader('Content-Length', body.length + '')
@@ -707,7 +703,7 @@ test('Bad content length', async t => {
       method: 'GET'
     }, options)
   } catch (err: any) {
-    t.ok(err instanceof ConnectionError)
+    t.ok(err instanceof ConnectionError, `Not a ConnectionError: ${err}`)
     t.equal(err.message, 'Response aborted while reading the body')
   }
   server.stop()
@@ -716,7 +712,7 @@ test('Bad content length', async t => {
 test('Socket destryed while reading the body', async t => {
   t.plan(2)
 
-  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
     const body = JSON.stringify({ hello: 'world' })
     res.setHeader('Content-Type', 'application/json;utf=8')
     res.setHeader('Content-Length', body.length + '')
@@ -736,7 +732,7 @@ test('Socket destryed while reading the body', async t => {
       method: 'GET'
     }, options)
   } catch (err: any) {
-    t.ok(err instanceof ConnectionError)
+    t.ok(err instanceof ConnectionError, `Not a ConnectionError: ${err}`)
     t.equal(err.message, 'Response aborted while reading the body')
   }
   server.stop()
@@ -787,7 +783,7 @@ test('Content length too big (buffer)', async t => {
       path: '/'
     }, options)
   } catch (err: any) {
-    t.ok(err instanceof RequestAbortedError)
+    t.ok(err instanceof RequestAbortedError, `Not a RequestAbortedError: ${err}`)
     t.equal(err.message, `The content length (${buffer.constants.MAX_LENGTH + 10}) is bigger than the maximum allowed buffer (${buffer.constants.MAX_LENGTH})`)
   }
 })
@@ -837,7 +833,7 @@ test('Content length too big (string)', async t => {
       path: '/'
     }, options)
   } catch (err: any) {
-    t.ok(err instanceof RequestAbortedError)
+    t.ok(err instanceof RequestAbortedError, `Not a RequestAbortedError: ${err}`)
     t.equal(err.message, `The content length (${buffer.constants.MAX_STRING_LENGTH + 10}) is bigger than the maximum allowed string (${buffer.constants.MAX_STRING_LENGTH})`)
   }
 })
@@ -887,7 +883,7 @@ test('Content length too big custom option (buffer)', async t => {
       path: '/'
     }, { ...options, maxCompressedResponseSize: 1000 })
   } catch (err: any) {
-    t.ok(err instanceof RequestAbortedError)
+    t.ok(err instanceof RequestAbortedError, `Not a RequestAbortedError: ${err}`)
     t.equal(err.message, 'The content length (1100) is bigger than the maximum allowed buffer (1000)')
   }
 })
@@ -937,7 +933,7 @@ test('Content length too big custom option (string)', async t => {
       path: '/'
     }, { ...options, maxResponseSize: 1000 })
   } catch (err: any) {
-    t.ok(err instanceof RequestAbortedError)
+    t.ok(err instanceof RequestAbortedError, `Not a RequestAbortedError: ${err}`)
     t.equal(err.message, 'The content length (1100) is bigger than the maximum allowed string (1000)')
   }
 })
@@ -1025,7 +1021,7 @@ test('Body too big custom option (string)', async t => {
     }, { ...options, maxResponseSize: 1 })
     t.fail('Shold throw')
   } catch (err: any) {
-    t.ok(err instanceof RequestAbortedError)
+    t.ok(err instanceof RequestAbortedError, `Not a RequestAbortedError: ${err}`)
     t.equal(err.message, 'The content length (9) is bigger than the maximum allowed string (1)')
   }
 
@@ -1056,7 +1052,7 @@ test('Body too big custom option (buffer)', async t => {
     }, { ...options, maxCompressedResponseSize: 1 })
     t.fail('Shold throw')
   } catch (err: any) {
-    t.ok(err instanceof RequestAbortedError)
+    t.ok(err instanceof RequestAbortedError, `Not a RequestAbortedError ${err}`)
     t.equal(err.message, 'The content length (29) is bigger than the maximum allowed buffer (1)')
   }
 
@@ -1076,7 +1072,7 @@ test('Connection error', async t => {
       method: 'GET'
     }, options)
   } catch (err: any) {
-    t.ok(err instanceof ConnectionError)
+    t.ok(err instanceof ConnectionError, `Not a ConnectionError: ${err}`)
   }
 })
 
@@ -1091,7 +1087,7 @@ test('Throw if detects undici agent options', async t => {
       }
     })
   } catch (err: any) {
-    t.ok(err instanceof ConfigurationError)
+    t.ok(err instanceof ConfigurationError, `Not a ConfigurationError: ${err}`)
   }
 })
 
@@ -1156,7 +1152,7 @@ test('Check server fingerprint (failure)', async t => {
     }, options)
     t.fail('Should throw')
   } catch (err: any) {
-    t.ok(err instanceof ConnectionError)
+    t.ok(err instanceof ConnectionError, `Not a ConnectionError: ${err}`)
     t.equal(err.message, 'Server certificate CA fingerprint does not match the value configured in caFingerprint')
   }
   server.stop()
@@ -1180,7 +1176,7 @@ test('Should show local/remote socket addres in case of ECONNRESET', async t => 
     }, options)
     t.fail('should throw')
   } catch (err: any) {
-    t.ok(err instanceof ConnectionError)
+    t.ok(err instanceof ConnectionError, `Not a ConnectionError: ${err}`)
     if (err.message.includes('::1')) {
       t.match(err.message, /socket\shang\sup\s-\sLocal:\s::1:\d+,\sRemote:\s::1:\d+/)
     } else {
