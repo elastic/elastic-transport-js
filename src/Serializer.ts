@@ -43,6 +43,9 @@ export default class Serializer {
     }
   }
 
+  /**
+   * Serializes a record into a JSON string
+   */
   serialize (object: Record<string, any>): string {
     debug('Serializing', object)
     let json
@@ -54,6 +57,9 @@ export default class Serializer {
     return json
   }
 
+  /**
+   * Given a string, attempts to parse it from raw JSON into an object
+   */
   deserialize<T = unknown> (json: string): T {
     debug('Deserializing', json)
     let object
@@ -66,6 +72,9 @@ export default class Serializer {
     return object
   }
 
+  /**
+   * Serializes an array of records into an ndjson string
+   */
   ndserialize (array: Array<Record<string, any> | string>): string {
     debug('ndserialize', array)
     if (!Array.isArray(array)) {
