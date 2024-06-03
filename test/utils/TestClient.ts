@@ -80,6 +80,7 @@ export default class TestClient {
       ConnectionPool: opts.cloud ? CloudConnectionPool : ClusterConnectionPool,
       maxRetries: 3,
       requestTimeout: 30000,
+      retryOnTimeout: false,
       pingTimeout: 3000,
       sniffInterval: false,
       sniffOnStart: false,
@@ -98,7 +99,7 @@ export default class TestClient {
       opaqueIdPrefix: null,
       context: null,
       proxy: null,
-      enableMetaHeader: true
+      enableMetaHeader: true,
     }, opts)
 
     this.name = options.name
@@ -124,6 +125,7 @@ export default class TestClient {
       serializer: this.serializer,
       maxRetries: options.maxRetries,
       requestTimeout: options.requestTimeout,
+      retryOnTimeout: options.retryOnTimeout,
       sniffInterval: options.sniffInterval,
       sniffOnStart: options.sniffOnStart,
       sniffOnConnectionFault: options.sniffOnConnectionFault,

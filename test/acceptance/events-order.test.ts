@@ -97,7 +97,7 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
       const client = new TestClient({
         node: 'http://foo.bar',
         Connection,
-        maxRetries: 1
+        maxRetries: 1,
       })
 
       const order = [
@@ -152,7 +152,8 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
         node: `http://localhost:${port}`,
         Connection,
         maxRetries: 1,
-        requestTimeout: 50
+        requestTimeout: 50,
+        retryOnTimeout: true,
       })
 
       const order = [
@@ -208,7 +209,7 @@ function runWithConnection (name: string, Connection: typeof HttpConnection | ty
         node: `http://localhost:${port}`,
         Connection,
         maxRetries: 1,
-        requestTimeout: 50
+        requestTimeout: 50,
       })
 
       const order = [

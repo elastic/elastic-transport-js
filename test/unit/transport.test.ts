@@ -108,7 +108,7 @@ test('Basic error (TimeoutError)', async t => {
   const pool = new MyPool({ Connection: MockConnectionTimeout })
   pool.addConnection('http://localhost:9200')
 
-  const transport = new Transport({ connectionPool: pool, maxRetries: 0 })
+  const transport = new Transport({ connectionPool: pool, maxRetries: 0, retryOnTimeout: true })
 
   try {
     await transport.request({
@@ -620,6 +620,25 @@ test('Should not retry if the bulkBody is a stream', async t => {
   }
 })
 
+test('Should not retry on timeout error by default (retryOnTimeout is false)', async t => {
+  t.plan(2)
+
+  const pool = new WeightedConnectionPool({ Connection: MockConnectionTimeout })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({ connectionPool: pool })
+
+  try {
+    await transport.request({
+      method: 'GET',
+      path: '/hello'
+    })
+  } catch (err: any) {
+    t.ok(err instanceof TimeoutError)
+    t.equal(err.meta.meta.attempts, 0)
+  }
+})
+
 test('Disable maxRetries locally', async t => {
   let count = 0
   const Conn = buildMockConnection({
@@ -703,13 +722,13 @@ test('Retry on connection error', async t => {
   }
 })
 
-test('Retry on timeout error', async t => {
+test('Retry on timeout error if retryOnTimeout is true', async t => {
   t.plan(2)
 
   const pool = new WeightedConnectionPool({ Connection: MockConnectionTimeout })
   pool.addConnection('http://localhost:9200')
 
-  const transport = new Transport({ connectionPool: pool })
+  const transport = new Transport({ connectionPool: pool, retryOnTimeout: true })
 
   try {
     await transport.request({
@@ -1511,7 +1530,7 @@ test('Calls the sniff method on connection error', async t => {
   }
 })
 
-test('Calls the sniff method on timeout error', async t => {
+test('Calls the sniff method on timeout error if retryOnTimeout is true', async t => {
   t.plan(6)
 
   class MyTransport extends Transport {
@@ -1524,7 +1543,8 @@ test('Calls the sniff method on timeout error', async t => {
 
   const transport = new MyTransport({
     connectionPool: pool,
-    sniffOnConnectionFault: true
+    sniffOnConnectionFault: true,
+    retryOnTimeout: true
   })
 
   try {
