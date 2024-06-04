@@ -19,8 +19,6 @@
 
 import { test } from 'tap'
 import buffer from 'buffer'
-// import { URL } from 'url'
-// import FakeTimers from '@sinonjs/fake-timers'
 import { promisify } from 'util'
 import { Readable as ReadableStream } from 'stream'
 import { gzipSync, deflateSync } from 'zlib'
@@ -43,6 +41,7 @@ import {
   errors
 } from '../..'
 import { connection, buildServer } from '../utils'
+import { kRetryBackoff } from '../../src/symbols'
 
 const { version: transportVersion } = require('../../package.json') // eslint-disable-line
 const sleep = promisify(setTimeout)
@@ -109,6 +108,7 @@ test('Basic error (TimeoutError)', async t => {
   pool.addConnection('http://localhost:9200')
 
   const transport = new Transport({ connectionPool: pool, maxRetries: 0, retryOnTimeout: true })
+  transport[kRetryBackoff] = () => 0
 
   try {
     await transport.request({
@@ -138,6 +138,7 @@ test('Basic error (ConnectionError)', async t => {
   pool.addConnection('http://localhost:9200')
 
   const transport = new Transport({ connectionPool: pool, maxRetries: 0 })
+  transport[kRetryBackoff] = () => 0
 
   try {
     await transport.request({
@@ -729,6 +730,7 @@ test('Retry on timeout error if retryOnTimeout is true', async t => {
   pool.addConnection('http://localhost:9200')
 
   const transport = new Transport({ connectionPool: pool, retryOnTimeout: true })
+  transport[kRetryBackoff] = () => 0
 
   try {
     await transport.request({
@@ -1518,6 +1520,8 @@ test('Calls the sniff method on connection error', async t => {
     connectionPool: pool,
     sniffOnConnectionFault: true
   })
+  // skip sleep between retries
+  transport[kRetryBackoff] = () => 0
 
   try {
     await transport.request({
@@ -1546,6 +1550,8 @@ test('Calls the sniff method on timeout error if retryOnTimeout is true', async 
     sniffOnConnectionFault: true,
     retryOnTimeout: true
   })
+  // skip sleep between retries
+  transport[kRetryBackoff] = () => 0
 
   try {
     await transport.request({

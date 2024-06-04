@@ -75,8 +75,10 @@ import {
   kJsonContentType,
   kNdjsonContentType,
   kAcceptHeader,
-  kRedaction
+  kRedaction,
+  kRetryBackoff
 } from './symbols'
+import { sleep } from './util'
 
 const { version: clientVersion } = require('../package.json') // eslint-disable-line
 const debug = Debug('elasticsearch')
@@ -216,6 +218,7 @@ export default class Transport {
   [kNdjsonContentType]: string
   [kAcceptHeader]: string
   [kRedaction]: RedactionOptions
+  [kRetryBackoff]: (min: number, max: number, attempt: number) => number
 
   static sniffReasons = {
     SNIFF_ON_START: 'sniff-on-start',
@@ -277,6 +280,7 @@ export default class Transport {
     this[kNdjsonContentType] = opts.vendoredHeaders?.ndjsonContentType ?? 'application/x-ndjson'
     this[kAcceptHeader] = opts.vendoredHeaders?.accept ?? 'application/json, text/plain'
     this[kRedaction] = opts.redaction ?? { type: 'replace', additionalKeys: [] }
+    this[kRetryBackoff] = retryBackoff
 
     if (opts.sniffOnStart === true) {
       this.sniff({
@@ -607,6 +611,13 @@ export default class Transport {
             if (meta.attempts < maxRetries) {
               meta.attempts++
               debug(`Retrying request, there are still ${maxRetries - meta.attempts} attempts`, params)
+
+              // exponential backoff on retries, with jitter
+              const backoffWait = this[kRetryBackoff](0, 4, meta.attempts)
+              if (backoffWait > 0) {
+                await sleep(backoffWait * 1000)
+              }
+
               continue
             }
 
@@ -700,4 +711,18 @@ export function lowerCaseHeaders (oldHeaders?: http.IncomingHttpHeaders): http.I
     newHeaders[header.toLowerCase()] = oldHeaders[header]
   }
   return newHeaders
+}
+
+/**
+ * Function for calculating how long to sleep, in seconds, before the next request retry
+ * Uses the AWS "equal jitter" algorithm noted in this post:
+ * https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
+ * @param min The minimum number of seconds to wait
+ * @param max The maximum number of seconds to wait
+ * @param attempt How many retry attempts have been made
+ * @returns The number of seconds to wait before the next retry
+ */
+function retryBackoff (min: number, max: number, attempt: number): number {
+  const ceiling = Math.min(max, 2 ** attempt) / 2
+  return ceiling + ((Math.random() * (ceiling - min)) - min)
 }

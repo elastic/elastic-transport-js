@@ -42,6 +42,7 @@ import {
   RequestAbortedError,
   TimeoutError
 } from '../errors'
+import { sleep } from '../util'
 import { HttpAgentOptions } from '../types'
 
 const debug = Debug('elasticsearch')
@@ -386,8 +387,4 @@ function isHttpAgentOptions (opts: Record<string, any>): opts is HttpAgentOption
   if (opts.maxHeaderSize != null) return false
   if (opts.connections != null) return false
   return true
-}
-
-async function sleep (ms: number): Promise<unknown> {
-  return await new Promise((resolve) => setTimeout(resolve, ms))
 }
