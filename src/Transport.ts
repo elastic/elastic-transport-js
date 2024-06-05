@@ -78,7 +78,7 @@ import {
   kRedaction,
   kRetryBackoff
 } from './symbols'
-import { sleep } from './util'
+import { setTimeout as setTimeoutPromise } from 'node:timers/promises'
 
 const { version: clientVersion } = require('../package.json') // eslint-disable-line
 const debug = Debug('elasticsearch')
@@ -615,7 +615,7 @@ export default class Transport {
               // exponential backoff on retries, with jitter
               const backoffWait = this[kRetryBackoff](0, 4, meta.attempts)
               if (backoffWait > 0) {
-                await sleep(backoffWait * 1000)
+                await setTimeoutPromise(backoffWait * 1000)
               }
 
               continue
