@@ -41,7 +41,6 @@ import {
   errors
 } from '../..'
 import { connection, buildServer } from '../utils'
-import { kRetryBackoff } from '../../src/symbols'
 
 const { version: transportVersion } = require('../../package.json') // eslint-disable-line
 const sleep = promisify(setTimeout)
@@ -107,8 +106,12 @@ test('Basic error (TimeoutError)', async t => {
   const pool = new MyPool({ Connection: MockConnectionTimeout })
   pool.addConnection('http://localhost:9200')
 
-  const transport = new Transport({ connectionPool: pool, maxRetries: 0, retryOnTimeout: true })
-  transport[kRetryBackoff] = () => 0
+  const transport = new Transport({
+    connectionPool: pool,
+    maxRetries: 0,
+    retryOnTimeout: true,
+    retryBackoff: () => 0,
+  })
 
   try {
     await transport.request({
@@ -137,8 +140,11 @@ test('Basic error (ConnectionError)', async t => {
   const pool = new MyPool({ Connection: MockConnectionError })
   pool.addConnection('http://localhost:9200')
 
-  const transport = new Transport({ connectionPool: pool, maxRetries: 0 })
-  transport[kRetryBackoff] = () => 0
+  const transport = new Transport({
+    connectionPool: pool,
+    maxRetries: 0,
+    retryBackoff: () => 0
+  })
 
   try {
     await transport.request({
@@ -710,13 +716,17 @@ test('Retry on connection error', async t => {
   const pool = new WeightedConnectionPool({ Connection: MockConnectionError })
   pool.addConnection('http://localhost:9200')
 
-  const transport = new Transport({ connectionPool: pool })
+  const transport = new Transport({
+    connectionPool: pool,
+    retryBackoff: () => 0,
+  })
 
   try {
-    await transport.request({
+    const res = transport.request({
       method: 'GET',
       path: '/hello'
     })
+    await res
   } catch (err: any) {
     t.ok(err instanceof ConnectionError)
     t.equal(err.meta.meta.attempts, 3)
@@ -725,18 +735,25 @@ test('Retry on connection error', async t => {
 
 test('Retry on timeout error if retryOnTimeout is true', async t => {
   t.plan(2)
+  t.clock.enter()
+  t.teardown(() => t.clock.exit())
 
   const pool = new WeightedConnectionPool({ Connection: MockConnectionTimeout })
   pool.addConnection('http://localhost:9200')
 
-  const transport = new Transport({ connectionPool: pool, retryOnTimeout: true })
-  transport[kRetryBackoff] = () => 0
+  const transport = new Transport({
+    connectionPool: pool,
+    retryOnTimeout: true,
+    retryBackoff: () => 0
+  })
 
   try {
-    await transport.request({
+    const res = transport.request({
       method: 'GET',
       path: '/hello'
     })
+    t.clock.advance(4000)
+    await res
   } catch (err: any) {
     t.ok(err instanceof TimeoutError)
     t.equal(err.meta.meta.attempts, 3)
@@ -1518,16 +1535,16 @@ test('Calls the sniff method on connection error', async t => {
 
   const transport = new MyTransport({
     connectionPool: pool,
-    sniffOnConnectionFault: true
+    sniffOnConnectionFault: true,
+    retryBackoff: () => 0
   })
-  // skip sleep between retries
-  transport[kRetryBackoff] = () => 0
 
   try {
-    await transport.request({
+    const res = transport.request({
       method: 'GET',
       path: '/hello'
     })
+    await res
   } catch (err: any) {
     t.ok(err instanceof ConnectionError)
     t.equal(err.meta.meta.attempts, 3)
@@ -1536,6 +1553,9 @@ test('Calls the sniff method on connection error', async t => {
 
 test('Calls the sniff method on timeout error if retryOnTimeout is true', async t => {
   t.plan(6)
+
+  t.clock.enter()
+  t.teardown(() => t.clock.exit())
 
   class MyTransport extends Transport {
     sniff (opts: SniffOptions): void {
@@ -1548,16 +1568,17 @@ test('Calls the sniff method on timeout error if retryOnTimeout is true', async 
   const transport = new MyTransport({
     connectionPool: pool,
     sniffOnConnectionFault: true,
-    retryOnTimeout: true
+    retryOnTimeout: true,
+    retryBackoff: () => 0,
   })
-  // skip sleep between retries
-  transport[kRetryBackoff] = () => 0
 
   try {
-    await transport.request({
+    const res = transport.request({
       method: 'GET',
       path: '/hello'
     })
+    t.clock.advance(4000)
+    await res
   } catch (err: any) {
     t.ok(err instanceof TimeoutError)
     t.equal(err.meta.meta.attempts, 3)
@@ -1583,6 +1604,8 @@ test('Sniff on start', async t => {
 
 test('Sniff interval', async t => {
   t.plan(5)
+  t.clock.enter()
+  t.teardown(() => t.clock.exit())
 
   class MyTransport extends Transport {
     sniff (opts: SniffOptions): void {
@@ -1597,26 +1620,38 @@ test('Sniff interval', async t => {
     sniffInterval: 50
   })
 
-  let res = await transport.request({
+  let promise = transport.request({
     method: 'GET',
     path: '/hello'
   }, { meta: true })
+
+  t.clock.advance(4000)
+
+  let res = await promise
   t.equal(res.statusCode, 200)
 
-  await sleep(80)
+  promise = sleep(80)
+  t.clock.advance(80)
+  await promise
 
-  res = await transport.request({
+  promise = transport.request({
     method: 'GET',
     path: '/hello'
   }, { meta: true })
+  t.clock.advance(4000)
+  res = await promise
   t.equal(res.statusCode, 200)
 
-  await sleep(80)
+  promise = sleep(80)
+  t.clock.advance(80)
+  await promise
 
-  res = await transport.request({
+  promise = transport.request({
     method: 'GET',
     path: '/hello'
   }, { meta: true })
+  t.clock.advance(4000)
+  res = await promise
   t.equal(res.statusCode, 200)
 })
 

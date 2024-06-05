@@ -116,6 +116,7 @@ export interface TransportOptions {
     accept?: string
   }
   redaction?: RedactionOptions
+  retryBackoff?: (min: number, max: number, attempt: number) => number
 }
 
 export interface TransportRequestParams {
@@ -164,6 +165,7 @@ export interface TransportRequestOptions {
     */
   meta?: boolean
   redaction?: RedactionOptions
+  retryBackoff?: (min: number, max: number, attempt: number) => number
 }
 
 export interface TransportRequestOptionsWithMeta extends TransportRequestOptions {
@@ -280,7 +282,7 @@ export default class Transport {
     this[kNdjsonContentType] = opts.vendoredHeaders?.ndjsonContentType ?? 'application/x-ndjson'
     this[kAcceptHeader] = opts.vendoredHeaders?.accept ?? 'application/json, text/plain'
     this[kRedaction] = opts.redaction ?? { type: 'replace', additionalKeys: [] }
-    this[kRetryBackoff] = retryBackoff
+    this[kRetryBackoff] = opts.retryBackoff ?? retryBackoff
 
     if (opts.sniffOnStart === true) {
       this.sniff({
@@ -613,7 +615,8 @@ export default class Transport {
               debug(`Retrying request, there are still ${maxRetries - meta.attempts} attempts`, params)
 
               // exponential backoff on retries, with jitter
-              const backoffWait = this[kRetryBackoff](0, 4, meta.attempts)
+              const backoff = options.retryBackoff ?? this[kRetryBackoff]
+              const backoffWait = backoff(0, 4, meta.attempts)
               if (backoffWait > 0) {
                 await setTimeoutPromise(backoffWait * 1000)
               }

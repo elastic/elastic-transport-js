@@ -57,6 +57,7 @@
     "workq": "^3.0.0"
   },
   "dependencies": {
+    "@tapjs/clock": "^1.1.24",
     "debug": "^4.3.4",
     "hpagent": "^1.0.0",
     "ms": "^2.1.3",
@@ -65,6 +66,9 @@
     "undici": "^6.12.0"
   },
   "tap": {
-    "allow-incomplete-coverage": true
+    "allow-incomplete-coverage": true,
+    "plugin": [
+      "@tapjs/clock"
+    ]
   }
 }
