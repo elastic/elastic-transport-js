@@ -42,6 +42,7 @@ import {
   RequestAbortedError,
   TimeoutError
 } from '../errors'
+import { setTimeout as setTimeoutPromise } from 'timers/promises'
 import { HttpAgentOptions } from '../types'
 
 const debug = Debug('elasticsearch')
@@ -310,7 +311,7 @@ export default class HttpConnection extends BaseConnection {
   async close (): Promise<void> {
     debug('Closing connection', this.id)
     while (this._openRequests > 0) {
-      await sleep(1000)
+      await setTimeoutPromise(1000)
     }
     /* istanbul ignore else */
     if (this.agent !== undefined) {
@@ -386,8 +387,4 @@ function isHttpAgentOptions (opts: Record<string, any>): opts is HttpAgentOption
   if (opts.maxHeaderSize != null) return false
   if (opts.connections != null) return false
   return true
-}
-
-async function sleep (ms: number): Promise<unknown> {
-  return await new Promise((resolve) => setTimeout(resolve, ms))
 }
