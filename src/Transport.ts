@@ -727,5 +727,5 @@ export function lowerCaseHeaders (oldHeaders?: http.IncomingHttpHeaders): http.I
  */
 function retryBackoff (min: number, max: number, attempt: number): number {
   const ceiling = Math.min(max, 2 ** attempt) / 2
-  return ceiling + ((Math.random() * (ceiling - min)) - min)
+  return ceiling + ((Math.random() * (ceiling - min)) + min)
 }
