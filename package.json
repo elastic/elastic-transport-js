@@ -38,6 +38,7 @@
   },
   "devDependencies": {
     "@sinonjs/fake-timers": "github:sinonjs/fake-timers#0bfffc1",
+    "@tapjs/clock": "^1.1.24",
     "@types/debug": "^4.1.7",
     "@types/ms": "^0.7.31",
     "@types/node": "^18.19.21",
@@ -57,7 +58,6 @@
     "workq": "^3.0.0"
   },
   "dependencies": {
-    "@tapjs/clock": "^1.1.24",
     "debug": "^4.3.4",
     "hpagent": "^1.0.0",
     "ms": "^2.1.3",
