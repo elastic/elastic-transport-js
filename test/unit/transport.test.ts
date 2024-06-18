@@ -2363,7 +2363,7 @@ test('OpenTelemetry', t => {
   })
 
   t.test('span records error state', async t => {
-    t.plan(2)
+    t.plan(3)
 
     const pool = new WeightedConnectionPool({ Connection: MockConnectionTimeout })
     pool.addConnection('http://localhost:9200')
@@ -2384,6 +2384,7 @@ test('OpenTelemetry', t => {
 
     const spans = exporter.getFinishedSpans()
 
+    t.equal(spans[0].attributes['error.type'], 'TimeoutError')
     t.not(spans[0].status.code, 0)
   })
 
