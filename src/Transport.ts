@@ -370,8 +370,12 @@ export default class Transport {
         if (this.headers?.warning == null) {
           return null
         }
-        return this.headers.warning
-          .split(/(?!\B"[^"]*),(?![^"]*"\B)/)
+
+        const { warning } = this.headers
+        // if multiple HTTP headers have the same name, Undici represents them as an array
+        const warnings: string[] = Array.isArray(warning) ? warning : [warning]
+        return warnings
+          .flatMap(w => w.split(/(?!\B"[^"]*),(?![^"]*"\B)/))
           .filter((warning) => warning.match(/^\d\d\d Elasticsearch-/))
       }
     }
