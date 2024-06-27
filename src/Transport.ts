@@ -338,7 +338,7 @@ export default class Transport {
   async request<TResponse = unknown, TContext = any> (params: TransportRequestParams, options?: TransportRequestOptionsWithMeta): Promise<TransportResult<TResponse, TContext>>
   async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptions): Promise<TResponse>
   async request (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<any> {
-    const otelTracer = opentelemetry.trace.getTracer('elastic-transport')
+    const otelTracer = opentelemetry.trace.getTracer('@elastic/transport', clientVersion)
     let otelSpan: Span
 
     const _request = async (): Promise<any> => {
