@@ -80,7 +80,7 @@ import {
   kOtelTracer
 } from './symbols'
 import { setTimeout as setTimeoutPromise } from 'node:timers/promises'
-import opentelemetry, { Exception, SpanStatusCode, Span, Tracer } from '@opentelemetry/api'
+import opentelemetry, { Attributes, Exception, SpanKind, SpanStatusCode, Span, Tracer } from '@opentelemetry/api'
 
 const { version: clientVersion } = require('../package.json') // eslint-disable-line
 const debug = Debug('elasticsearch')
@@ -684,25 +684,21 @@ export default class Transport {
   async request<TResponse = unknown, TContext = any> (params: TransportRequestParams, options?: TransportRequestOptionsWithMeta): Promise<TransportResult<TResponse, TContext>>
   async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptions): Promise<TResponse>
   async request (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<any> {
-    const otelTracer = this[kOtelTracer]
-    let otelSpan: Span
-
     // wrap in OpenTelemetry span
     if (params.meta?.name != null) {
-      return await otelTracer.startActiveSpan(params.meta.name, async (span: Span) => {
-        otelSpan = span
-        otelSpan.setAttributes({
-          'db.system': 'elasticsearch',
-          'http.request.method': params.method,
-          'db.operation.name': params.meta?.name
-        })
-
-        if (params.meta?.pathParts != null) {
-          for (const key of Object.keys(params.meta.pathParts)) {
-            otelSpan.setAttribute(`db.elasticsearch.path_parts.${key}`, params.meta.pathParts[key])
-          }
+      // gather OpenTelemetry attributes
+      const attributes: Attributes = {
+        'db.system': 'elasticsearch',
+        'http.request.method': params.method,
+        'db.operation.name': params.meta?.name
+      }
+      if (params.meta?.pathParts != null) {
+        for (const key of Object.keys(params.meta.pathParts)) {
+          attributes[`db.elasticsearch.path_parts.${key}`] = params.meta.pathParts[key]
         }
+      }
 
+      return await this[kOtelTracer].startActiveSpan(params.meta.name, { attributes, kind: SpanKind.CLIENT }, async (otelSpan: Span) => {
         let response
         try {
           response = await this._request(params, options, otelSpan)
