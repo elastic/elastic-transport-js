@@ -59,16 +59,13 @@
     "workq": "^3.0.0"
   },
   "dependencies": {
+    "@opentelemetry/api": "1.x",
     "debug": "^4.3.4",
     "hpagent": "^1.0.0",
     "ms": "^2.1.3",
     "secure-json-parse": "^2.4.0",
     "tslib": "^2.4.0",
     "undici": "^6.12.0"
-  },
-  "peerDependencies": {
-    "@opentelemetry/api": "1.x",
-    "@opentelemetry/sdk-trace-base": "1.x"
   },
   "tap": {
     "allow-incomplete-coverage": true,
