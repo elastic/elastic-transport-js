@@ -76,10 +76,11 @@ import {
   kNdjsonContentType,
   kAcceptHeader,
   kRedaction,
-  kRetryBackoff
+  kRetryBackoff,
+  kOtelTracer
 } from './symbols'
 import { setTimeout as setTimeoutPromise } from 'node:timers/promises'
-import opentelemetry, { Exception, SpanStatusCode, Span } from '@opentelemetry/api'
+import opentelemetry, { Exception, SpanStatusCode, Span, Tracer } from '@opentelemetry/api'
 
 const { version: clientVersion } = require('../package.json') // eslint-disable-line
 const debug = Debug('elasticsearch')
@@ -228,6 +229,7 @@ export default class Transport {
   [kAcceptHeader]: string
   [kRedaction]: RedactionOptions
   [kRetryBackoff]: (min: number, max: number, attempt: number) => number
+  [kOtelTracer]: Tracer
 
   static sniffReasons = {
     SNIFF_ON_START: 'sniff-on-start',
@@ -290,6 +292,7 @@ export default class Transport {
     this[kAcceptHeader] = opts.vendoredHeaders?.accept ?? 'application/json, text/plain'
     this[kRedaction] = opts.redaction ?? { type: 'replace', additionalKeys: [] }
     this[kRetryBackoff] = opts.retryBackoff ?? retryBackoff
+    this[kOtelTracer] = opentelemetry.trace.getTracer('@elastic/transport', clientVersion)
 
     if (opts.sniffOnStart === true) {
       this.sniff({
@@ -338,7 +341,7 @@ export default class Transport {
   async request<TResponse = unknown, TContext = any> (params: TransportRequestParams, options?: TransportRequestOptionsWithMeta): Promise<TransportResult<TResponse, TContext>>
   async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptions): Promise<TResponse>
   async request (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<any> {
-    const otelTracer = opentelemetry.trace.getTracer('@elastic/transport', clientVersion)
+    const otelTracer = this[kOtelTracer]
     let otelSpan: Span
 
     const _request = async (): Promise<any> => {
