@@ -26,6 +26,7 @@ import os from 'os'
 import { Readable } from 'stream'
 import intoStream from 'into-stream'
 import * as http from 'http'
+import { BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base'
 import {
   Transport,
   Serializer,
@@ -2268,4 +2269,124 @@ test('redaction does not get leaked to original object', async t => {
     }
   }
   server.stop()
+})
+
+test('OpenTelemetry', t => {
+  let processor: SimpleSpanProcessor
+  let provider: BasicTracerProvider
+  let exporter: InMemorySpanExporter
+
+  t.before(() => {
+    exporter = new InMemorySpanExporter()
+    processor = new SimpleSpanProcessor(exporter)
+    provider = new BasicTracerProvider()
+    provider.addSpanProcessor(processor)
+    provider.register()
+  })
+
+  t.afterEach(async () => {
+    await provider.forceFlush()
+    exporter.reset()
+  })
+
+  t.after(async () => {
+    await provider.shutdown()
+  })
+
+  t.test('basic details', async t => {
+    t.plan(2)
+
+    function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+      res.end('ok')
+    }
+
+    const [{ port }, server] = await buildServer(handler)
+    const pool = new WeightedConnectionPool({ Connection: UndiciConnection })
+    pool.addConnection(`http://localhost:${port}`)
+    const transport = new Transport({ connectionPool: pool })
+
+    await transport.request({
+      path: '/hello',
+      method: 'GET',
+      meta: { name: 'hello' },
+    })
+
+    const spans = exporter.getFinishedSpans()
+
+    t.same(spans[0].attributes, {
+      'db.system': 'elasticsearch',
+      'http.request.method': 'GET',
+      'db.operation.name': 'hello',
+      'url.full': `http://localhost:${port}/`,
+      'server.address': 'localhost',
+      'server.port': port,
+    })
+    t.equal(spans[0].status.code, 0)
+
+    server.stop()
+  })
+
+  t.test('cloud cluster and instance details', async t => {
+    t.plan(2)
+
+    function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      res.setHeader('x-found-handling-cluster', 'foobar')
+      res.setHeader('x-found-handling-instance', 'instance-1')
+      res.end('ok')
+    }
+
+    const [{ port }, server] = await buildServer(handler)
+    const pool = new WeightedConnectionPool({ Connection: UndiciConnection })
+    pool.addConnection(`http://localhost:${port}`)
+    const transport = new Transport({ connectionPool: pool })
+
+    await transport.request({
+      path: '/hello2',
+      method: 'GET',
+      meta: { name: 'hello.2' },
+    })
+
+    const spans = exporter.getFinishedSpans()
+    t.same(spans[0].attributes, {
+      'db.system': 'elasticsearch',
+      'http.request.method': 'GET',
+      'db.operation.name': 'hello.2',
+      'url.full': `http://localhost:${port}/`,
+      'server.address': 'localhost',
+      'server.port': port,
+      'db.elasticsearch.cluster.name': 'foobar',
+      'db.elasticsearch.node.name': 'instance-1',
+    })
+    t.equal(spans[0].status.code, 0)
+
+    server.stop()
+  })
+
+  t.test('span records error state', async t => {
+    t.plan(3)
+
+    const pool = new WeightedConnectionPool({ Connection: MockConnectionTimeout })
+    pool.addConnection('http://localhost:9200')
+
+    const transport = new Transport({
+      connectionPool: pool,
+    })
+
+    try {
+      await transport.request({
+        path: '/hello2',
+        method: 'GET',
+        meta: { name: 'hello.2' },
+      })
+    } catch (err: any) {
+      t.ok(err instanceof Error)
+    }
+
+    const spans = exporter.getFinishedSpans()
+
+    t.equal(spans[0].attributes['error.type'], 'TimeoutError')
+    t.not(spans[0].status.code, 0)
+  })
+
+  t.end()
 })

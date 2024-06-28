@@ -50,6 +50,7 @@ export type {
 
 export type {
   TransportOptions,
+  TransportRequestMetadata,
   TransportRequestParams,
   TransportRequestOptions,
   TransportRequestOptionsWithMeta,

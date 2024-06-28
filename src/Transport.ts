@@ -76,9 +76,11 @@ import {
   kNdjsonContentType,
   kAcceptHeader,
   kRedaction,
-  kRetryBackoff
+  kRetryBackoff,
+  kOtelTracer
 } from './symbols'
 import { setTimeout as setTimeoutPromise } from 'node:timers/promises'
+import opentelemetry, { Attributes, Exception, SpanKind, SpanStatusCode, Span, Tracer } from '@opentelemetry/api'
 
 const { version: clientVersion } = require('../package.json') // eslint-disable-line
 const debug = Debug('elasticsearch')
@@ -119,12 +121,18 @@ export interface TransportOptions {
   retryBackoff?: (min: number, max: number, attempt: number) => number
 }
 
+export interface TransportRequestMetadata {
+  name: string
+  pathParts?: Record<string, any>
+}
+
 export interface TransportRequestParams {
   method: string
   path: string
   body?: RequestBody
   bulkBody?: RequestNDBody
   querystring?: Record<string, any> | string
+  meta?: TransportRequestMetadata
 }
 
 export interface TransportRequestOptions {
@@ -221,6 +229,7 @@ export default class Transport {
   [kAcceptHeader]: string
   [kRedaction]: RedactionOptions
   [kRetryBackoff]: (min: number, max: number, attempt: number) => number
+  [kOtelTracer]: Tracer
 
   static sniffReasons = {
     SNIFF_ON_START: 'sniff-on-start',
@@ -283,6 +292,7 @@ export default class Transport {
     this[kAcceptHeader] = opts.vendoredHeaders?.accept ?? 'application/json, text/plain'
     this[kRedaction] = opts.redaction ?? { type: 'replace', additionalKeys: [] }
     this[kRetryBackoff] = opts.retryBackoff ?? retryBackoff
+    this[kOtelTracer] = opentelemetry.trace.getTracer('@elastic/transport', clientVersion)
 
     if (opts.sniffOnStart === true) {
       this.sniff({
@@ -327,10 +337,10 @@ export default class Transport {
     return this[kDiagnostic]
   }
 
-  async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptionsWithOutMeta): Promise<TResponse>
-  async request<TResponse = unknown, TContext = any> (params: TransportRequestParams, options?: TransportRequestOptionsWithMeta): Promise<TransportResult<TResponse, TContext>>
-  async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptions): Promise<TResponse>
-  async request (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<any> {
+  private async _request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptionsWithOutMeta, otelSpan?: Span): Promise<TResponse>
+  private async _request<TResponse = unknown, TContext = any> (params: TransportRequestParams, options?: TransportRequestOptionsWithMeta, otelSpan?: Span): Promise<TransportResult<TResponse, TContext>>
+  private async _request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptions, otelSpan?: Span): Promise<TResponse>
+  private async _request (params: TransportRequestParams, options: TransportRequestOptions = {}, otelSpan?: Span): Promise<any> {
     const connectionParams: ConnectionRequestParams = {
       method: params.method,
       path: params.path
@@ -370,7 +380,6 @@ export default class Transport {
         if (this.headers?.warning == null) {
           return null
         }
-
         const { warning } = this.headers
         // if multiple HTTP headers have the same name, Undici represents them as an array
         const warnings: string[] = Array.isArray(warning) ? warning : [warning]
@@ -489,6 +498,22 @@ export default class Transport {
           throw new NoLivingConnectionsError('There are no living connections', result, errorOptions)
         }
 
+        // generate required OpenTelemetry attributes from the request URL
+        const requestUrl = meta.connection.url
+        otelSpan?.setAttributes({
+          'url.full': requestUrl.toString(),
+          'server.address': requestUrl.hostname
+        })
+        if (requestUrl.port === '') {
+          if (requestUrl.protocol === 'https:') {
+            otelSpan?.setAttribute('server.port', 443)
+          } else if (requestUrl.protocol === 'http:') {
+            otelSpan?.setAttribute('server.port', 80)
+          }
+        } else if (requestUrl.port !== '9200') {
+          otelSpan?.setAttribute('server.port', parseInt(requestUrl.port, 10))
+        }
+
         this[kDiagnostic].emit('request', null, result)
 
         // perform the actual http request
@@ -504,6 +529,14 @@ export default class Transport {
         })
         result.statusCode = statusCode
         result.headers = headers
+
+        if (headers['x-found-handling-cluster'] != null) {
+          otelSpan?.setAttribute('db.elasticsearch.cluster.name', headers['x-found-handling-cluster'])
+        }
+
+        if (headers['x-found-handling-instance'] != null) {
+          otelSpan?.setAttribute('db.elasticsearch.node.name', headers['x-found-handling-instance'])
+        }
 
         if (this[kProductCheck] != null && headers['x-elastic-product'] !== this[kProductCheck] && statusCode >= 200 && statusCode < 300) {
           /* eslint-disable @typescript-eslint/prefer-ts-expect-error */
@@ -645,6 +678,45 @@ export default class Transport {
     }
 
     return returnMeta ? result : result.body
+  }
+
+  async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptionsWithOutMeta): Promise<TResponse>
+  async request<TResponse = unknown, TContext = any> (params: TransportRequestParams, options?: TransportRequestOptionsWithMeta): Promise<TransportResult<TResponse, TContext>>
+  async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptions): Promise<TResponse>
+  async request (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<any> {
+    // wrap in OpenTelemetry span
+    if (params.meta?.name != null) {
+      // gather OpenTelemetry attributes
+      const attributes: Attributes = {
+        'db.system': 'elasticsearch',
+        'http.request.method': params.method,
+        'db.operation.name': params.meta?.name
+      }
+      if (params.meta?.pathParts != null) {
+        for (const key of Object.keys(params.meta.pathParts)) {
+          attributes[`db.elasticsearch.path_parts.${key}`] = params.meta.pathParts[key]
+        }
+      }
+
+      return await this[kOtelTracer].startActiveSpan(params.meta.name, { attributes, kind: SpanKind.CLIENT }, async (otelSpan: Span) => {
+        let response
+        try {
+          response = await this._request(params, options, otelSpan)
+        } catch (err: any) {
+          otelSpan.recordException(err as Exception)
+          otelSpan.setStatus({ code: SpanStatusCode.ERROR })
+          otelSpan.setAttribute('error.type', err.name ?? 'Error')
+
+          throw err
+        } finally {
+          otelSpan.end()
+        }
+
+        return response
+      })
+    } else {
+      return await this._request(params, options)
+    }
   }
 
   getConnection (opts: GetConnectionOptions): Connection | null {
