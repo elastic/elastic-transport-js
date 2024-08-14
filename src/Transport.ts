@@ -18,11 +18,12 @@
  */
 
 import Debug from 'debug'
-import os from 'os'
-import * as http from 'http'
-import zlib from 'zlib'
-import buffer from 'buffer'
-import { promisify } from 'util'
+import os from 'node:os'
+import * as http from 'node:http'
+import zlib from 'node:zlib'
+import buffer from 'node:buffer'
+import { promisify } from 'node:util'
+import process from 'node:process'
 import ms from 'ms'
 import {
   ConnectionError,
@@ -37,7 +38,7 @@ import {
 import { Connection, ConnectionRequestParams } from './connection'
 import Diagnostic from './Diagnostic'
 import Serializer from './Serializer'
-import { Readable as ReadableStream } from 'stream'
+import { Readable as ReadableStream } from 'node:stream'
 import { BaseConnectionPool } from './pool'
 import {
   nodeFilterFn,

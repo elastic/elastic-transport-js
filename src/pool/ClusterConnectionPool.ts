@@ -21,7 +21,7 @@ import BaseConnectionPool, {
   ConnectionPoolOptions,
   GetConnectionOptions
 } from './BaseConnectionPool'
-import assert from 'assert'
+import assert from 'node:assert'
 import Debug from 'debug'
 import { Connection, BaseConnection, ConnectionOptions } from '../connection'
 

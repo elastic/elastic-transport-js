@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { EventEmitter } from 'events'
+import { EventEmitter } from 'node:events'
 import { ElasticsearchClientError, ConfigurationError } from './errors'
 import { ConnectionRequestOptions } from './connection'
 import { ResurrectEvent } from './pool'

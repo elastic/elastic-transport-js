@@ -17,11 +17,11 @@
  * under the License.
  */
 
-import { inspect } from 'util'
-import * as http from 'http'
-import { URL } from 'url'
-import { ConnectionOptions as TlsConnectionOptions, TLSSocket, DetailedPeerCertificate } from 'tls'
-import { Readable as ReadableStream } from 'stream'
+import { inspect } from 'node:util'
+import * as http from 'node:http'
+import { URL } from 'node:url'
+import { ConnectionOptions as TlsConnectionOptions, TLSSocket, DetailedPeerCertificate } from 'node:tls'
+import { Readable as ReadableStream } from 'node:stream'
 import Diagnostic from '../Diagnostic'
 import {
   ApiKeyAuth,
