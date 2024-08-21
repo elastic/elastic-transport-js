@@ -991,6 +991,29 @@ test('Check server fingerprint (success)', async t => {
   server.stop()
 })
 
+test('Check server fingerprint (different formats)', async t => {
+  t.plan(1)
+
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+    res.end('ok')
+  }
+
+  const [{ port, caFingerprint }, server] = await buildServer(handler, { secure: true })
+
+  let newCaFingerprint = caFingerprint.toLowerCase().replace(/:/g, '')
+
+  const connection = new UndiciConnection({
+    url: new URL(`https://localhost:${port}`),
+    caFingerprint: newCaFingerprint
+  })
+  const res = await connection.request({
+    path: '/hello',
+    method: 'GET'
+  }, options)
+  t.equal(res.body, 'ok')
+  server.stop()
+})
+
 test('Check server fingerprint (failure)', async t => {
   t.plan(2)
 

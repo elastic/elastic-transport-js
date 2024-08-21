@@ -32,7 +32,8 @@ import BaseConnection, {
   ConnectionRequestOptionsAsStream,
   ConnectionRequestResponse,
   ConnectionRequestResponseAsStream,
-  getIssuerCertificate
+  getIssuerCertificate,
+  isCaFingerprintMatch
 } from './BaseConnection'
 import { kCaFingerprint } from '../symbols'
 import { Readable as ReadableStream, pipeline } from 'stream'
@@ -256,7 +257,7 @@ export default class HttpConnection extends BaseConnection {
 
             // Check if fingerprint matches
             /* istanbul ignore else */
-            if (this[kCaFingerprint] !== issuerCertificate.fingerprint256) {
+            if (!isCaFingerprintMatch(this[kCaFingerprint], issuerCertificate.fingerprint256)) {
               onError(new Error('Server certificate CA fingerprint does not match the value configured in caFingerprint'))
               request.once('error', () => {}) // we need to catch the request aborted error
               return request.destroy()

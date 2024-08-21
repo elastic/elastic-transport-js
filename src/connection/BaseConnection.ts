@@ -236,3 +236,12 @@ export function getIssuerCertificate (socket: TLSSocket): DetailedPeerCertificat
   }
   return certificate
 }
+
+export function isCaFingerprintMatch (cert1: string | null, cert2: string | null): boolean {
+  if (typeof cert1 === 'string' && typeof cert2 === 'string') {
+    const c1 = cert1.toLowerCase().replace(/:/g, '')
+    const c2 = cert2.toLowerCase().replace(/:/g, '')
+    return c1 === c2
+  }
+  return cert1 === cert2
+}
