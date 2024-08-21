@@ -30,7 +30,8 @@ import BaseConnection, {
   ConnectionRequestOptionsAsStream,
   ConnectionRequestResponse,
   ConnectionRequestResponseAsStream,
-  getIssuerCertificate
+  getIssuerCertificate,
+  isCaFingerprintMatch
 } from './BaseConnection'
 import { Pool, buildConnector, Dispatcher } from 'undici'
 import {
@@ -95,7 +96,7 @@ export default class Connection extends BaseConnection {
 
             // Check if fingerprint matches
             /* istanbul ignore else */
-            if (caFingerprint !== issuerCertificate.fingerprint256) {
+            if (!isCaFingerprintMatch(caFingerprint, issuerCertificate.fingerprint256)) {
               socket.destroy()
               return cb(new Error('Server certificate CA fingerprint does not match the value configured in caFingerprint'), null)
             }
