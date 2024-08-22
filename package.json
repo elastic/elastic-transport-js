@@ -57,7 +57,7 @@
     "stoppable": "1.1.0",
     "tap": "19.2.5",
     "ts-node": "10.9.2",
-    "ts-standard": "11.0.0",
+    "ts-standard": "12.0.2",
     "typescript": "5.5.4",
     "workq": "3.0.0"
   },
