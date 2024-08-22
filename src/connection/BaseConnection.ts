@@ -83,6 +83,9 @@ export interface ConnectionRequestResponseAsStream {
   statusCode: number
 }
 
+/**
+ * An HTTP connection to a single Elasticsearch node.
+ */
 export default class BaseConnection {
   url: URL
   tls: TlsConnectionOptions | null

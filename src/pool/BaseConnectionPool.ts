@@ -63,6 +63,12 @@ export interface GetConnectionOptions {
   context: any
 }
 
+/**
+ * Manages the HTTP connections to each Elasticsearch node,
+ * keeping track of which are currently dead or alive, and
+ * provides the functionality for deciding which node to send
+ * a request to.
+ */
 export default class BaseConnectionPool {
   connections: Connection[]
   size: number
@@ -188,7 +194,7 @@ export default class BaseConnectionPool {
   /**
    * Update the ConnectionPool with new connections.
    *
-   * @param {array} array of connections
+   * @param nodes array of connections
    * @returns {ConnectionPool}
    */
   update (nodes: Array<Connection | ConnectionOptions>): this {
