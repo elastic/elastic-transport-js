@@ -1019,7 +1019,7 @@ test('Body too big custom option (string)', async t => {
       method: 'GET',
       path: '/'
     }, { ...options, maxResponseSize: 1 })
-    t.fail('Shold throw')
+    t.fail('Should throw')
   } catch (err: any) {
     t.ok(err instanceof RequestAbortedError, `Not a RequestAbortedError: ${err}`)
     t.equal(err.message, 'The content length (9) is bigger than the maximum allowed string (1)')

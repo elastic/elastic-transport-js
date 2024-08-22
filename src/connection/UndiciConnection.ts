@@ -48,6 +48,9 @@ const INVALID_PATH_REGEX = /[^\u0021-\u00ff]/
 const MAX_BUFFER_LENGTH = buffer.constants.MAX_LENGTH
 const MAX_STRING_LENGTH = buffer.constants.MAX_STRING_LENGTH
 
+/**
+ * A connection to an Elasticsearch node, managed by the Undici HTTP client library
+ */
 export default class Connection extends BaseConnection {
   pool: Pool
 

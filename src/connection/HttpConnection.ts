@@ -52,6 +52,9 @@ const MAX_BUFFER_LENGTH = buffer.constants.MAX_LENGTH
 const MAX_STRING_LENGTH = buffer.constants.MAX_STRING_LENGTH
 const noop = (): void => {}
 
+/**
+ * A connection to an Elasticsearch node, managed by the `http` client in the standard library
+ */
 export default class HttpConnection extends BaseConnection {
   agent?: http.Agent | https.Agent | hpagent.HttpProxyAgent | hpagent.HttpsProxyAgent
   makeRequest: typeof http.request | typeof https.request
