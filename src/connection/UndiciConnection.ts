@@ -20,9 +20,9 @@
 /* eslint-disable @typescript-eslint/restrict-template-expressions */
 
 import Debug from 'debug'
-import buffer from 'buffer'
-import { TLSSocket } from 'tls'
-import { Socket } from 'net'
+import buffer from 'node:buffer'
+import { TLSSocket } from 'node:tls'
+import { Socket } from 'node:net'
 import BaseConnection, {
   ConnectionOptions,
   ConnectionRequestParams,

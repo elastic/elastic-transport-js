@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import * as http from 'http'
+import * as http from 'node:http'
 import { DiagnosticResult } from './types'
 import { RedactionOptions } from './Transport'
 import { redactDiagnostic } from './security'

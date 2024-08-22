@@ -17,9 +17,9 @@
  * under the License.
  */
 
-import { Readable as ReadableStream } from 'stream'
-import { URL } from 'url'
-import * as http from 'http'
+import { Readable as ReadableStream } from 'node:stream'
+import { URL } from 'node:url'
+import * as http from 'node:http'
 import { Connection, ConnectionOptions, ConnectionRequestParams } from './connection'
 import { TransportRequestParams, TransportRequestOptions } from './Transport'
 

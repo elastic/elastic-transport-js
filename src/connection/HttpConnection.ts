@@ -20,11 +20,11 @@
 /* eslint-disable @typescript-eslint/restrict-template-expressions */
 
 import hpagent from 'hpagent'
-import http from 'http'
-import https from 'https'
+import http from 'node:http'
+import https from 'node:https'
 import Debug from 'debug'
-import buffer from 'buffer'
-import { TLSSocket } from 'tls'
+import buffer from 'node:buffer'
+import { TLSSocket } from 'node:tls'
 import BaseConnection, {
   ConnectionOptions,
   ConnectionRequestParams,
@@ -36,14 +36,14 @@ import BaseConnection, {
   isCaFingerprintMatch
 } from './BaseConnection'
 import { kCaFingerprint } from '../symbols'
-import { Readable as ReadableStream, pipeline } from 'stream'
+import { Readable as ReadableStream, pipeline } from 'node:stream'
 import {
   ConfigurationError,
   ConnectionError,
   RequestAbortedError,
   TimeoutError
 } from '../errors'
-import { setTimeout as setTimeoutPromise } from 'timers/promises'
+import { setTimeout as setTimeoutPromise } from 'node:timers/promises'
 import { HttpAgentOptions } from '../types'
 
 const debug = Debug('elasticsearch')

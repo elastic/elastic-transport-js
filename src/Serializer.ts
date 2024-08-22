@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { stringify } from 'querystring'
+import { stringify } from 'node:querystring'
 import Debug from 'debug'
 import sjson from 'secure-json-parse'
 import { SerializationError, DeserializationError } from './errors'
