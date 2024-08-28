@@ -121,8 +121,9 @@ export class ResponseError extends ElasticsearchClientError {
     Error.captureStackTrace(this, ResponseError)
     this.name = 'ResponseError'
 
-    // TODO: this is for Elasticsearch
-    if (isObject(meta.body) && meta.body.error != null && meta.body.error.type != null) {
+    if (meta.statusCode === 410) {
+      this.message = 'This API is unavailable in the version of Elasticsearch you are using.'
+    } else if (isObject(meta.body) && meta.body.error != null && meta.body.error.type != null) {
       this.message = meta.body.error.type
 
       if (isObject(meta.body.error.caused_by)) {
