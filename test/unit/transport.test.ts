@@ -593,6 +593,39 @@ test('Should not retry if the body is a stream', async t => {
   }
 })
 
+test('Should not use retry backoff until retries exceeds node count', async t => {
+  t.plan(3)
+
+  const pool = new WeightedConnectionPool({ Connection: MockConnectionError })
+  pool.addConnection([
+    'http://localhost:9200',
+    'http://localhost:9201',
+    'http://localhost:9202',
+  ])
+
+  let backoffCount = 0
+  const transport = new Transport({
+    connectionPool: pool,
+    retryBackoff: () => {
+      backoffCount++
+      return 0
+    },
+    maxRetries: 3
+  })
+
+  try {
+    const res = transport.request({
+      method: 'GET',
+      path: '/hello'
+    })
+    await res
+  } catch (err: any) {
+    t.ok(err instanceof ConnectionError)
+    t.equal(err.meta.meta.attempts, 3)
+    t.equal(backoffCount, 1)
+  }
+})
+
 test('Should not retry if the bulkBody is a stream', async t => {
   let count = 0
   const Conn = buildMockConnection({
