@@ -652,11 +652,14 @@ export default class Transport {
               meta.attempts++
               debug(`Retrying request, there are still ${maxRetries - meta.attempts} attempts`, params)
 
-              // exponential backoff on retries, with jitter
-              const backoff = options.retryBackoff ?? this[kRetryBackoff]
-              const backoffWait = backoff(0, 4, meta.attempts)
-              if (backoffWait > 0) {
-                await setTimeoutPromise(backoffWait * 1000)
+              // don't use exponential backoff until retrying on each node
+              if (meta.attempts >= this[kConnectionPool].size) {
+                // exponential backoff on retries, with jitter
+                const backoff = options.retryBackoff ?? this[kRetryBackoff]
+                const backoffWait = backoff(0, 4, meta.attempts)
+                if (backoffWait > 0) {
+                  await setTimeoutPromise(backoffWait * 1000)
+                }
               }
 
               continue
