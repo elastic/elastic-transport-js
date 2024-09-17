@@ -21,26 +21,18 @@ import { stringify } from 'node:querystring'
 import Debug from 'debug'
 import sjson from 'secure-json-parse'
 import { SerializationError, DeserializationError } from './errors'
-import { kJsonOptions } from './symbols'
 
 const debug = Debug('elasticsearch')
 
 export interface SerializerOptions {
-  enablePrototypePoisoningProtection?: boolean | 'proto' | 'constructor'
+  enablePrototypePoisoningProtection?: boolean
 }
 
 export default class Serializer {
-  [kJsonOptions]: {
-    protoAction: string
-    constructorAction: string
-  }
+  safeParseEnabled: boolean
 
   constructor (opts: SerializerOptions = {}) {
-    const enabled = opts.enablePrototypePoisoningProtection ?? false
-    this[kJsonOptions] = {
-      protoAction: enabled === true || enabled === 'proto' ? 'error' : 'ignore',
-      constructorAction: enabled === true || enabled === 'constructor' ? 'error' : 'ignore'
-    }
+    this.safeParseEnabled = opts.enablePrototypePoisoningProtection || false
   }
 
   /**
@@ -64,8 +56,15 @@ export default class Serializer {
     debug('Deserializing', json)
     let object
     try {
-      // @ts-expect-error
-      object = sjson.parse(json, this[kJsonOptions])
+      if(this.safeParseEnabled) {
+        object = sjson.parse(json, {
+          protoAction: 'error',
+          constructorAction: 'error'
+        })
+      } else {
+        object = JSON.parse(json)
+      }
+
     } catch (err: any) {
       throw new DeserializationError(err.message, json)
     }
