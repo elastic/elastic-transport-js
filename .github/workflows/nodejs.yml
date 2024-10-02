@@ -42,6 +42,52 @@ jobs:
         run: |
           npm run test:acceptance
 
+  test-client:
+    name: Test against client
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [18.x, 20.x, 22.x]
+
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+        with:
+          repository: elastic/elasticsearch-js
+          ref: main
+          path: client
+
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+        with:
+          path: transport
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install transport
+        run: |
+          cd "$GITHUB_WORKSPACE/transport"
+          npm install
+
+      - name: Build transport
+        run: |
+          cd "$GITHUB_WORKSPACE/transport"
+          npm run build
+
+      - name: Install client with local transport
+        run: |
+          cd "$GITHUB_WORKSPACE/client"
+          npm install
+          npm install ../transport --install-links
+
+      - name: Unit test
+        run: |
+          cd "$GITHUB_WORKSPACE/client"
+          npm run test:unit
+
   license:
     name: License check
     runs-on: ubuntu-latest
