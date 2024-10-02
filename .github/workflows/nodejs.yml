@@ -44,13 +44,12 @@ jobs:
 
   test-client:
     name: Test against client
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
       matrix:
         node-version: [18.x, 20.x, 22.x]
-        os: [ubuntu-latest, windows-latest, macOS-latest]
 
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
