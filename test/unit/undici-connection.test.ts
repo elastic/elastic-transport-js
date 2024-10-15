@@ -126,13 +126,13 @@ test('Timeout support / 1', async t => {
   t.plan(1)
 
   function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
-    setTimeout(() => res.end('ok'), 100)
+    setTimeout(() => res.end('ok'), 1000)
   }
 
   const [{ port }, server] = await buildServer(handler)
   const connection = new UndiciConnection({
     url: new URL(`http://localhost:${port}`),
-    timeout: 50
+    timeout: 600
   })
 
   try {
@@ -148,22 +148,26 @@ test('Timeout support / 1', async t => {
 
 test('Timeout support / 2', async t => {
   t.plan(2)
+  t.clock.enter()
+  t.teardown(() => t.clock.exit())
 
   function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
     res.writeHead(200, { 'content-type': 'text/plain' })
-    setTimeout(() => res.end('ok'), 100)
+    setTimeout(() => res.end('ok'), 1000)
   }
 
   const [{ port }, server] = await buildServer(handler)
   const connection = new UndiciConnection({
     url: new URL(`http://localhost:${port}`),
-    timeout: 50
+    timeout: 600
   })
   try {
-    await connection.request({
+    const res = connection.request({
       path: '/hello',
       method: 'GET'
     }, options)
+    t.clock.advance(600)
+    await res
   } catch (err: any) {
     t.ok(err instanceof TimeoutError)
     t.equal(err.message, 'Request timed out')
@@ -173,24 +177,28 @@ test('Timeout support / 2', async t => {
 
 test('Timeout support / 3', async t => {
   t.plan(2)
+  t.clock.enter()
+  t.teardown(() => t.clock.exit())
 
   function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
-    setTimeout(() => res.end('ok'), 100)
+    setTimeout(() => res.end('ok'), 1000)
   }
 
   const [{ port }, server] = await buildServer(handler)
   const connection = new UndiciConnection({
     url: new URL(`http://localhost:${port}`),
-    timeout: 200
+    timeout: 600
   })
   try {
-    await connection.request({
+    const res = connection.request({
       path: '/hello',
       method: 'GET'
     }, {
-      timeout: 50,
+      timeout: 600,
       ...options
     })
+    t.clock.advance(600)
+    await res
   } catch (err: any) {
     t.ok(err instanceof TimeoutError)
     t.equal(err.message, 'Request timed out')
@@ -200,19 +208,21 @@ test('Timeout support / 3', async t => {
 
 test('Timeout support / 4', async t => {
   t.plan(2)
+  t.clock.enter()
+  t.teardown(() => t.clock.exit())
 
   function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
-    setTimeout(() => res.end('ok'), 100)
+    setTimeout(() => res.end('ok'), 1000)
   }
 
   const [{ port }, server] = await buildServer(handler)
   const connection = new UndiciConnection({
     url: new URL(`http://localhost:${port}`),
-    timeout: 200
+    timeout: 2000
   })
   const abortController = new AbortController()
   try {
-    await connection.request({
+    const res = connection.request({
       path: '/hello',
       method: 'GET',
     }, {
@@ -220,6 +230,8 @@ test('Timeout support / 4', async t => {
       timeout: 50,
       ...options
     })
+    t.clock.advance(1000)
+    await res
     t.fail('Timeout was not reached')
   } catch (err: any) {
     t.ok(err instanceof TimeoutError)
