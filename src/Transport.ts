@@ -351,7 +351,7 @@ export default class Transport {
       context: null,
       request: {
         params: connectionParams,
-        options: options,
+        options,
         id: options.id ?? this[kGenerateRequestId](params, options)
       },
       name: this[kName],
@@ -557,8 +557,18 @@ export default class Transport {
           body = await unzip(body)
         }
 
-        const isVectorTile = (headers['content-type'] ?? '').includes('application/vnd.mapbox-vector-tile')
-        if (Buffer.isBuffer(body) && !isVectorTile) {
+        const binaryTypes = [
+          'application/vnd.mapbox-vector-tile',
+          'application/vnd.apache.arrow.stream',
+          'application/vnd.elasticsearch+arrow+stream',
+          'application/smile',
+          'application/vnd.elasticsearch+smile',
+          'application/cbor',
+          'application/vnd.elasticsearch+cbor'
+        ]
+        const contentType = headers['content-type'] ?? ''
+        const isBinary = binaryTypes.map(type => contentType.includes(type)).includes(true)
+        if (Buffer.isBuffer(body) && !isBinary) {
           body = body.toString()
         }
 
