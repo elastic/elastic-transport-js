@@ -1873,6 +1873,174 @@ test('Compressed mapbox vector tile', async t => {
   t.same(body.toString('base64'), Buffer.from(mvtContent, 'base64').toString('base64'))
 })
 
+test('Support Apache Arrow content-type / 1', async t => {
+   t.plan(1)
+   const binaryContent = 'GoMCCgRtZXRhEikSFAAAAQACAQMBBAAFAgYDBwAIBAkAGAMiDwkAgEAagEAAAP8//z8ADxoOX3NoYXJkcy5mYWlsZWQaD19zaGFyZHMuc2tpcHBlZBoSX3NoYXJkcy5zdWNjZXNzZnVsGg1fc2hhcmRzLnRvdGFsGhlhZ2dyZWdhdGlvbnMuX2NvdW50LmNvdW50GhdhZ2dyZWdhdGlvbnMuX2NvdW50LnN1bRoTaGl0cy50b3RhbC5yZWxhdGlvbhoQaGl0cy50b3RhbC52YWx1ZRoJdGltZWRfb3V0GgR0b29rIgIwACICMAIiCRkAAAAAAAAAACIECgJlcSICOAAogCB4Ag=='
+
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams) {
+      return {
+        body: Buffer.from(binaryContent, 'base64'),
+        statusCode: 200,
+        headers: {
+          'content-type': 'application/vnd.elasticsearch+arrow+stream'
+        }
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({ connectionPool: pool })
+
+  const body = await transport.request<Buffer>({
+    method: 'GET',
+    path: '/_query'
+  })
+  t.same(body.toString('base64'), Buffer.from(binaryContent, 'base64').toString('base64'))
+})
+
+test('Support Apache Arrow content-type / 2', async t => {
+   t.plan(1)
+   const binaryContent = 'GoMCCgRtZXRhEikSFAAAAQACAQMBBAAFAgYDBwAIBAkAGAMiDwkAgEAagEAAAP8//z8ADxoOX3NoYXJkcy5mYWlsZWQaD19zaGFyZHMuc2tpcHBlZBoSX3NoYXJkcy5zdWNjZXNzZnVsGg1fc2hhcmRzLnRvdGFsGhlhZ2dyZWdhdGlvbnMuX2NvdW50LmNvdW50GhdhZ2dyZWdhdGlvbnMuX2NvdW50LnN1bRoTaGl0cy50b3RhbC5yZWxhdGlvbhoQaGl0cy50b3RhbC52YWx1ZRoJdGltZWRfb3V0GgR0b29rIgIwACICMAIiCRkAAAAAAAAAACIECgJlcSICOAAogCB4Ag=='
+
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams) {
+      return {
+        body: Buffer.from(binaryContent, 'base64'),
+        statusCode: 200,
+        headers: {
+          'content-type': 'application/vnd.apache.arrow.stream'
+        }
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({ connectionPool: pool })
+
+  const body = await transport.request<Buffer>({
+    method: 'GET',
+    path: '/_query'
+  })
+  t.same(body.toString('base64'), Buffer.from(binaryContent, 'base64').toString('base64'))
+})
+
+test('Support CBOR content-type / 1', async t => {
+   t.plan(1)
+   const binaryContent = 'GoMCCgRtZXRhEikSFAAAAQACAQMBBAAFAgYDBwAIBAkAGAMiDwkAgEAagEAAAP8//z8ADxoOX3NoYXJkcy5mYWlsZWQaD19zaGFyZHMuc2tpcHBlZBoSX3NoYXJkcy5zdWNjZXNzZnVsGg1fc2hhcmRzLnRvdGFsGhlhZ2dyZWdhdGlvbnMuX2NvdW50LmNvdW50GhdhZ2dyZWdhdGlvbnMuX2NvdW50LnN1bRoTaGl0cy50b3RhbC5yZWxhdGlvbhoQaGl0cy50b3RhbC52YWx1ZRoJdGltZWRfb3V0GgR0b29rIgIwACICMAIiCRkAAAAAAAAAACIECgJlcSICOAAogCB4Ag=='
+
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams) {
+      return {
+        body: Buffer.from(binaryContent, 'base64'),
+        statusCode: 200,
+        headers: {
+          'content-type': 'application/cbor'
+        }
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({ connectionPool: pool })
+
+  const body = await transport.request<Buffer>({
+    method: 'GET',
+    path: '/_query'
+  })
+  t.same(body.toString('base64'), Buffer.from(binaryContent, 'base64').toString('base64'))
+})
+
+test('Support CBOR content-type / 2', async t => {
+   t.plan(1)
+   const binaryContent = 'GoMCCgRtZXRhEikSFAAAAQACAQMBBAAFAgYDBwAIBAkAGAMiDwkAgEAagEAAAP8//z8ADxoOX3NoYXJkcy5mYWlsZWQaD19zaGFyZHMuc2tpcHBlZBoSX3NoYXJkcy5zdWNjZXNzZnVsGg1fc2hhcmRzLnRvdGFsGhlhZ2dyZWdhdGlvbnMuX2NvdW50LmNvdW50GhdhZ2dyZWdhdGlvbnMuX2NvdW50LnN1bRoTaGl0cy50b3RhbC5yZWxhdGlvbhoQaGl0cy50b3RhbC52YWx1ZRoJdGltZWRfb3V0GgR0b29rIgIwACICMAIiCRkAAAAAAAAAACIECgJlcSICOAAogCB4Ag=='
+
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams) {
+      return {
+        body: Buffer.from(binaryContent, 'base64'),
+        statusCode: 200,
+        headers: {
+          'content-type': 'application/application/vnd.elasticsearch+cbor'
+        }
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({ connectionPool: pool })
+
+  const body = await transport.request<Buffer>({
+    method: 'GET',
+    path: '/_query'
+  })
+  t.same(body.toString('base64'), Buffer.from(binaryContent, 'base64').toString('base64'))
+})
+
+test('Support Smile content-type / 1', async t => {
+   t.plan(1)
+   const binaryContent = 'GoMCCgRtZXRhEikSFAAAAQACAQMBBAAFAgYDBwAIBAkAGAMiDwkAgEAagEAAAP8//z8ADxoOX3NoYXJkcy5mYWlsZWQaD19zaGFyZHMuc2tpcHBlZBoSX3NoYXJkcy5zdWNjZXNzZnVsGg1fc2hhcmRzLnRvdGFsGhlhZ2dyZWdhdGlvbnMuX2NvdW50LmNvdW50GhdhZ2dyZWdhdGlvbnMuX2NvdW50LnN1bRoTaGl0cy50b3RhbC5yZWxhdGlvbhoQaGl0cy50b3RhbC52YWx1ZRoJdGltZWRfb3V0GgR0b29rIgIwACICMAIiCRkAAAAAAAAAACIECgJlcSICOAAogCB4Ag=='
+
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams) {
+      return {
+        body: Buffer.from(binaryContent, 'base64'),
+        statusCode: 200,
+        headers: {
+          'content-type': 'application/smile'
+        }
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({ connectionPool: pool })
+
+  const body = await transport.request<Buffer>({
+    method: 'GET',
+    path: '/_query'
+  })
+  t.same(body.toString('base64'), Buffer.from(binaryContent, 'base64').toString('base64'))
+})
+
+test('Support Smile content-type / 2', async t => {
+   t.plan(1)
+   const binaryContent = 'GoMCCgRtZXRhEikSFAAAAQACAQMBBAAFAgYDBwAIBAkAGAMiDwkAgEAagEAAAP8//z8ADxoOX3NoYXJkcy5mYWlsZWQaD19zaGFyZHMuc2tpcHBlZBoSX3NoYXJkcy5zdWNjZXNzZnVsGg1fc2hhcmRzLnRvdGFsGhlhZ2dyZWdhdGlvbnMuX2NvdW50LmNvdW50GhdhZ2dyZWdhdGlvbnMuX2NvdW50LnN1bRoTaGl0cy50b3RhbC5yZWxhdGlvbhoQaGl0cy50b3RhbC52YWx1ZRoJdGltZWRfb3V0GgR0b29rIgIwACICMAIiCRkAAAAAAAAAACIECgJlcSICOAAogCB4Ag=='
+
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams) {
+      return {
+        body: Buffer.from(binaryContent, 'base64'),
+        statusCode: 200,
+        headers: {
+          'content-type': 'application/vnd.elasticsearch+smile'
+        }
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({ connectionPool: pool })
+
+  const body = await transport.request<Buffer>({
+    method: 'GET',
+    path: '/_query'
+  })
+  t.same(body.toString('base64'), Buffer.from(binaryContent, 'base64').toString('base64'))
+})
+
 test('maxResponseSize request option', async t => {
   const Conn = buildMockConnection({
     onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
