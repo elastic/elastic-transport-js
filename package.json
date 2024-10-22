@@ -74,7 +74,7 @@
   },
   "devDependencies": {
     "@opentelemetry/sdk-trace-base": "1.26.0",
-    "@sinonjs/fake-timers": "github:sinonjs/fake-timers#2eb02fe",
+    "@sinonjs/fake-timers": "github:sinonjs/fake-timers#77a516c",
     "@tapjs/clock": "3.0.0",
     "@types/debug": "4.1.12",
     "@types/ms": "0.7.34",
