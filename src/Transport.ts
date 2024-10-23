@@ -147,7 +147,6 @@ export interface TransportRequestOptions {
   compression?: boolean
   id?: any
   context?: Context
-  warnings?: string[]
   opaqueId?: string
   signal?: AbortSignal
   maxResponseSize?: number
