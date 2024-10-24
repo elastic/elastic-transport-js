@@ -33,7 +33,8 @@ import BaseConnection, {
   ConnectionRequestResponse,
   ConnectionRequestResponseAsStream,
   getIssuerCertificate,
-  isCaFingerprintMatch
+  isCaFingerprintMatch,
+  isBinary
 } from './BaseConnection'
 import { kCaFingerprint } from '../symbols'
 import { Readable as ReadableStream, pipeline } from 'node:stream'
@@ -147,7 +148,7 @@ export default class HttpConnection extends BaseConnection {
 
         const contentEncoding = (response.headers['content-encoding'] ?? '').toLowerCase()
         const isCompressed = contentEncoding.includes('gzip') || contentEncoding.includes('deflate')
-        const isVectorTile = (response.headers['content-type'] ?? '').includes('application/vnd.mapbox-vector-tile')
+        const bodyIsBinary = isBinary(response.headers['content-type'] ?? '')
 
         /* istanbul ignore else */
         if (response.headers['content-length'] !== undefined) {
@@ -167,8 +168,8 @@ export default class HttpConnection extends BaseConnection {
 
         // if the response is compressed, we must handle it
         // as buffer for allowing decompression later
-        let payload = isCompressed || isVectorTile ? new Array<Buffer>() : ''
-        const onData = isCompressed || isVectorTile ? onDataAsBuffer : onDataAsString
+        let payload = isCompressed || bodyIsBinary ? new Array<Buffer>() : ''
+        const onData = isCompressed || bodyIsBinary ? onDataAsBuffer : onDataAsString
 
         let currentLength = 0
         function onDataAsBuffer (chunk: Buffer): void {
@@ -208,13 +209,13 @@ export default class HttpConnection extends BaseConnection {
           }
 
           resolve({
-            body: isCompressed || isVectorTile ? Buffer.concat(payload as Buffer[]) : payload as string,
+            body: isCompressed || bodyIsBinary ? Buffer.concat(payload as Buffer[]) : payload as string,
             statusCode: response.statusCode as number,
             headers: response.headers
           })
         }
 
-        if (!isCompressed && !isVectorTile) {
+        if (!isCompressed && !bodyIsBinary) {
           response.setEncoding('utf8')
         }
 
