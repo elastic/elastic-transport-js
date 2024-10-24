@@ -248,3 +248,19 @@ export function isCaFingerprintMatch (cert1: string | null, cert2: string | null
   }
   return cert1 === cert2
 }
+
+export function isBinary (contentType: string | string[]): boolean {
+  const binaryTypes = [
+    'application/vnd.mapbox-vector-tile',
+    'application/vnd.apache.arrow.stream',
+    'application/vnd.elasticsearch+arrow+stream',
+    'application/smile',
+    'application/vnd.elasticsearch+smile',
+    'application/cbor',
+    'application/vnd.elasticsearch+cbor'
+  ]
+
+  return binaryTypes
+    .map(type => contentType.includes(type))
+    .includes(true)
+}

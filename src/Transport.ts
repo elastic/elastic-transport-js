@@ -36,6 +36,7 @@ import {
   ErrorOptions
 } from './errors'
 import { Connection, ConnectionRequestParams } from './connection'
+import { isBinary } from './connection/BaseConnection'
 import Diagnostic from './Diagnostic'
 import Serializer from './Serializer'
 import { Readable as ReadableStream } from 'node:stream'
@@ -556,18 +557,7 @@ export default class Transport {
           body = await unzip(body)
         }
 
-        const binaryTypes = [
-          'application/vnd.mapbox-vector-tile',
-          'application/vnd.apache.arrow.stream',
-          'application/vnd.elasticsearch+arrow+stream',
-          'application/smile',
-          'application/vnd.elasticsearch+smile',
-          'application/cbor',
-          'application/vnd.elasticsearch+cbor'
-        ]
-        const contentType = headers['content-type'] ?? ''
-        const isBinary = binaryTypes.map(type => contentType.includes(type)).includes(true)
-        if (Buffer.isBuffer(body) && !isBinary) {
+        if (Buffer.isBuffer(body) && !isBinary(headers['content-type'] ?? '')) {
           body = body.toString()
         }
 

@@ -31,7 +31,8 @@ import BaseConnection, {
   ConnectionRequestResponse,
   ConnectionRequestResponseAsStream,
   getIssuerCertificate,
-  isCaFingerprintMatch
+  isCaFingerprintMatch,
+  isBinary
 } from './BaseConnection'
 import { Pool, buildConnector, Dispatcher } from 'undici'
 import {
@@ -182,7 +183,7 @@ export default class Connection extends BaseConnection {
     // @ts-expect-error Assume header is not string[] for now.
     const contentEncoding = (response.headers['content-encoding'] ?? '').toLowerCase()
     const isCompressed = contentEncoding.includes('gzip') || contentEncoding.includes('deflate') // eslint-disable-line
-    const isVectorTile = (response.headers['content-type'] ?? '').includes('application/vnd.mapbox-vector-tile')
+    const bodyIsBinary = isBinary(response.headers['content-type'] ?? '')
 
     /* istanbul ignore else */
     if (response.headers['content-length'] !== undefined) {
@@ -198,7 +199,7 @@ export default class Connection extends BaseConnection {
 
     this.diagnostic.emit('deserialization', null, options)
     try {
-      if (isCompressed || isVectorTile) { // eslint-disable-line
+      if (isCompressed || bodyIsBinary) { // eslint-disable-line
         let currentLength = 0
         const payload: Buffer[] = []
         for await (const chunk of response.body) {
