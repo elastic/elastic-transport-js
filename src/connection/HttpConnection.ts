@@ -135,7 +135,6 @@ export default class HttpConnection extends BaseConnection {
 
       const onResponse = (response: http.IncomingMessage): void => {
         cleanListeners()
-        request.on('error', noop) // There are some edge cases where the request emits an error while processing the response.
         this._openRequests--
 
         if (options.asStream === true) {
@@ -255,7 +254,7 @@ export default class HttpConnection extends BaseConnection {
             /* istanbul ignore next */
             if (issuerCertificate == null) {
               onError(new Error('Invalid or malformed certificate'))
-              request.once('error', () => {}) // we need to catch the request aborted error
+              request.once('error', noop) // we need to catch the request aborted error
               return request.destroy()
             }
 
@@ -263,7 +262,7 @@ export default class HttpConnection extends BaseConnection {
             /* istanbul ignore else */
             if (!isCaFingerprintMatch(this[kCaFingerprint], issuerCertificate.fingerprint256)) {
               onError(new Error('Server certificate CA fingerprint does not match the value configured in caFingerprint'))
-              request.once('error', () => {}) // we need to catch the request aborted error
+              request.once('error', noop) // we need to catch the request aborted error
               return request.destroy()
             }
           })
@@ -300,6 +299,7 @@ export default class HttpConnection extends BaseConnection {
         request.removeListener('response', onResponse)
         request.removeListener('timeout', onTimeout)
         request.removeListener('error', onError)
+        request.on('error', noop)
         request.removeListener('socket', onSocket)
         if (options.signal != null) {
           if ('removeEventListener' in options.signal) {
