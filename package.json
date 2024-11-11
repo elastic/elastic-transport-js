@@ -95,7 +95,7 @@
     "workq": "3.0.0"
   },
   "dependencies": {
-    "@opentelemetry/api": "1.x",
+    "@opentelemetry/api": "1.9.0",
     "debug": "^4.3.7",
     "hpagent": "^1.0.0",
     "ms": "^2.1.3",
