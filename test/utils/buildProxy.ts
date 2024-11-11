@@ -18,7 +18,7 @@
  */
 
 // @ts-ignore
-import proxy from 'proxy'
+import { createProxy as proxy } from 'proxy'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import * as http from 'http'
