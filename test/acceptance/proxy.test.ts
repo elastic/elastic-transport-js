@@ -132,9 +132,7 @@ test('http basic authentication', async t => {
     res.end(JSON.stringify({ hello: 'world' }))
   })
 
-  proxy.authenticate = function (req, fn): void {
-    fn(null, req.headers['proxy-authorization'] === `Basic ${Buffer.from('hello:world').toString('base64')}`)
-  }
+  proxy.authenticate = (req) => req.headers['proxy-authorization'] === `Basic ${Buffer.from('hello:world').toString('base64')}`
 
   const client = new TestClient({
     node: `http://${(server.address() as AddressInfo).address}:${(server.address() as AddressInfo).port}`,
@@ -158,9 +156,7 @@ test('https basic authentication', async t => {
     res.end(JSON.stringify({ hello: 'world' }))
   })
 
-  proxy.authenticate = function (req, fn): void {
-    fn(null, req.headers['proxy-authorization'] === `Basic ${Buffer.from('hello:world').toString('base64')}`)
-  }
+  proxy.authenticate = (req) => req.headers['proxy-authorization'] === `Basic ${Buffer.from('hello:world').toString('base64')}`
 
   const client = new TestClient({
     node: `https://${(server.address() as AddressInfo).address}:${(server.address() as AddressInfo).port}`,
