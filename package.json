@@ -99,7 +99,7 @@
     "debug": "^4.3.7",
     "hpagent": "^1.2.0",
     "ms": "^2.1.3",
-    "secure-json-parse": "^2.4.0",
+    "secure-json-parse": "^2.7.0",
     "tslib": "^2.4.0",
     "undici": "^6.12.0"
   },
