@@ -18,7 +18,10 @@
         "dependencies"
       ],
       "rangeStrategy": "bump",
-      "automerge": false
+      "automerge": false,
+      "matchPackageNames": [
+        "!@opentelemetry/api"
+      ]
     }
   ]
 }
