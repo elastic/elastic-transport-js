@@ -73,7 +73,7 @@
     "node": ">=18"
   },
   "devDependencies": {
-    "@opentelemetry/sdk-trace-base": "1.28.0",
+    "@opentelemetry/sdk-trace-base": "1.29.0",
     "@sinonjs/fake-timers": "13.0.5",
     "@tapjs/clock": "3.0.0",
     "@types/debug": "4.1.12",
