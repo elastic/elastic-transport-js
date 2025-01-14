@@ -98,6 +98,15 @@ export default class Connection extends BaseConnection {
               return cb(new Error('Invalid or malformed certificate'), null)
             }
 
+            // Certificate will be empty if a session is reused. In this case, getPeerCertificate
+            // will return an empty object, causing a fingeprint check to fail. But, if the session
+            // is being reused, it means this socket's peer certificate fingerprint has already been
+            // checked, so we can skip it and assume the connection is secure.
+            // See https://github.com/nodejs/node/issues/3940#issuecomment-166696776
+            if (Object.keys(issuerCertificate).length === 0 && socket.isSessionReused()) {
+              return cb(null, socket)
+            }
+
             // Check if fingerprint matches
             /* istanbul ignore else */
             if (!isCaFingerprintMatch(caFingerprint, issuerCertificate.fingerprint256)) {

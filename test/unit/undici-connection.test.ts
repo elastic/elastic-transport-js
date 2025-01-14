@@ -1073,6 +1073,39 @@ test('Check server fingerprint (failure)', async t => {
   server.stop()
 })
 
+test('Multiple requests to same connection should skip fingerprint check when session is reused', async t => {
+  // fingerprint matching can, and must, be skipped when a TLS session is being reused
+  // see https://nodejs.org/api/tls.html#session-resumption
+  // this tests that subsequent requests sent to the same connection will not fail due to
+  // a fingerprint match test failing.
+  const runs = 4
+  t.plan(runs)
+
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+    res.end('ok')
+  }
+
+  const [{ port, caFingerprint }, server] = await buildServer(handler, { secure: true })
+  const connection = new UndiciConnection({
+    url: new URL(`https://localhost:${port}`),
+    caFingerprint,
+  })
+
+  for (let i = 0; i < runs; i++) {
+    try {
+      const res = await connection.request({
+        path: `/hello-${i}`,
+        method: 'GET'
+      }, options)
+      t.equal(res.body, 'ok')
+    } catch {
+      t.fail('This should never be reached')
+    }
+  }
+
+  server.stop()
+})
+
 test('Should show local/remote socket addres in case of ECONNRESET', async t => {
   t.plan(2)
 
