@@ -5,7 +5,6 @@ on:
       branch:
         description: "Git branch to build and publish"
         required: true
-        default: main
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -27,3 +26,16 @@ jobs:
       - run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish version on GitHub
+        run: |
+          version=$(jq -r .version package.json)
+          gh release create \
+            -n "This is a 9.0.0 pre-release alpha. Changes may not be stable." \
+            --latest=false \
+            --prerelease \
+            --target "$BRANCH_NAME" \
+            --title "v$version" \
+            "v$version"
+        env:
+          BRANCH_NAME: ${{ github.event.inputs.branch }}
+          GH_TOKEN: ${{ github.token }}
