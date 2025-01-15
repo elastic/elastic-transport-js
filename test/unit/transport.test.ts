@@ -176,8 +176,8 @@ test('Send POST (json)', async t => {
   t.plan(5)
   const Conn = buildMockConnection({
     onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
-      t.equal(opts.headers?.accept, 'application/vnd.elasticsearch+json; compatible-with=8')
-      t.equal(opts.headers?.['content-type'], 'application/vnd.elasticsearch+json; compatible-with=8')
+      t.equal(opts.headers?.accept, 'application/vnd.elasticsearch+json; compatible-with=9')
+      t.equal(opts.headers?.['content-type'], 'application/vnd.elasticsearch+json; compatible-with=9')
       return {
         body: JSON.parse(opts.body as string),
         statusCode: 200
@@ -191,9 +191,9 @@ test('Send POST (json)', async t => {
   const transport = new Transport({
     connectionPool: pool,
     vendoredHeaders: {
-      jsonContentType: 'application/vnd.elasticsearch+json; compatible-with=8',
-      ndjsonContentType: 'application/vnd.elasticsearch+x-ndjson; compatible-with=8',
-      accept: 'application/vnd.elasticsearch+json; compatible-with=8'
+      jsonContentType: 'application/vnd.elasticsearch+json; compatible-with=9',
+      ndjsonContentType: 'application/vnd.elasticsearch+x-ndjson; compatible-with=9',
+      accept: 'application/vnd.elasticsearch+json; compatible-with=9'
     }
   })
 
@@ -217,8 +217,8 @@ test('Send POST (ndjson)', async t => {
 
   const Conn = buildMockConnection({
     onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
-      t.equal(opts.headers?.accept, 'application/vnd.elasticsearch+json; compatible-with=8')
-      t.equal(opts.headers?.['content-type'], 'application/vnd.elasticsearch+x-ndjson; compatible-with=8')
+      t.equal(opts.headers?.accept, 'application/vnd.elasticsearch+json; compatible-with=9')
+      t.equal(opts.headers?.['content-type'], 'application/vnd.elasticsearch+x-ndjson; compatible-with=9')
       const body = opts.body as string
       t.equal(body.split('\n')[0], JSON.stringify(bulkBody[0]))
       t.equal(body.split('\n')[1], JSON.stringify(bulkBody[1]))
@@ -236,9 +236,9 @@ test('Send POST (ndjson)', async t => {
   const transport = new Transport({
     connectionPool: pool,
     vendoredHeaders: {
-      jsonContentType: 'application/vnd.elasticsearch+json; compatible-with=8',
-      ndjsonContentType: 'application/vnd.elasticsearch+x-ndjson; compatible-with=8',
-      accept: 'application/vnd.elasticsearch+json; compatible-with=8'
+      jsonContentType: 'application/vnd.elasticsearch+json; compatible-with=9',
+      ndjsonContentType: 'application/vnd.elasticsearch+x-ndjson; compatible-with=9',
+      accept: 'application/vnd.elasticsearch+json; compatible-with=9'
     }
   })
 
@@ -342,7 +342,7 @@ test('Send stream (ndjson)', async t => {
 test('Not JSON payload from server', async t => {
   const Conn = buildMockConnection({
     onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
-      t.equal(opts.headers?.accept, 'application/vnd.elasticsearch+json; compatible-with=8,text/plain')
+      t.equal(opts.headers?.accept, 'application/vnd.elasticsearch+json; compatible-with=9,text/plain')
       return {
         body: 'hello!',
         headers: { 'content-type': 'text/plain' },
@@ -357,9 +357,9 @@ test('Not JSON payload from server', async t => {
   const transport = new Transport({
     connectionPool: pool,
     vendoredHeaders: {
-      jsonContentType: 'application/vnd.elasticsearch+json; compatible-with=8',
-      ndjsonContentType: 'application/vnd.elasticsearch+x-ndjson; compatible-with=8',
-      accept: 'application/vnd.elasticsearch+json; compatible-with=8,text/plain'
+      jsonContentType: 'application/vnd.elasticsearch+json; compatible-with=9',
+      ndjsonContentType: 'application/vnd.elasticsearch+x-ndjson; compatible-with=9',
+      accept: 'application/vnd.elasticsearch+json; compatible-with=9,text/plain'
     }
   })
 
