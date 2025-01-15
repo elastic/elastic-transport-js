@@ -43,6 +43,7 @@
   "scripts": {
     "test": "npm run build && npm run lint && tap test/{unit,acceptance}/{*,**/*}.test.ts",
     "test:unit": "npm run build && tap test/unit/{*,**/*}.test.ts --disable-coverage",
+    "test:unit-bun": "bun run build && bunx tap test/unit/{*,**/*}.test.ts --disable-coverage",
     "test:acceptance": "npm run build && tap test/acceptance/*.test.ts --disable-coverage",
     "test:coverage-100": "npm run build && tap test/{unit,acceptance}/{*,**/*}.test.ts --show-full-coverage",
     "test:coverage-report": "npm test && tap report --coverage-report=lcov",
