@@ -42,7 +42,7 @@ export interface ConnectionOptions {
   status?: string
   auth?: BasicAuth | ApiKeyAuth | BearerAuth
   diagnostic?: Diagnostic
-  timeout?: number
+  timeout?: number | null
   agent?: HttpAgentOptions | UndiciAgentOptions | agentFn | boolean
   proxy?: string | URL
   caFingerprint?: string
@@ -64,7 +64,7 @@ export interface ConnectionRequestOptions {
   maxResponseSize?: number
   maxCompressedResponseSize?: number
   signal?: AbortSignal
-  timeout?: number
+  timeout?: number | null
 }
 
 export interface ConnectionRequestOptionsAsStream extends ConnectionRequestOptions {
@@ -90,7 +90,7 @@ export default class BaseConnection {
   url: URL
   tls: TlsConnectionOptions | null
   id: string
-  timeout: number
+  timeout: number | null
   headers: http.IncomingHttpHeaders
   deadCount: number
   resurrectTimeout: number
@@ -111,6 +111,7 @@ export default class BaseConnection {
     this.tls = opts.tls ?? null
     this.id = opts.id ?? stripAuth(opts.url.href)
     this.headers = prepareHeaders(opts.headers, opts.auth)
+    this.timeout = opts.timeout ?? null
     this.timeout = opts.timeout ?? 30000
     this.deadCount = 0
     this.resurrectTimeout = 0

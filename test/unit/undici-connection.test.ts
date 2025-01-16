@@ -17,13 +17,15 @@
  * under the License.
  */
 
+import { setTimeout } from 'node:timers/promises'
+import { URL } from 'node:url'
+import * as http from 'node:http'
+import buffer from 'node:buffer'
+import { gzipSync, deflateSync } from 'node:zlib'
+import { Readable } from 'node:stream'
 import { test } from 'tap'
-import { URL } from 'url'
-import * as http from 'http'
-import buffer from 'buffer'
-import { gzipSync, deflateSync } from 'zlib'
-import { Readable } from 'stream'
 import intoStream from 'into-stream'
+import FakeTimers from '@sinonjs/fake-timers'
 import { buildServer } from '../utils'
 import { UndiciConnection, errors, ConnectionOptions } from '../../'
 
@@ -122,144 +124,181 @@ test('Basic (https with tls agent)', async t => {
   server.stop()
 })
 
-test('Timeout support / 1', async t => {
-  t.plan(1)
+test('Timeout support', t => {
+  t.test('Timeout support / 1', async t => {
+    t.plan(1)
 
-  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
-    setTimeout(() => res.end('ok'), 1000)
-  }
+    async function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      await setTimeout(1000)
+      res.end('ok')
+    }
 
-  const [{ port }, server] = await buildServer(handler)
-  const connection = new UndiciConnection({
-    url: new URL(`http://localhost:${port}`),
-    timeout: 600
-  })
-
-  try {
-    await connection.request({
-      path: '/hello',
-      method: 'GET'
-    }, options)
-  } catch (err: any) {
-    t.ok(err instanceof TimeoutError)
-  }
-  server.stop()
-})
-
-test('Timeout support / 2', async t => {
-  t.plan(2)
-  t.clock.enter()
-  t.teardown(() => t.clock.exit())
-
-  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
-    res.writeHead(200, { 'content-type': 'text/plain' })
-    setTimeout(() => res.end('ok'), 1000)
-  }
-
-  const [{ port }, server] = await buildServer(handler)
-  const connection = new UndiciConnection({
-    url: new URL(`http://localhost:${port}`),
-    timeout: 600
-  })
-  try {
-    const res = connection.request({
-      path: '/hello',
-      method: 'GET'
-    }, options)
-    t.clock.advance(600)
-    await res
-  } catch (err: any) {
-    t.ok(err instanceof TimeoutError)
-    t.equal(err.message, 'Request timed out')
-  }
-  server.stop()
-})
-
-test('Timeout support / 3', async t => {
-  t.plan(2)
-  t.clock.enter()
-  t.teardown(() => t.clock.exit())
-
-  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
-    setTimeout(() => res.end('ok'), 1000)
-  }
-
-  const [{ port }, server] = await buildServer(handler)
-  const connection = new UndiciConnection({
-    url: new URL(`http://localhost:${port}`),
-    timeout: 600
-  })
-  try {
-    const res = connection.request({
-      path: '/hello',
-      method: 'GET'
-    }, {
-      timeout: 600,
-      ...options
+    const [{ port }, server] = await buildServer(handler)
+    const connection = new UndiciConnection({
+      url: new URL(`http://localhost:${port}`),
+      timeout: 600
     })
-    t.clock.advance(600)
-    await res
-  } catch (err: any) {
-    t.ok(err instanceof TimeoutError)
-    t.equal(err.message, 'Request timed out')
-  }
-  server.stop()
-})
 
-test('Timeout support / 4', async t => {
-  t.plan(2)
-  t.clock.enter()
-  t.teardown(() => t.clock.exit())
-
-  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
-    setTimeout(() => res.end('ok'), 1000)
-  }
-
-  const [{ port }, server] = await buildServer(handler)
-  const connection = new UndiciConnection({
-    url: new URL(`http://localhost:${port}`),
-    timeout: 2000
+    try {
+      await connection.request({
+        path: '/hello',
+        method: 'GET'
+      }, options)
+    } catch (err: any) {
+      t.ok(err instanceof TimeoutError)
+    }
+    server.stop()
   })
-  const abortController = new AbortController()
-  try {
-    const res = connection.request({
+
+  t.test('Timeout support / 2', async t => {
+    t.plan(2)
+    t.clock.enter()
+    t.teardown(() => t.clock.exit())
+
+    async function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      res.writeHead(200, { 'content-type': 'text/plain' })
+      await setTimeout(1000)
+      res.end('ok')
+    }
+
+    const [{ port }, server] = await buildServer(handler)
+    const connection = new UndiciConnection({
+      url: new URL(`http://localhost:${port}`),
+      timeout: 600
+    })
+    try {
+      const res = connection.request({
+        path: '/hello',
+        method: 'GET'
+      }, options)
+      t.clock.advance(600)
+      await res
+    } catch (err: any) {
+      t.ok(err instanceof TimeoutError)
+      t.equal(err.message, 'Request timed out')
+    }
+    server.stop()
+  })
+
+  t.test('Timeout support / 3', async t => {
+    t.plan(2)
+    t.clock.enter()
+    t.teardown(() => t.clock.exit())
+
+    async function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      await setTimeout(1000)
+      res.end('ok')
+    }
+
+    const [{ port }, server] = await buildServer(handler)
+    const connection = new UndiciConnection({
+      url: new URL(`http://localhost:${port}`),
+      timeout: 600
+    })
+    try {
+      const res = connection.request({
+        path: '/hello',
+        method: 'GET'
+      }, {
+        timeout: 600,
+        ...options
+      })
+      t.clock.advance(600)
+      await res
+    } catch (err: any) {
+      t.ok(err instanceof TimeoutError)
+      t.equal(err.message, 'Request timed out')
+    }
+    server.stop()
+  })
+
+  t.test('Timeout support / 4', async t => {
+    t.plan(2)
+    t.clock.enter()
+    t.teardown(() => t.clock.exit())
+
+    async function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      await setTimeout(1000)
+      res.end('ok')
+    }
+
+    const [{ port }, server] = await buildServer(handler)
+    const connection = new UndiciConnection({
+      url: new URL(`http://localhost:${port}`),
+      timeout: 2000
+    })
+    const abortController = new AbortController()
+    try {
+      const res = connection.request({
+        path: '/hello',
+        method: 'GET',
+      }, {
+        signal: abortController.signal,
+        timeout: 50,
+        ...options
+      })
+      t.clock.advance(1000)
+      await res
+      t.fail('Timeout was not reached')
+    } catch (err: any) {
+      t.ok(err instanceof TimeoutError)
+      t.equal(err.message, 'Request timed out')
+    }
+    server.stop()
+  })
+
+  t.test('Timeout support / 5', async t => {
+    t.plan(1)
+
+    function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      res.end('ok')
+    }
+
+    const [{ port }, server] = await buildServer(handler)
+    const connection = new UndiciConnection({
+      url: new URL(`http://localhost:${port}`)
+    })
+    const res = await connection.request({
       path: '/hello',
       method: 'GET',
     }, {
-      signal: abortController.signal,
       timeout: 50,
       ...options
     })
-    t.clock.advance(1000)
-    await res
-    t.fail('Timeout was not reached')
-  } catch (err: any) {
-    t.ok(err instanceof TimeoutError)
-    t.equal(err.message, 'Request timed out')
-  }
-  server.stop()
-})
-
-test('Timeout support / 5', async t => {
-  t.plan(1)
-
-  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
-    res.end('ok')
-  }
-
-  const [{ port }, server] = await buildServer(handler)
-  const connection = new UndiciConnection({
-    url: new URL(`http://localhost:${port}`)
+    t.equal(res.body, 'ok')
+    server.stop()
   })
-  const res = await connection.request({
-    path: '/hello',
-    method: 'GET',
-  }, {
-    timeout: 50,
-    ...options
+
+  t.test('No default timeout', async t => {
+    t.plan(2)
+
+    const clock = FakeTimers.install({ toFake: ['setTimeout'] })
+    t.teardown(() => clock.uninstall())
+
+    function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      setTimeout(1000 * 60 * 60).then(() => res.end('ok'))
+      clock.tick(1000 * 60 * 60)
+    }
+
+    const [{ port }, server] = await buildServer(handler)
+    const connection = new UndiciConnection({
+      url: new URL(`http://localhost:${port}`)
+    })
+
+    try {
+      const res = await connection.request({
+        path: '/hello',
+        method: 'GET'
+      }, options)
+      t.equal(res.body, 'ok')
+      t.ok('Request did not time out')
+    } catch (err: any) {
+      t.fail('No error should be thrown', err.message)
+    }
+    server.stop()
   })
-  t.equal(res.body, 'ok')
-  server.stop()
+
+  t.end()
 })
 
 test('Should concatenate the querystring', async t => {
@@ -368,8 +407,9 @@ test('Send body as stream', async t => {
 test('Should not close a connection if there are open requests', async t => {
   t.plan(1)
 
-  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
-    setTimeout(() => res.end('ok'), 100)
+  async function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+    await setTimeout(100)
+    res.end('ok')
   }
 
   const [{ port }, server] = await buildServer(handler)
@@ -459,146 +499,307 @@ test('Should disallow two-byte characters in URL path', async t => {
   }
 })
 
-test('Abort a request syncronously', async t => {
-  t.plan(2)
+test('Abort request', t => {
+  t.test('Abort a request syncronously', async t => {
+    t.plan(2)
 
-  function handler (_req: http.IncomingMessage, _res: http.ServerResponse) {
-    t.fail('The server should not be contacted')
-  }
+    function handler (_req: http.IncomingMessage, _res: http.ServerResponse) {
+      t.fail('The server should not be contacted')
+    }
 
-  const [{ port }, server] = await buildServer(handler)
-  const connection = new UndiciConnection({
-    url: new URL(`http://localhost:${port}`),
-    headers: { 'x-foo': 'bar' }
+    const [{ port }, server] = await buildServer(handler)
+    const connection = new UndiciConnection({
+      url: new URL(`http://localhost:${port}`),
+      headers: { 'x-foo': 'bar' }
+    })
+
+    const controller = new AbortController()
+    connection.request({
+      path: '/hello',
+      method: 'GET',
+    }, {
+      signal: controller.signal,
+      ...options
+    }).catch(err => {
+      t.ok(err instanceof RequestAbortedError)
+      t.ok(controller.signal.aborted, 'Signal should be aborted')
+      server.stop()
+    })
+
+    controller.abort()
+    await connection.close()
   })
 
-  const controller = new AbortController()
-  connection.request({
-    path: '/hello',
-    method: 'GET',
-  }, {
-    signal: controller.signal,
-    ...options
-  }).catch(err => {
-    t.ok(err instanceof RequestAbortedError)
-    t.ok(controller.signal.aborted, 'Signal should be aborted')
+  t.test('Abort a request asyncronously', async t => {
+    t.plan(1)
+
+    function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      // might be called or not
+      res.end('ok')
+    }
+
+    const [{ port }, server] = await buildServer(handler)
+    const connection = new UndiciConnection({
+      url: new URL(`http://localhost:${port}`),
+      headers: { 'x-foo': 'bar' }
+    })
+
+    const controller = new AbortController()
+    setImmediate(() => controller.abort())
+    try {
+      await connection.request({
+        path: '/hello',
+        method: 'GET',
+      }, {
+        signal: controller.signal,
+        ...options
+      })
+    } catch (err: any) {
+      t.ok(err instanceof RequestAbortedError)
+    }
+
+    await connection.close()
     server.stop()
   })
 
-  controller.abort()
-  await connection.close()
-})
+  t.test('Abort with a slow body', async t => {
+    t.plan(1)
 
-test('Abort a request asyncronously', async t => {
-  t.plan(1)
-
-  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
-    // might be called or not
-    res.end('ok')
-  }
-
-  const [{ port }, server] = await buildServer(handler)
-  const connection = new UndiciConnection({
-    url: new URL(`http://localhost:${port}`),
-    headers: { 'x-foo': 'bar' }
-  })
-
-  const controller = new AbortController()
-  setImmediate(() => controller.abort())
-  try {
-    await connection.request({
-      path: '/hello',
-      method: 'GET',
-    }, {
-      signal: controller.signal,
-      ...options
+    const controller = new AbortController()
+    function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      res.end('ok')
+    }
+    const [{ port }, server] = await buildServer(handler)
+    const connection = new UndiciConnection({
+      url: new URL(`http://localhost:${port}`)
     })
-  } catch (err: any) {
-    t.ok(err instanceof RequestAbortedError)
-  }
 
-  await connection.close()
-  server.stop()
-})
+    const slowBody = new Readable({
+      async read (_size: number) {
+        await setTimeout(1000, { ref: false })
+        this.push(null) // EOF
+      }
+    })
 
-test('Abort with a slow body', async t => {
-  t.plan(1)
-
-  const controller = new AbortController()
-  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
-    res.end('ok')
-  }
-  const [{ port }, server] = await buildServer(handler)
-  const connection = new UndiciConnection({
-    url: new URL(`http://localhost:${port}`)
+    setImmediate(() => controller.abort())
+    try {
+      await connection.request({
+        method: 'GET',
+        path: '/',
+        // @ts-ignore
+        body: slowBody,
+      }, {
+        signal: controller.signal,
+        ...options
+      })
+    } catch (err: any) {
+      t.ok(err instanceof RequestAbortedError)
+    }
+    server.stop()
   })
 
-  const slowBody = new Readable({
-    read (_size: number) {
-      setTimeout(() => {
-        this.push('{"size":1, "query":{"match_all":{}}}')
-        this.push(null) // EOF
-      }, 1000).unref()
+  t.end()
+})
+
+test('Content length', t => {
+  // The nodejs http agent will try to wait for the whole
+  // body to arrive before closing the request, so this
+  // test might take some time.
+  t.test('Bad content length', async t => {
+    t.plan(2)
+
+    function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      const body = JSON.stringify({ hello: 'world' })
+      res.setHeader('Content-Type', 'application/json;utf=8')
+      res.setHeader('Content-Length', body.length + '')
+      res.end(body.slice(0, -5))
+    }
+
+    const [{ port }, server] = await buildServer(handler)
+    const connection = new UndiciConnection({
+      url: new URL(`http://localhost:${port}`)
+    })
+    try {
+      await connection.request({
+        path: '/hello',
+        method: 'GET'
+      }, options)
+    } catch (err: any) {
+      t.ok(err instanceof ConnectionError)
+      t.equal(err.message, 'other side closed')
+    }
+    server.stop()
+  })
+
+  t.test('Content length too big (buffer)', async t => {
+    t.plan(2)
+
+    class MyConnection extends UndiciConnection {
+      constructor (opts: ConnectionOptions) {
+        super(opts)
+        this.pool = {
+          // @ts-expect-error
+          request () {
+            const stream = intoStream(JSON.stringify({ hello: 'world' }))
+            const statusCode = 200
+            const headers = {
+              'content-type': 'application/json;utf=8',
+              'content-encoding': 'gzip',
+              'content-length': buffer.constants.MAX_LENGTH + 10,
+              connection: 'keep-alive',
+              date: new Date().toISOString()
+            }
+            return { body: stream, statusCode, headers }
+          }
+        }
+      }
+    }
+
+    const connection = new MyConnection({
+      url: new URL('http://localhost:9200')
+    })
+
+    try {
+      await connection.request({
+        method: 'GET',
+        path: '/'
+      }, options)
+    } catch (err: any) {
+      t.ok(err instanceof RequestAbortedError)
+      t.equal(err.message, `The content length (${buffer.constants.MAX_LENGTH + 10}) is bigger than the maximum allowed buffer (${buffer.constants.MAX_LENGTH})`)
     }
   })
 
-  setImmediate(() => controller.abort())
-  try {
-    await connection.request({
-      method: 'GET',
-      path: '/',
-      // @ts-ignore
-      body: slowBody,
-    }, {
-      signal: controller.signal,
-      ...options
+  t.test('Content length too big (string)', async t => {
+    t.plan(2)
+
+    class MyConnection extends UndiciConnection {
+      constructor (opts: ConnectionOptions) {
+        super(opts)
+        this.pool = {
+          // @ts-expect-error
+          request () {
+            const stream = intoStream(JSON.stringify({ hello: 'world' }))
+            const statusCode = 200
+            const headers = {
+              'content-type': 'application/json;utf=8',
+              'content-encoding': 'gzip',
+              'content-length': buffer.constants.MAX_STRING_LENGTH + 10,
+              connection: 'keep-alive',
+              date: new Date().toISOString()
+            }
+            return { body: stream, statusCode, headers }
+          }
+        }
+      }
+    }
+
+    const connection = new MyConnection({
+      url: new URL('http://localhost:9200')
     })
-  } catch (err: any) {
-    t.ok(err instanceof RequestAbortedError)
-  }
-  server.stop()
-})
 
-// The nodejs http agent will try to wait for the whole
-// body to arrive before closing the request, so this
-// test might take some time.
-test('Bad content length', async t => {
-  t.plan(2)
-
-  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
-    const body = JSON.stringify({ hello: 'world' })
-    res.setHeader('Content-Type', 'application/json;utf=8')
-    res.setHeader('Content-Length', body.length + '')
-    res.end(body.slice(0, -5))
-  }
-
-  const [{ port }, server] = await buildServer(handler)
-  const connection = new UndiciConnection({
-    url: new URL(`http://localhost:${port}`)
+    try {
+      await connection.request({
+        method: 'GET',
+        path: '/'
+      }, options)
+    } catch (err: any) {
+      t.ok(err instanceof RequestAbortedError)
+      t.equal(err.message, `The content length (${buffer.constants.MAX_STRING_LENGTH + 10}) is bigger than the maximum allowed string (${buffer.constants.MAX_STRING_LENGTH})`)
+    }
   })
-  try {
-    await connection.request({
-      path: '/hello',
-      method: 'GET'
-    }, options)
-  } catch (err: any) {
-    t.ok(err instanceof ConnectionError)
-    t.equal(err.message, 'other side closed')
-  }
-  server.stop()
+
+  t.test('Content length too big custom option (buffer)', async t => {
+    t.plan(2)
+
+    class MyConnection extends UndiciConnection {
+      constructor (opts: ConnectionOptions) {
+        super(opts)
+        this.pool = {
+          // @ts-expect-error
+          request () {
+            const stream = intoStream(JSON.stringify({ hello: 'world' }))
+            const statusCode = 200
+            const headers = {
+              'content-type': 'application/json;utf=8',
+              'content-encoding': 'gzip',
+              'content-length': 1100,
+              connection: 'keep-alive',
+              date: new Date().toISOString()
+            }
+            return { body: stream, statusCode, headers }
+          }
+        }
+      }
+    }
+
+    const connection = new MyConnection({
+      url: new URL('http://localhost:9200')
+    })
+
+    try {
+      await connection.request({
+        method: 'GET',
+        path: '/'
+      }, { ...options, maxCompressedResponseSize: 1000 })
+    } catch (err: any) {
+      t.ok(err instanceof RequestAbortedError)
+      t.equal(err.message, 'The content length (1100) is bigger than the maximum allowed buffer (1000)')
+    }
+  })
+
+  t.test('Content length too big custom option (string)', async t => {
+    t.plan(2)
+
+    class MyConnection extends UndiciConnection {
+      constructor (opts: ConnectionOptions) {
+        super(opts)
+        this.pool = {
+          // @ts-expect-error
+          request () {
+            const stream = intoStream(JSON.stringify({ hello: 'world' }))
+            const statusCode = 200
+            const headers = {
+              'content-type': 'application/json;utf=8',
+              'content-encoding': 'gzip',
+              'content-length': 1100,
+              connection: 'keep-alive',
+              date: new Date().toISOString()
+            }
+            return { body: stream, statusCode, headers }
+          }
+        }
+      }
+    }
+
+    const connection = new MyConnection({
+      url: new URL('http://localhost:9200')
+    })
+
+    try {
+      await connection.request({
+        method: 'GET',
+        path: '/'
+      }, { ...options, maxResponseSize: 1000 })
+    } catch (err: any) {
+      t.ok(err instanceof RequestAbortedError)
+      t.equal(err.message, 'The content length (1100) is bigger than the maximum allowed string (1000)')
+    }
+  })
+
+  t.end()
 })
 
-test('Socket destryed while reading the body', async t => {
+test('Socket destroyed while reading the body', async t => {
   t.plan(2)
 
-  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+  async function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
     const body = JSON.stringify({ hello: 'world' })
     res.setHeader('Content-Type', 'application/json;utf=8')
     res.setHeader('Content-Length', body.length + '')
     res.write(body.slice(0, -5))
-    setTimeout(() => {
-      res.socket?.destroy()
-    }, 500)
+    await setTimeout(500)
+    res.socket?.destroy()
   }
 
   const [{ port }, server] = await buildServer(handler)
@@ -615,175 +816,21 @@ test('Socket destryed while reading the body', async t => {
     t.equal(err.message, 'other side closed')
   }
   server.stop()
-})
-
-test('Content length too big (buffer)', async t => {
-  t.plan(2)
-
-  class MyConnection extends UndiciConnection {
-    constructor (opts: ConnectionOptions) {
-      super(opts)
-      this.pool = {
-        // @ts-expect-error
-        request () {
-          const stream = intoStream(JSON.stringify({ hello: 'world' }))
-          const statusCode = 200
-          const headers = {
-            'content-type': 'application/json;utf=8',
-            'content-encoding': 'gzip',
-            'content-length': buffer.constants.MAX_LENGTH + 10,
-            connection: 'keep-alive',
-            date: new Date().toISOString()
-          }
-          return { body: stream, statusCode, headers }
-        }
-      }
-    }
-  }
-
-  const connection = new MyConnection({
-    url: new URL('http://localhost:9200')
-  })
-
-  try {
-    await connection.request({
-      method: 'GET',
-      path: '/'
-    }, options)
-  } catch (err: any) {
-    t.ok(err instanceof RequestAbortedError)
-    t.equal(err.message, `The content length (${buffer.constants.MAX_LENGTH + 10}) is bigger than the maximum allowed buffer (${buffer.constants.MAX_LENGTH})`)
-  }
-})
-
-test('Content length too big (string)', async t => {
-  t.plan(2)
-
-  class MyConnection extends UndiciConnection {
-    constructor (opts: ConnectionOptions) {
-      super(opts)
-      this.pool = {
-        // @ts-expect-error
-        request () {
-          const stream = intoStream(JSON.stringify({ hello: 'world' }))
-          const statusCode = 200
-          const headers = {
-            'content-type': 'application/json;utf=8',
-            'content-encoding': 'gzip',
-            'content-length': buffer.constants.MAX_STRING_LENGTH + 10,
-            connection: 'keep-alive',
-            date: new Date().toISOString()
-          }
-          return { body: stream, statusCode, headers }
-        }
-      }
-    }
-  }
-
-  const connection = new MyConnection({
-    url: new URL('http://localhost:9200')
-  })
-
-  try {
-    await connection.request({
-      method: 'GET',
-      path: '/'
-    }, options)
-  } catch (err: any) {
-    t.ok(err instanceof RequestAbortedError)
-    t.equal(err.message, `The content length (${buffer.constants.MAX_STRING_LENGTH + 10}) is bigger than the maximum allowed string (${buffer.constants.MAX_STRING_LENGTH})`)
-  }
-})
-
-test('Content length too big custom option (buffer)', async t => {
-  t.plan(2)
-
-  class MyConnection extends UndiciConnection {
-    constructor (opts: ConnectionOptions) {
-      super(opts)
-      this.pool = {
-        // @ts-expect-error
-        request () {
-          const stream = intoStream(JSON.stringify({ hello: 'world' }))
-          const statusCode = 200
-          const headers = {
-            'content-type': 'application/json;utf=8',
-            'content-encoding': 'gzip',
-            'content-length': 1100,
-            connection: 'keep-alive',
-            date: new Date().toISOString()
-          }
-          return { body: stream, statusCode, headers }
-        }
-      }
-    }
-  }
-
-  const connection = new MyConnection({
-    url: new URL('http://localhost:9200')
-  })
-
-  try {
-    await connection.request({
-      method: 'GET',
-      path: '/'
-    }, { ...options, maxCompressedResponseSize: 1000 })
-  } catch (err: any) {
-    t.ok(err instanceof RequestAbortedError)
-    t.equal(err.message, 'The content length (1100) is bigger than the maximum allowed buffer (1000)')
-  }
-})
-
-test('Content length too big custom option (string)', async t => {
-  t.plan(2)
-
-  class MyConnection extends UndiciConnection {
-    constructor (opts: ConnectionOptions) {
-      super(opts)
-      this.pool = {
-        // @ts-expect-error
-        request () {
-          const stream = intoStream(JSON.stringify({ hello: 'world' }))
-          const statusCode = 200
-          const headers = {
-            'content-type': 'application/json;utf=8',
-            'content-encoding': 'gzip',
-            'content-length': 1100,
-            connection: 'keep-alive',
-            date: new Date().toISOString()
-          }
-          return { body: stream, statusCode, headers }
-        }
-      }
-    }
-  }
-
-  const connection = new MyConnection({
-    url: new URL('http://localhost:9200')
-  })
-
-  try {
-    await connection.request({
-      method: 'GET',
-      path: '/'
-    }, { ...options, maxResponseSize: 1000 })
-  } catch (err: any) {
-    t.ok(err instanceof RequestAbortedError)
-    t.equal(err.message, 'The content length (1100) is bigger than the maximum allowed string (1000)')
-  }
 })
 
 test('Body too big custom option (string)', async t => {
   t.plan(2)
 
-  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+  async function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
     res.writeHead(200, {
       'content-type': 'application/json;utf=8',
       'transfer-encoding': 'chunked'
     })
     res.write('{"hello":')
-    setTimeout(() => res.write('"world"}'), 500)
-    setTimeout(() => res.end(), 1000)
+    await setTimeout(500)
+    res.write('"world"}')
+    await setTimeout(1000)
+    res.end()
   }
 
   const [{ port }, server] = await buildServer(handler)
@@ -808,15 +855,17 @@ test('Body too big custom option (string)', async t => {
 test('Body too big custom option (buffer)', async t => {
   t.plan(2)
 
-  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+  async function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
     res.writeHead(200, {
       'content-type': 'application/json;utf=8',
       'content-encoding': 'gzip',
       'transfer-encoding': 'chunked'
     })
     res.write(gzipSync('{"hello":'))
-    setTimeout(() => res.write(gzipSync('"world"}')), 500)
-    setTimeout(() => res.end(), 1000)
+    await setTimeout(500)
+    res.write(gzipSync('"world"}'))
+    await setTimeout(1000)
+    res.end()
   }
 
   const [{ port }, server] = await buildServer(handler)
@@ -1005,105 +1054,109 @@ test('Support Apache Arrow', async t => {
   server.stop()
 })
 
-test('Check server fingerprint (success)', async t => {
-  t.plan(1)
+test('CA fingerprint check', t => {
+  t.test('Check server fingerprint (success)', async t => {
+    t.plan(1)
 
-  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
-    res.end('ok')
-  }
+    function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      res.end('ok')
+    }
 
-  const [{ port, caFingerprint }, server] = await buildServer(handler, { secure: true })
-  const connection = new UndiciConnection({
-    url: new URL(`https://localhost:${port}`),
-    caFingerprint
-  })
-  const res = await connection.request({
-    path: '/hello',
-    method: 'GET'
-  }, options)
-  t.equal(res.body, 'ok')
-  server.stop()
-})
-
-test('Check server fingerprint (different formats)', async t => {
-  t.plan(1)
-
-  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
-    res.end('ok')
-  }
-
-  const [{ port, caFingerprint }, server] = await buildServer(handler, { secure: true })
-
-  let newCaFingerprint = caFingerprint.toLowerCase().replace(/:/g, '')
-
-  const connection = new UndiciConnection({
-    url: new URL(`https://localhost:${port}`),
-    caFingerprint: newCaFingerprint
-  })
-  const res = await connection.request({
-    path: '/hello',
-    method: 'GET'
-  }, options)
-  t.equal(res.body, 'ok')
-  server.stop()
-})
-
-test('Check server fingerprint (failure)', async t => {
-  t.plan(2)
-
-  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
-    res.end('ok')
-  }
-
-  const [{ port }, server] = await buildServer(handler, { secure: true })
-  const connection = new UndiciConnection({
-    url: new URL(`https://localhost:${port}`),
-    caFingerprint: 'FO:OB:AR'
-  })
-  try {
-    await connection.request({
+    const [{ port, caFingerprint }, server] = await buildServer(handler, { secure: true })
+    const connection = new UndiciConnection({
+      url: new URL(`https://localhost:${port}`),
+      caFingerprint
+    })
+    const res = await connection.request({
       path: '/hello',
       method: 'GET'
     }, options)
-    t.fail('Should throw')
-  } catch (err: any) {
-    t.ok(err instanceof ConnectionError)
-    t.equal(err.message, 'Server certificate CA fingerprint does not match the value configured in caFingerprint')
-  }
-  server.stop()
-})
-
-test('Multiple requests to same connection should skip fingerprint check when session is reused', async t => {
-  // fingerprint matching can, and must, be skipped when a TLS session is being reused
-  // see https://nodejs.org/api/tls.html#session-resumption
-  // this tests that subsequent requests sent to the same connection will not fail due to
-  // a fingerprint match test failing.
-  const runs = 4
-  t.plan(runs)
-
-  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
-    res.end('ok')
-  }
-
-  const [{ port, caFingerprint }, server] = await buildServer(handler, { secure: true })
-  const connection = new UndiciConnection({
-    url: new URL(`https://localhost:${port}`),
-    caFingerprint,
+    t.equal(res.body, 'ok')
+    server.stop()
   })
 
-  for (let i = 0; i < runs; i++) {
+  t.test('Check server fingerprint (different formats)', async t => {
+    t.plan(1)
+
+    function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      res.end('ok')
+    }
+
+    const [{ port, caFingerprint }, server] = await buildServer(handler, { secure: true })
+
+    let newCaFingerprint = caFingerprint.toLowerCase().replace(/:/g, '')
+
+    const connection = new UndiciConnection({
+      url: new URL(`https://localhost:${port}`),
+      caFingerprint: newCaFingerprint
+    })
+    const res = await connection.request({
+      path: '/hello',
+      method: 'GET'
+    }, options)
+    t.equal(res.body, 'ok')
+    server.stop()
+  })
+
+  t.test('Check server fingerprint (failure)', async t => {
+    t.plan(2)
+
+    function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      res.end('ok')
+    }
+
+    const [{ port }, server] = await buildServer(handler, { secure: true })
+    const connection = new UndiciConnection({
+      url: new URL(`https://localhost:${port}`),
+      caFingerprint: 'FO:OB:AR'
+    })
     try {
-      const res = await connection.request({
-        path: `/hello-${i}`,
+      await connection.request({
+        path: '/hello',
         method: 'GET'
       }, options)
-      t.equal(res.body, 'ok')
-    } catch {
-      t.fail('This should never be reached')
+      t.fail('Should throw')
+    } catch (err: any) {
+      t.ok(err instanceof ConnectionError)
+      t.equal(err.message, 'Server certificate CA fingerprint does not match the value configured in caFingerprint')
     }
-  }
+    server.stop()
+  })
 
-  server.stop()
+  t.test('Multiple requests to same connection should skip fingerprint check when session is reused', async t => {
+    // fingerprint matching can, and must, be skipped when a TLS session is being reused
+    // see https://nodejs.org/api/tls.html#session-resumption
+    // this tests that subsequent requests sent to the same connection will not fail due to
+    // a fingerprint match test failing.
+    const runs = 4
+    t.plan(runs)
+
+    function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      res.end('ok')
+    }
+
+    const [{ port, caFingerprint }, server] = await buildServer(handler, { secure: true })
+    const connection = new UndiciConnection({
+      url: new URL(`https://localhost:${port}`),
+      caFingerprint,
+    })
+
+    for (let i = 0; i < runs; i++) {
+      try {
+        const res = await connection.request({
+          path: `/hello-${i}`,
+          method: 'GET'
+        }, options)
+        t.equal(res.body, 'ok')
+      } catch {
+        t.fail('This should never be reached')
+      }
+    }
+
+    server.stop()
+  })
+
+  t.end()
 })
 
 test('Should show local/remote socket addres in case of ECONNRESET', async t => {

@@ -44,7 +44,7 @@ import {
   RequestAbortedError,
   TimeoutError
 } from '../errors'
-import { setTimeout as setTimeoutPromise } from 'node:timers/promises'
+import { setTimeout } from 'node:timers/promises'
 import { HttpAgentOptions } from '../types'
 
 const debug = Debug('elasticsearch')
@@ -316,7 +316,7 @@ export default class HttpConnection extends BaseConnection {
   async close (): Promise<void> {
     debug('Closing connection', this.id)
     while (this._openRequests > 0) {
-      await setTimeoutPromise(1000)
+      await setTimeout(1000)
     }
     /* istanbul ignore else */
     if (this.agent !== undefined) {
@@ -328,7 +328,7 @@ export default class HttpConnection extends BaseConnection {
     const url = this.url
     let search = url.search
     let pathname = url.pathname
-    const request = {
+    const request: http.ClientRequestArgs = {
       protocol: url.protocol,
       hostname: url.hostname[0] === '['
         ? url.hostname.slice(1, -1)
@@ -338,7 +338,9 @@ export default class HttpConnection extends BaseConnection {
       port: url.port !== '' ? url.port : undefined,
       headers: this.headers,
       agent: this.agent,
-      timeout: options.timeout ?? this.timeout
+      // only set a timeout if it has a value; default to no timeout
+      // see https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-network.html#_http_client_configuration
+      timeout: options.timeout ?? this.timeout ?? undefined
     }
 
     const paramsKeys = Object.keys(params)
