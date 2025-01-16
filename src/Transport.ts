@@ -81,7 +81,7 @@ import {
   kRetryBackoff,
   kOtelTracer
 } from './symbols'
-import { setTimeout as setTimeoutPromise } from 'node:timers/promises'
+import { setTimeout } from 'node:timers/promises'
 import opentelemetry, { Attributes, Exception, SpanKind, SpanStatusCode, Span, Tracer } from '@opentelemetry/api'
 
 const { version: clientVersion } = require('../package.json') // eslint-disable-line
@@ -657,7 +657,7 @@ export default class Transport {
                 const backoff = options.retryBackoff ?? this[kRetryBackoff]
                 const backoffWait = backoff(0, 4, meta.attempts)
                 if (backoffWait > 0) {
-                  await setTimeoutPromise(backoffWait * 1000)
+                  await setTimeout(backoffWait * 1000)
                 }
               }
 
