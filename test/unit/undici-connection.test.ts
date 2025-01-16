@@ -25,6 +25,7 @@ import { gzipSync, deflateSync } from 'node:zlib'
 import { Readable } from 'node:stream'
 import { test } from 'tap'
 import intoStream from 'into-stream'
+import FakeTimers from '@sinonjs/fake-timers'
 import { buildServer } from '../utils'
 import { UndiciConnection, errors, ConnectionOptions } from '../../'
 
@@ -265,6 +266,35 @@ test('Timeout support', t => {
       ...options
     })
     t.equal(res.body, 'ok')
+    server.stop()
+  })
+
+  t.test('No default timeout', async t => {
+    t.plan(2)
+
+    const clock = FakeTimers.install({ toFake: ['setTimeout'] })
+    t.teardown(() => clock.uninstall())
+
+    function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      setTimeout(1000 * 60 * 60).then(() => res.end('ok'))
+      clock.tick(1000 * 60 * 60)
+    }
+
+    const [{ port }, server] = await buildServer(handler)
+    const connection = new UndiciConnection({
+      url: new URL(`http://localhost:${port}`)
+    })
+
+    try {
+      const res = await connection.request({
+        path: '/hello',
+        method: 'GET'
+      }, options)
+      t.equal(res.body, 'ok')
+      t.ok('Request did not time out')
+    } catch (err: any) {
+      t.fail('No error should be thrown', err.message)
+    }
     server.stop()
   })
 

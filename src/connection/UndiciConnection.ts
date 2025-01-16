@@ -77,8 +77,10 @@ export default class Connection extends BaseConnection {
       pipelining: 1,
       maxHeaderSize: 16384,
       connections: 256,
-      headersTimeout: this.timeout,
-      bodyTimeout: this.timeout,
+      // only set a timeout if it has a value; default to no timeout
+      // see https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-network.html#_http_client_configuration
+      headersTimeout: this.timeout ?? undefined,
+      bodyTimeout: this.timeout ?? undefined,
       ...opts.agent
     }
 

@@ -338,7 +338,9 @@ export default class HttpConnection extends BaseConnection {
       port: url.port !== '' ? url.port : undefined,
       headers: this.headers,
       agent: this.agent,
-      timeout: options.timeout ?? this.timeout
+      // only set a timeout if it has a value; default to no timeout
+      // see https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-network.html#_http_client_configuration
+      timeout: options.timeout ?? this.timeout ?? undefined
     }
 
     const paramsKeys = Object.keys(params)

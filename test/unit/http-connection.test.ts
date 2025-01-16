@@ -29,6 +29,7 @@ import { test } from 'tap'
 import hpagent from 'hpagent'
 import intoStream from 'into-stream'
 import { AbortController as LegacyAbortController } from 'node-abort-controller'
+import FakeTimers from '@sinonjs/fake-timers'
 import { buildServer } from '../utils'
 import { HttpConnection, errors, ConnectionOptions } from '../../'
 
@@ -245,12 +246,13 @@ test('Disable keep alive', async t => {
 test('Timeout support', t => {
   t.test('Timeout support / 1', async t => {
     t.plan(1)
-    t.clock.enter()
-    t.teardown(() => t.clock.exit())
 
-    async function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
-      await setTimeout(100)
-      res.end('ok')
+    const clock = FakeTimers.install({ toFake: ['setTimeout'] })
+    t.teardown(() => clock.uninstall())
+
+    function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      setTimeout(100).then(() => res.end('ok'))
+      clock.tick(50)
     }
 
     const [{ port }, server] = await buildServer(handler)
@@ -260,12 +262,10 @@ test('Timeout support', t => {
     })
 
     try {
-      const res = connection.request({
+      await connection.request({
         path: '/hello',
         method: 'GET'
       }, options)
-      t.clock.advance(50)
-      await res
     } catch (err: any) {
       t.ok(err instanceof TimeoutError, `Not a TimeoutError: ${err}`)
     }
@@ -274,12 +274,13 @@ test('Timeout support', t => {
 
   t.test('Timeout support / 2', async t => {
     t.plan(1)
-    t.clock.enter()
-    t.teardown(() => t.clock.exit())
 
-    async function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
-      await setTimeout(100)
-      res.end('ok')
+    const clock = FakeTimers.install({ toFake: ['setTimeout'] })
+    t.teardown(() => clock.uninstall())
+
+    function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      setTimeout(100).then(() => res.end('ok'))
+      clock.tick(50)
     }
 
     const [{ port }, server] = await buildServer(handler)
@@ -288,15 +289,13 @@ test('Timeout support', t => {
     })
 
     try {
-      const res = connection.request({
+      await connection.request({
         path: '/hello',
         method: 'GET'
       }, {
           timeout: 50,
           ...options
         })
-      t.clock.advance(50)
-      await res
     } catch (err: any) {
       t.ok(err instanceof TimeoutError, `Not a TimeoutError: ${err}`)
     }
@@ -305,12 +304,13 @@ test('Timeout support', t => {
 
   t.test('Timeout support / 3', async t => {
     t.plan(1)
-    t.clock.enter()
-    t.teardown(() => t.clock.exit())
 
-    async function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
-      await setTimeout(100)
-      res.end('ok')
+    const clock = FakeTimers.install({ toFake: ['setTimeout'] })
+    t.teardown(() => clock.uninstall())
+
+    function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      setTimeout(100).then(() => res.end('ok'))
+      clock.tick(50)
     }
 
     const [{ port }, server] = await buildServer(handler)
@@ -320,45 +320,44 @@ test('Timeout support', t => {
     })
 
     try {
-      const res = connection.request({
+      await connection.request({
         path: '/hello',
         method: 'GET'
       }, {
           timeout: 50,
           ...options
         })
-      t.clock.advance(50)
-      await res
     } catch (err: any) {
       t.ok(err instanceof TimeoutError, `Not a TimeoutError: ${err}`)
     }
     server.stop()
   })
 
-  t.test ('No default timeout', { skip: true }, async t => {
-    t.plan(1)
-    t.clock.enter()
-    t.teardown(() => t.clock.exit())
+  t.test('No default timeout', async t => {
+    t.plan(2)
 
-    async function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
-      await setTimeout(31000)
-      res.end('ok')
+    const clock = FakeTimers.install({ toFake: ['setTimeout'] })
+    t.teardown(() => clock.uninstall())
+
+    function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      setTimeout(1000 * 60 * 60).then(() => res.end('ok'))
+      clock.tick(1000 * 60 * 60)
     }
 
     const [{ port }, server] = await buildServer(handler)
     const connection = new HttpConnection({
       url: new URL(`http://localhost:${port}`)
     })
+
     try {
-      const res = connection.request({
+      const res = await connection.request({
         path: '/hello',
         method: 'GET'
       }, options)
-      t.clock.advance(31000)
-      await res
+      t.equal(res.body, 'ok')
       t.ok('Request did not time out')
-    } catch {
-      t.fail('No error should be thrown')
+    } catch (err: any) {
+      t.fail('No error should be thrown', err.message)
     }
     server.stop()
   })
@@ -472,9 +471,12 @@ test('Send body as stream', async t => {
 test('Should not close a connection if there are open requests', async t => {
   t.plan(1)
 
-  async function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
-    await setTimeout(100)
-    res.end('ok')
+  const clock = FakeTimers.install({ toFake: ['setTimeout'] })
+  t.teardown(() => clock.uninstall())
+
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+    setTimeout(100).then(() => res.end('ok'))
+    clock.tick(100)
   }
 
   const [{ port }, server] = await buildServer(handler)
@@ -687,16 +689,21 @@ test('Abort request', t => {
   t.test('Abort with a slow body', async t => {
     t.plan(1)
 
+    const clock = FakeTimers.install({ toFake: ['setTimeout'] })
+    t.teardown(() => clock.uninstall())
+
     const controller = new AbortController()
     const connection = new HttpConnection({
       url: new URL('https://localhost:9200'),
     })
 
     const slowBody = new Readable({
-      async read (_size: number) {
-        await setTimeout(1000, { ref: false })
-        this.push('{"size":1, "query":{"match_all":{}}}')
-        this.push(null) // EOF
+      read (_size: number) {
+        setTimeout(1000, { ref: false }).then(() => {
+          this.push('{"size":1, "query":{"match_all":{}}}')
+          this.push(null) // EOF
+        })
+        clock.tick(1000)
       }
     })
 
@@ -1018,13 +1025,16 @@ test('Content length', t => {
 test('Socket destroyed while reading the body', async t => {
   t.plan(2)
 
+  const clock = FakeTimers.install({ toFake: ['setTimeout'] })
+  t.teardown(() => clock.uninstall())
+
   async function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
     const body = JSON.stringify({ hello: 'world' })
     res.setHeader('Content-Type', 'application/json;utf=8')
     res.setHeader('Content-Length', body.length + '')
     res.write(body.slice(0, -5))
-    await setTimeout(500)
-    res.socket?.destroy()
+    setTimeout(500).then(() => res.socket?.destroy())
+    clock.tick(500)
   }
 
   const [{ port }, server] = await buildServer(handler)

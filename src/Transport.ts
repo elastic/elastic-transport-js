@@ -139,7 +139,7 @@ export interface TransportRequestParams {
 
 export interface TransportRequestOptions {
   ignore?: number[]
-  requestTimeout?: number | string
+  requestTimeout?: number | string | null
   retryOnTimeout?: boolean
   maxRetries?: number
   asStream?: boolean
@@ -214,7 +214,7 @@ export default class Transport {
   [kName]: string | symbol
   [kMaxRetries]: number
   [kCompression]: boolean
-  [kRequestTimeout]: number
+  [kRequestTimeout]: number | null
   [kRetryOnTimeout]: boolean
   [kSniffEnabled]: boolean
   [kNextSniff]: number
@@ -277,7 +277,7 @@ export default class Transport {
     this[kName] = opts.name ?? 'elastic-transport-js'
     this[kMaxRetries] = typeof opts.maxRetries === 'number' ? opts.maxRetries : 3
     this[kCompression] = opts.compression === true
-    this[kRequestTimeout] = opts.requestTimeout != null ? toMs(opts.requestTimeout) : 30000
+    this[kRequestTimeout] = opts.requestTimeout != null ? toMs(opts.requestTimeout) : null
     this[kRetryOnTimeout] = opts.retryOnTimeout != null ? opts.retryOnTimeout : false
     this[kSniffInterval] = opts.sniffInterval ?? false
     this[kSniffEnabled] = typeof this[kSniffInterval] === 'number'
@@ -517,6 +517,10 @@ export default class Transport {
 
         this[kDiagnostic].emit('request', null, result)
 
+        // set timeout defaults
+        let timeout = options.requestTimeout ?? this[kRequestTimeout] ?? undefined
+        if (timeout != null) timeout = toMs(timeout)
+
         // perform the actual http request
         let { statusCode, headers, body } = await meta.connection.request(connectionParams, {
           requestId: meta.request.id,
@@ -525,7 +529,7 @@ export default class Transport {
           maxResponseSize,
           maxCompressedResponseSize,
           signal,
-          timeout: toMs(options.requestTimeout != null ? options.requestTimeout : this[kRequestTimeout]),
+          timeout,
           ...(options.asStream === true ? { asStream: true } : null)
         })
         result.statusCode = statusCode

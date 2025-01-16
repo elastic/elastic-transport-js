@@ -65,7 +65,7 @@ export default function buildServer (handler: ServerHandler, opts: Options = {})
     process.exit(1)
   })
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     server.listen(0, () => {
       // @ts-expect-error
       const port = server.address().port
