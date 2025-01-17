@@ -34,7 +34,7 @@ import BaseConnection, {
   isCaFingerprintMatch,
   isBinary
 } from './BaseConnection'
-import { Pool, buildConnector, Dispatcher } from 'undici'
+import { Pool, buildConnector } from 'undici'
 import {
   ConfigurationError,
   RequestAbortedError,
@@ -165,8 +165,7 @@ export default class Connection extends BaseConnection {
     debug('Starting a new request', params)
     let response
     try {
-      // @ts-expect-error method it's fine as string
-      response = (await this.pool.request(requestParams)) as Dispatcher.ResponseData
+      response = await this.pool.request(requestParams)
       if (timeoutId != null) clearTimeout(timeoutId)
     } catch (err: any) {
       if (timeoutId != null) clearTimeout(timeoutId)
