@@ -97,7 +97,7 @@ export interface TransportOptions {
   connectionPool: BaseConnectionPool
   serializer?: Serializer
   maxRetries?: number
-  requestTimeout?: number | string
+  requestTimeout?: number | string | null
   retryOnTimeout?: boolean
   compression?: boolean
   sniffInterval?: number | boolean

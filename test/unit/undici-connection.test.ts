@@ -152,8 +152,9 @@ test('Timeout support', t => {
 
   t.test('Timeout support / 2', async t => {
     t.plan(2)
-    t.clock.enter()
-    t.teardown(() => t.clock.exit())
+
+    const clock = FakeTimers.install({ toFake: ['setTimeout'] })
+    t.teardown(() => clock.uninstall())
 
     async function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
       res.writeHead(200, { 'content-type': 'text/plain' })
@@ -171,7 +172,7 @@ test('Timeout support', t => {
         path: '/hello',
         method: 'GET'
       }, options)
-      t.clock.advance(600)
+      clock.tick(600)
       await res
     } catch (err: any) {
       t.ok(err instanceof TimeoutError)
@@ -182,8 +183,8 @@ test('Timeout support', t => {
 
   t.test('Timeout support / 3', async t => {
     t.plan(2)
-    t.clock.enter()
-    t.teardown(() => t.clock.exit())
+    const clock = FakeTimers.install({ toFake: ['setTimeout'] })
+    t.teardown(() => clock.uninstall())
 
     async function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
       await setTimeout(1000)
@@ -203,7 +204,7 @@ test('Timeout support', t => {
         timeout: 600,
         ...options
       })
-      t.clock.advance(600)
+      clock.tick(600)
       await res
     } catch (err: any) {
       t.ok(err instanceof TimeoutError)
@@ -214,8 +215,8 @@ test('Timeout support', t => {
 
   t.test('Timeout support / 4', async t => {
     t.plan(2)
-    t.clock.enter()
-    t.teardown(() => t.clock.exit())
+    const clock = FakeTimers.install({ toFake: ['setTimeout'] })
+    t.teardown(() => clock.uninstall())
 
     async function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
       await setTimeout(1000)
@@ -237,7 +238,7 @@ test('Timeout support', t => {
         timeout: 50,
         ...options
       })
-      t.clock.advance(1000)
+      clock.tick(1000)
       await res
       t.fail('Timeout was not reached')
     } catch (err: any) {

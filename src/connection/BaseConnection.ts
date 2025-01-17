@@ -112,7 +112,6 @@ export default class BaseConnection {
     this.id = opts.id ?? stripAuth(opts.url.href)
     this.headers = prepareHeaders(opts.headers, opts.auth)
     this.timeout = opts.timeout ?? null
-    this.timeout = opts.timeout ?? 30000
     this.deadCount = 0
     this.resurrectTimeout = 0
     this.weight = 0
