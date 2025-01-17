@@ -17,15 +17,15 @@
  * under the License.
  */
 
-import { test } from 'tap'
-import buffer from 'buffer'
-import { promisify } from 'util'
-import { Readable as ReadableStream } from 'stream'
-import { gzipSync, deflateSync } from 'zlib'
-import os from 'os'
-import { Readable } from 'stream'
+import buffer from 'node:buffer'
+import { promisify } from 'node:util'
+import { gzipSync, deflateSync } from 'node:zlib'
+import os from 'node:os'
+import { Readable } from 'node:stream'
+import * as http from 'node:http'
 import intoStream from 'into-stream'
-import * as http from 'http'
+import { test } from 'tap'
+import FakeTimers from '@sinonjs/fake-timers'
 import { BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base'
 import {
   Transport,
@@ -769,8 +769,8 @@ test('Retry on connection error', async t => {
 
 test('Retry on timeout error if retryOnTimeout is true', async t => {
   t.plan(2)
-  t.clock.enter()
-  t.teardown(() => t.clock.exit())
+  const clock = FakeTimers.install({ toFake: ['setTimeout'] })
+  t.teardown(() => clock.uninstall())
 
   const pool = new WeightedConnectionPool({ Connection: MockConnectionTimeout })
   pool.addConnection('http://localhost:9200')
@@ -786,7 +786,7 @@ test('Retry on timeout error if retryOnTimeout is true', async t => {
       method: 'GET',
       path: '/hello'
     })
-    t.clock.advance(4000)
+    clock.tick(4000)
     await res
   } catch (err: any) {
     t.ok(err instanceof TimeoutError)
@@ -1621,8 +1621,8 @@ test('Calls the sniff method on connection error', async t => {
 test('Calls the sniff method on timeout error if retryOnTimeout is true', async t => {
   t.plan(6)
 
-  t.clock.enter()
-  t.teardown(() => t.clock.exit())
+  const clock = FakeTimers.install({ toFake: ['setTimeout'] })
+  t.teardown(() => clock.uninstall())
 
   class MyTransport extends Transport {
     sniff (opts: SniffOptions): void {
@@ -1644,7 +1644,7 @@ test('Calls the sniff method on timeout error if retryOnTimeout is true', async 
       method: 'GET',
       path: '/hello'
     })
-    t.clock.advance(4000)
+    clock.tick(4000)
     await res
   } catch (err: any) {
     t.ok(err instanceof TimeoutError)
@@ -1671,8 +1671,8 @@ test('Sniff on start', async t => {
 
 test('Sniff interval', async t => {
   t.plan(5)
-  t.clock.enter()
-  t.teardown(() => t.clock.exit())
+  const clock = FakeTimers.install({ toFake: ['setTimeout'] })
+  t.teardown(() => clock.uninstall())
 
   class MyTransport extends Transport {
     sniff (opts: SniffOptions): void {
@@ -1692,32 +1692,32 @@ test('Sniff interval', async t => {
     path: '/hello'
   }, { meta: true })
 
-  t.clock.advance(4000)
+  clock.tick(4000)
 
   let res = await promise
   t.equal(res.statusCode, 200)
 
   promise = sleep(80)
-  t.clock.advance(80)
+  clock.tick(80)
   await promise
 
   promise = transport.request({
     method: 'GET',
     path: '/hello'
   }, { meta: true })
-  t.clock.advance(4000)
+  clock.tick(4000)
   res = await promise
   t.equal(res.statusCode, 200)
 
   promise = sleep(80)
-  t.clock.advance(80)
+  clock.tick(80)
   await promise
 
   promise = transport.request({
     method: 'GET',
     path: '/hello'
   }, { meta: true })
-  t.clock.advance(4000)
+  clock.tick(4000)
   res = await promise
   t.equal(res.statusCode, 200)
 })
@@ -2314,14 +2314,14 @@ test('As stream', async t => {
   pool.addConnection(`http://localhost:${port}`)
   const transport = new Transport({ connectionPool: pool })
 
-  const res = await transport.request<ReadableStream>({
+  const res = await transport.request<Readable>({
     method: 'GET',
     path: '/'
   }, {
     meta: true,
     asStream: true
   })
-  t.ok(res.body instanceof ReadableStream)
+  t.ok(res.body instanceof Readable)
   t.equal(res.statusCode, 200)
   server.stop()
 })
