@@ -752,7 +752,7 @@ export default class Transport {
 
 function toMs (time: number | string): number {
   if (typeof time === 'string') {
-    return ms(time)
+    return ms(time as ms.StringValue)
   }
   return time
 }
