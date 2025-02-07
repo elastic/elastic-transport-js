@@ -53,6 +53,67 @@ const MAX_BUFFER_LENGTH = buffer.constants.MAX_LENGTH
 const MAX_STRING_LENGTH = buffer.constants.MAX_STRING_LENGTH
 const noop = (): void => {}
 
+enum states {
+  PREFLIGHT = 'start',
+  INVALID = 'invalid',
+  REQUEST = 'open',
+  ERROR = 'error',
+  TIMEOUT = 'timeout',
+  ABORT = 'abort',
+  RESPONSE = 'response',
+  DATA = 'data',
+  SUCCESS = 'success',
+  END = 'end',
+}
+
+type StateTransitions = Record<states, states[] | null>
+
+type StateActions = Record<states, (...args: any[]) => void>
+
+class StateMachine {
+  _current: states
+  transitions: StateTransitions
+  actions: StateActions | undefined
+  history: states[]
+
+  constructor (initialState: states, transitions: StateTransitions, actions?: StateActions) {
+    this._current = initialState
+    this.transitions = transitions
+    this.actions = actions
+    this.history = [this.currentState]
+
+    const action = this.actions != null ? this.actions[this.currentState] : null
+    if (action != null) action()
+  }
+
+  get currentState (): states {
+    return this._current
+  }
+
+  set currentState (val: states) {
+    this._current = val
+  }
+
+  transition (state: states, ...args: any[]): void {
+    const { currentState, transitions } = this
+
+    // state transition
+    const stateTransitions = transitions[currentState]
+    if (stateTransitions?.includes(state) === true) {
+      this.history.push(state)
+      // console.log(`INFO: Transition event ${state}: moving from ${currentState} to ${this.currentState}`)
+      this.currentState = state
+
+      // transition action
+      const action = this.actions != null ? this.actions[this.currentState] : null
+      if (action != null) action(...args)
+    } else {
+      // throw new Error(`ERROR: Invalid transition event ${event} from ${currentState}; history: ${this.history.join(', ')}`)
+      console.error(`ERROR: Invalid transition event ${state} from ${currentState}; history: ${this.history.join(', ')}`)
+    }
+  }
+}
+
 /**
  * A connection to an Elasticsearch node, managed by the `http` client in the standard library
  */
@@ -102,14 +163,67 @@ export default class HttpConnection extends BaseConnection {
   async request (params: ConnectionRequestParams, options: ConnectionRequestOptionsAsStream): Promise<ConnectionRequestResponseAsStream>
   async request (params: ConnectionRequestParams, options: any): Promise<any> {
     return await new Promise((resolve, reject) => {
-      let cleanedListeners = false
+      const requestStates: StateTransitions = {
+        [states.PREFLIGHT]: [states.INVALID, states.REQUEST],
+        // "invalid" is for requests that fail during validation before being opened
+        [states.INVALID]: [states.END],
+        // "error" is for requests that fail after being opened
+        [states.ERROR]: [states.END],
+        [states.TIMEOUT]: [states.ERROR],
+        [states.REQUEST]: [states.RESPONSE, states.ERROR, states.ABORT, states.TIMEOUT, states.SUCCESS],
+        [states.RESPONSE]: [states.DATA, states.ERROR, states.ABORT, states.TIMEOUT, states.SUCCESS],
+        [states.DATA]: [states.DATA, states.ERROR, states.ABORT, states.TIMEOUT, states.SUCCESS],
+        [states.ABORT]: [states.ERROR],
+        [states.SUCCESS]: [states.END],
+        [states.END]: null
+      }
+
+      const requestActions: StateActions = {
+        [states.PREFLIGHT]: () => {},
+        [states.DATA]: () => {},
+        [states.END]: () => {},
+        [states.REQUEST]: () => this._openRequests++,
+        [states.RESPONSE]: () => cleanListeners(),
+        [states.ABORT]: (requestResponse: http.ClientRequest | http.ServerResponse, error?: string | Error) => {
+          let err: Error
+          if (typeof error === 'string') {
+            err = new RequestAbortedError(error)
+          } else if (error == null) {
+            err = new RequestAbortedError('Request aborted')
+          } else {
+            err = error
+          }
+          requestResponse.destroy()
+          machine.transition(states.ERROR, err)
+        },
+        [states.INVALID]: (err: Error) => {
+          reject(err)
+          machine.transition(states.END)
+        },
+        [states.TIMEOUT]: (requestResponse: http.ClientRequest | http.ServerResponse) => {
+          requestResponse.destroy()
+          machine.transition(states.ERROR, new TimeoutError('Request timed out'))
+        },
+        [states.ERROR]: (err: Error) => {
+          cleanListeners()
+          this._openRequests--
+          reject(err)
+          machine.transition(states.END)
+        },
+        [states.SUCCESS]: (response: ConnectionRequestResponse | ConnectionRequestResponseAsStream) => {
+          this._openRequests--
+          resolve(response)
+          machine.transition(states.END)
+        }
+      }
+      const machine = new StateMachine(states.PREFLIGHT, requestStates, requestActions)
 
       const maxResponseSize = options.maxResponseSize ?? MAX_STRING_LENGTH
       const maxCompressedResponseSize = options.maxCompressedResponseSize ?? MAX_BUFFER_LENGTH
       const requestParams = this.buildRequestObject(params, options)
       // https://github.com/nodejs/node/commit/b961d9fd83
       if (INVALID_PATH_REGEX.test(requestParams.path as string)) {
-        return reject(new TypeError(`ERR_UNESCAPED_CHARACTERS: ${requestParams.path as string}`))
+        return machine.transition(states.INVALID, new TypeError(`ERR_UNESCAPED_CHARACTERS: ${requestParams.path as string}`))
       }
 
       debug('Starting a new request', params)
@@ -117,14 +231,14 @@ export default class HttpConnection extends BaseConnection {
       try {
         request = this.makeRequest(requestParams)
       } catch (err: any) {
-        return reject(err)
+        return machine.transition(states.INVALID, err)
       }
 
       const abortListener = (): void => {
-        request.destroy(new RequestAbortedError('Request aborted'))
+        machine.transition(states.ABORT, request)
       }
 
-      this._openRequests++
+      machine.transition(states.REQUEST)
       if (options.signal != null) {
         options.signal.addEventListener(
           'abort',
@@ -134,11 +248,10 @@ export default class HttpConnection extends BaseConnection {
       }
 
       const onResponse = (response: http.IncomingMessage): void => {
-        cleanListeners()
-        this._openRequests--
+        machine.transition(states.RESPONSE, response)
 
         if (options.asStream === true) {
-          return resolve({
+          return machine.transition(states.SUCCESS, {
             body: response,
             statusCode: response.statusCode as number,
             headers: response.headers
@@ -153,15 +266,9 @@ export default class HttpConnection extends BaseConnection {
         if (response.headers['content-length'] !== undefined) {
           const contentLength = Number(response.headers['content-length'])
           if (isCompressed && contentLength > maxCompressedResponseSize) {
-            response.destroy()
-            return reject(
-              new RequestAbortedError(`The content length (${contentLength}) is bigger than the maximum allowed buffer (${maxCompressedResponseSize})`)
-            )
+            machine.transition(states.ABORT, response, `The content length (${contentLength}) is bigger than the maximum allowed buffer (${maxCompressedResponseSize})`)
           } else if (contentLength > maxResponseSize) {
-            response.destroy()
-            return reject(
-              new RequestAbortedError(`The content length (${contentLength}) is bigger than the maximum allowed string (${maxResponseSize})`)
-            )
+            machine.transition(states.ABORT, response, `The content length (${contentLength}) is bigger than the maximum allowed string (${maxResponseSize})`)
           }
         }
 
@@ -172,18 +279,20 @@ export default class HttpConnection extends BaseConnection {
 
         let currentLength = 0
         function onDataAsBuffer (chunk: Buffer): void {
+          machine.transition(states.DATA)
           currentLength += Buffer.byteLength(chunk)
           if (currentLength > maxCompressedResponseSize) {
-            response.destroy(new RequestAbortedError(`The content length (${currentLength}) is bigger than the maximum allowed buffer (${maxCompressedResponseSize})`))
+            machine.transition(states.ABORT, response, `The content length (${currentLength}) is bigger than the maximum allowed buffer (${maxCompressedResponseSize})`)
           } else {
             (payload as Buffer[]).push(chunk)
           }
         }
 
         function onDataAsString (chunk: string): void {
+          machine.transition(states.DATA)
           currentLength += Buffer.byteLength(chunk)
           if (currentLength > maxResponseSize) {
-            response.destroy(new RequestAbortedError(`The content length (${currentLength}) is bigger than the maximum allowed string (${maxResponseSize})`))
+            machine.transition(states.ABORT, response, `The content length (${currentLength}) is bigger than the maximum allowed string (${maxResponseSize})`)
           } else {
             payload = `${payload as string}${chunk}`
           }
@@ -198,16 +307,17 @@ export default class HttpConnection extends BaseConnection {
           if (err != null) {
             // @ts-expect-error
             if (err.message === 'aborted' && err.code === 'ECONNRESET') {
-              response.destroy()
-              return reject(new ConnectionError('Response aborted while reading the body'))
+              return machine.transition(states.ABORT, response, new ConnectionError('Response aborted while reading the body'))
             }
+
             if (err.name === 'RequestAbortedError') {
-              return reject(err)
+              return machine.transition(states.ABORT, response)
             }
-            return reject(new ConnectionError(err.message))
+
+            return machine.transition(states.ERROR, new ConnectionError(err.message))
           }
 
-          resolve({
+          return machine.transition(states.SUCCESS, {
             body: isCompressed || bodyIsBinary ? Buffer.concat(payload as Buffer[]) : payload as string,
             statusCode: response.statusCode as number,
             headers: response.headers
@@ -225,25 +335,21 @@ export default class HttpConnection extends BaseConnection {
       }
 
       const onTimeout = (): void => {
-        cleanListeners()
-        this._openRequests--
-        request.once('error', () => {}) // we need to catch the request aborted error
-        request.destroy()
-        reject(new TimeoutError('Request timed out'))
+        machine.transition(states.TIMEOUT, request)
       }
 
       const onError = (err: Error): void => {
-        cleanListeners()
-        this._openRequests--
         let message = err.message
         if (err.name === 'RequestAbortedError') {
-          return reject(err)
+          return machine.transition(states.ABORT, request)
         }
+
         // @ts-expect-error
         if (err.code === 'ECONNRESET') {
           message += ` - Local: ${request.socket?.localAddress ?? 'unknown'}:${request.socket?.localPort ?? 'unknown'}, Remote: ${request.socket?.remoteAddress ?? 'unknown'}:${request.socket?.remotePort ?? 'unknown'}`
         }
-        reject(new ConnectionError(message))
+
+        return machine.transition(states.ERROR, new ConnectionError(message))
       }
 
       const onSocket = (socket: TLSSocket): void => {
@@ -283,17 +389,13 @@ export default class HttpConnection extends BaseConnection {
       if (isStream(params.body)) {
         pipeline(params.body, request, err => {
           /* istanbul ignore if  */
-          if (err != null && !cleanedListeners) {
-            cleanListeners()
-            this._openRequests--
-            reject(err)
+          if (err != null && machine.currentState !== states.ERROR) {
+            machine.transition(states.ERROR, err)
           }
         })
       } else {
         request.end(params.body)
       }
-
-      return request
 
       function cleanListeners (): void {
         request.removeListener('response', onResponse)
@@ -308,7 +410,6 @@ export default class HttpConnection extends BaseConnection {
             options.signal.removeListener('abort', abortListener)
           }
         }
-        cleanedListeners = true
       }
     })
   }

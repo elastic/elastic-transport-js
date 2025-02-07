@@ -1025,21 +1025,18 @@ test('Content length', t => {
 test('Socket destroyed while reading the body', async t => {
   t.plan(2)
 
-  const clock = FakeTimers.install({ toFake: ['setTimeout'] })
-  t.teardown(() => clock.uninstall())
-
   async function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
     const body = JSON.stringify({ hello: 'world' })
     res.setHeader('Content-Type', 'application/json;utf=8')
     res.setHeader('Content-Length', body.length + '')
-    res.write(body.slice(0, -5))
-    setTimeout(500).then(() => res.socket?.destroy())
-    clock.tick(500)
+    res.write(body.slice(0, -5), () => {
+      res.socket?.destroy()
+    })
   }
 
   const [{ port }, server] = await buildServer(handler)
   const connection = new HttpConnection({
-    url: new URL(`http://localhost:${port}`)
+    url: new URL(`http://localhost:${port}`),
   })
   try {
     await connection.request({
