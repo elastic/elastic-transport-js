@@ -50,6 +50,7 @@ import { setTimeout } from 'node:timers/promises'
 import { HttpAgentOptions } from '../types'
 
 const debug = Debug('elasticsearch')
+const debugSM = Debug('elasticsearch:http-state-machine')
 const INVALID_PATH_REGEX = /[^\u0021-\u00ff]/
 const MAX_BUFFER_LENGTH = buffer.constants.MAX_LENGTH
 const MAX_STRING_LENGTH = buffer.constants.MAX_STRING_LENGTH
@@ -122,10 +123,12 @@ class StateMachine {
       let nextTransition: ActionTransition | null = null
       if (action != null) {
         // action runs before the transition in case it throws an assertion error
+        debugSM(`Running state machine action for ${state}`, options ?? {})
         nextTransition = action(options ?? {}) ?? null
       }
 
       // do state transition
+      debugSM(`Transitioning state machine from ${this.currentState} to ${state}`)
       this.history.push(state)
       this.currentState = state
 
@@ -135,6 +138,7 @@ class StateMachine {
         this.transition(state, options)
       }
     } else {
+      debugSM(`ERROR: Invalid transition event ${state} from ${currentState}`, this.history, options)
       throw new StateMachineError(`ERROR: Invalid transition event ${state} from ${currentState}
   state transition history: ${this.history.join(', ')}
   options: ${inspect(options)}`)
