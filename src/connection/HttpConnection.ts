@@ -217,14 +217,12 @@ export default class HttpConnection extends BaseConnection {
         [states.RESPONSE]: ({ request }) => {
           cleanRequestListeners()
           this._openRequests--
-          request?.on('error', noop)
         },
         [states.ABORT]: ({ error, request, response }) => {
           assert(request != null || response != null, 'No request or response provided during ABORT transition')
 
           cleanRequestListeners()
           this._openRequests--
-          request?.on('error', () => noop) // catch the request aborted error
           request?.destroy()
           response?.destroy()
 
@@ -245,8 +243,6 @@ export default class HttpConnection extends BaseConnection {
 
           cleanRequestListeners()
           this._openRequests--
-          // catch request aborted error we're already handling
-          request?.once('error', () => noop)
           request?.destroy()
 
           reject(error ?? new TimeoutError('Request timed out'))
@@ -441,10 +437,18 @@ export default class HttpConnection extends BaseConnection {
 
       // starts the request
       if (isStream(params.body)) {
-        pipeline(params.body, request, err => {
+        pipeline(params.body, request, error => {
           /* istanbul ignore if  */
-          if (err != null && machine.currentState !== states.ERROR) {
-            machine.transition(states.ERROR, { error: err })
+          if (error != null) {
+            try {
+              machine.transition(states.ERROR, { error })
+            } catch (err: any) {
+              if (err instanceof StateMachineError) {
+                // request is already in an ended state; ignore the error
+              } else {
+                throw err
+              }
+            }
           }
         })
       } else {
@@ -455,6 +459,7 @@ export default class HttpConnection extends BaseConnection {
         request.removeListener('response', onResponse)
         request.removeListener('timeout', onTimeout)
         request.removeListener('error', onError)
+        request.on('error', noop)
 
         request.removeListener('socket', onSocket)
         if (options.signal != null) {
