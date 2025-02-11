@@ -20,11 +20,13 @@
 /* eslint-disable @typescript-eslint/restrict-template-expressions */
 
 import hpagent from 'hpagent'
+import assert from 'node:assert'
 import http from 'node:http'
 import https from 'node:https'
 import Debug from 'debug'
 import buffer from 'node:buffer'
 import { TLSSocket } from 'node:tls'
+import { inspect } from 'node:util'
 import BaseConnection, {
   ConnectionOptions,
   ConnectionRequestParams,
@@ -54,21 +56,38 @@ const MAX_STRING_LENGTH = buffer.constants.MAX_STRING_LENGTH
 const noop = (): void => {}
 
 enum states {
-  PREFLIGHT = 'start',
+  PREFLIGHT = 'preflight',
   INVALID = 'invalid',
-  REQUEST = 'open',
+  REQUEST = 'request',
   ERROR = 'error',
   TIMEOUT = 'timeout',
   ABORT = 'abort',
   RESPONSE = 'response',
   DATA = 'data',
   SUCCESS = 'success',
-  END = 'end',
 }
 
 type StateTransitions = Record<states, states[] | null>
 
-type StateActions = Record<states, (...args: any[]) => void>
+interface StateActionOptions {
+  error?: string | Error
+  request?: http.ClientRequest
+  response?: http.ServerResponse | http.IncomingMessage
+  connectionRequestResponse?: ConnectionRequestResponse | ConnectionRequestResponseAsStream
+}
+
+interface ActionTransition {
+  state: states
+  options?: StateActionOptions
+}
+type StateActionFull = (options: StateActionOptions) => ActionTransition
+type StateActionPartial = (options: StateActionOptions) => void
+type StateActionVoid = () => void
+type StateActionVoidTransition = () => ActionTransition
+type StateAction = StateActionFull | StateActionPartial | StateActionVoid | StateActionVoidTransition
+type StateActions = Record<states, StateAction>
+
+class StateMachineError extends Error {}
 
 class StateMachine {
   _current: states
@@ -83,7 +102,7 @@ class StateMachine {
     this.history = [this.currentState]
 
     const action = this.actions != null ? this.actions[this.currentState] : null
-    if (action != null) action()
+    if (action != null) action({})
   }
 
   get currentState (): states {
@@ -94,22 +113,31 @@ class StateMachine {
     this._current = val
   }
 
-  transition (state: states, ...args: any[]): void {
+  transition (state: states, options?: StateActionOptions): void {
     const { currentState, transitions } = this
 
-    // state transition
     const stateTransitions = transitions[currentState]
     if (stateTransitions?.includes(state) === true) {
+      const action = this.actions != null ? this.actions[state] : null
+      let nextTransition: ActionTransition | null = null
+      if (action != null) {
+        // action runs before the transition in case it throws an assertion error
+        nextTransition = action(options ?? {}) ?? null
+      }
+
+      // do state transition
       this.history.push(state)
-      // console.log(`INFO: Transition event ${state}: moving from ${currentState} to ${this.currentState}`)
       this.currentState = state
 
-      // transition action
-      const action = this.actions != null ? this.actions[this.currentState] : null
-      if (action != null) action(...args)
+      // if action returned a transition, run that
+      if (nextTransition !== null) {
+        const { state, options } = nextTransition
+        this.transition(state, options)
+      }
     } else {
-      // throw new Error(`ERROR: Invalid transition event ${event} from ${currentState}; history: ${this.history.join(', ')}`)
-      console.error(`ERROR: Invalid transition event ${state} from ${currentState}; history: ${this.history.join(', ')}`)
+      throw new StateMachineError(`ERROR: Invalid transition event ${state} from ${currentState}
+  state transition history: ${this.history.join(', ')}
+  options: ${inspect(options)}`)
     }
   }
 }
@@ -165,55 +193,76 @@ export default class HttpConnection extends BaseConnection {
     return await new Promise((resolve, reject) => {
       const requestStates: StateTransitions = {
         [states.PREFLIGHT]: [states.INVALID, states.REQUEST],
-        // "invalid" is for requests that fail during validation before being opened
-        [states.INVALID]: [states.END],
-        // "error" is for requests that fail after being opened
-        [states.ERROR]: [states.END],
-        [states.TIMEOUT]: [states.ERROR],
-        [states.REQUEST]: [states.RESPONSE, states.ERROR, states.ABORT, states.TIMEOUT, states.SUCCESS],
+        // INVALID is the end state for requests that fail during preflight validation
+        [states.INVALID]: null,
+        // ERROR is the end state for requests that fail after being sent for reasons
+        [states.ERROR]: null,
+        // ABORT is the end state for requests that are aborted
+        [states.ABORT]: null,
+        // TIMEOUT is the end state for requests that timed out
+        [states.TIMEOUT]: null,
+        [states.REQUEST]: [states.RESPONSE, states.ERROR, states.ABORT, states.TIMEOUT],
         [states.RESPONSE]: [states.DATA, states.ERROR, states.ABORT, states.TIMEOUT, states.SUCCESS],
         [states.DATA]: [states.DATA, states.ERROR, states.ABORT, states.TIMEOUT, states.SUCCESS],
-        [states.ABORT]: [states.ERROR],
-        [states.SUCCESS]: [states.END],
-        [states.END]: null
+        // SUCCESS is the end state for a request that has received a response
+        [states.SUCCESS]: null
       }
 
       const requestActions: StateActions = {
         [states.PREFLIGHT]: () => {},
         [states.DATA]: () => {},
-        [states.END]: () => {},
-        [states.REQUEST]: () => this._openRequests++,
-        [states.RESPONSE]: () => cleanListeners(),
-        [states.ABORT]: (requestResponse: http.ClientRequest | http.ServerResponse, error?: string | Error) => {
-          let err: Error
+        [states.REQUEST]: () => {
+          this._openRequests++
+        },
+        [states.RESPONSE]: ({ request }) => {
+          cleanRequestListeners()
+          this._openRequests--
+          request?.on('error', noop)
+        },
+        [states.ABORT]: ({ error, request, response }) => {
+          assert(request != null || response != null, 'No request or response provided during ABORT transition')
+
+          cleanRequestListeners()
+          this._openRequests--
+          request?.on('error', () => noop) // catch the request aborted error
+          request?.destroy()
+          response?.destroy()
+
           if (typeof error === 'string') {
-            err = new RequestAbortedError(error)
+            reject(new RequestAbortedError(error))
           } else if (error == null) {
-            err = new RequestAbortedError('Request aborted')
+            reject(new RequestAbortedError('Request aborted'))
           } else {
-            err = error
+            reject(error)
           }
-          requestResponse.destroy()
-          machine.transition(states.ERROR, err)
         },
-        [states.INVALID]: (err: Error) => {
-          reject(err)
-          machine.transition(states.END)
+        [states.INVALID]: ({ error }) => {
+          assert(error != null, 'No error provided during INVALID transition')
+          reject(error)
         },
-        [states.TIMEOUT]: (requestResponse: http.ClientRequest | http.ServerResponse) => {
-          requestResponse.destroy()
-          machine.transition(states.ERROR, new TimeoutError('Request timed out'))
-        },
-        [states.ERROR]: (err: Error) => {
-          cleanListeners()
+        [states.TIMEOUT]: ({ error, request }) => {
+          assert(request != null, 'No request provided during TIMEOUT transition')
+
+          cleanRequestListeners()
           this._openRequests--
-          reject(err)
-          machine.transition(states.END)
+          // catch request aborted error we're already handling
+          request?.once('error', () => noop)
+          request?.destroy()
+
+          reject(error ?? new TimeoutError('Request timed out'))
         },
-        [states.SUCCESS]: (response: ConnectionRequestResponse | ConnectionRequestResponseAsStream) => {
+        [states.ERROR]: ({ error }) => {
+          assert(error != null, 'No error received during ERROR transition')
+
+          cleanRequestListeners()
           this._openRequests--
-          resolve(response)
-          machine.transition(states.END)
+          reject(error)
+        },
+        [states.SUCCESS]: ({ connectionRequestResponse }) => {
+          assert(connectionRequestResponse != null, 'No connectionRequestResponse received during SUCCESS transition')
+
+          this._openRequests--
+          resolve(connectionRequestResponse)
         }
       }
       const machine = new StateMachine(states.PREFLIGHT, requestStates, requestActions)
@@ -223,7 +272,7 @@ export default class HttpConnection extends BaseConnection {
       const requestParams = this.buildRequestObject(params, options)
       // https://github.com/nodejs/node/commit/b961d9fd83
       if (INVALID_PATH_REGEX.test(requestParams.path as string)) {
-        return machine.transition(states.INVALID, new TypeError(`ERR_UNESCAPED_CHARACTERS: ${requestParams.path as string}`))
+        return machine.transition(states.INVALID, { error: new TypeError(`ERR_UNESCAPED_CHARACTERS: ${requestParams.path as string}`) })
       }
 
       debug('Starting a new request', params)
@@ -235,7 +284,7 @@ export default class HttpConnection extends BaseConnection {
       }
 
       const abortListener = (): void => {
-        machine.transition(states.ABORT, request)
+        machine.transition(states.ABORT, { request })
       }
 
       machine.transition(states.REQUEST)
@@ -248,14 +297,15 @@ export default class HttpConnection extends BaseConnection {
       }
 
       const onResponse = (response: http.IncomingMessage): void => {
-        machine.transition(states.RESPONSE, response)
+        machine.transition(states.RESPONSE, { response })
 
         if (options.asStream === true) {
-          return machine.transition(states.SUCCESS, {
+          const connectionRequestResponse = {
             body: response,
             statusCode: response.statusCode as number,
             headers: response.headers
-          })
+          }
+          return machine.transition(states.SUCCESS, { connectionRequestResponse })
         }
 
         const contentEncoding = (response.headers['content-encoding'] ?? '').toLowerCase()
@@ -264,11 +314,12 @@ export default class HttpConnection extends BaseConnection {
 
         /* istanbul ignore else */
         if (response.headers['content-length'] !== undefined) {
+          // TODO: switch to response.strictContentLength https://nodejs.org/api/http.html#responsestrictcontentlength
           const contentLength = Number(response.headers['content-length'])
           if (isCompressed && contentLength > maxCompressedResponseSize) {
-            machine.transition(states.ABORT, response, `The content length (${contentLength}) is bigger than the maximum allowed buffer (${maxCompressedResponseSize})`)
+            machine.transition(states.ABORT, { response, error: `The content length (${contentLength}) is bigger than the maximum allowed buffer (${maxCompressedResponseSize})` })
           } else if (contentLength > maxResponseSize) {
-            machine.transition(states.ABORT, response, `The content length (${contentLength}) is bigger than the maximum allowed string (${maxResponseSize})`)
+            machine.transition(states.ABORT, { response, error: `The content length (${contentLength}) is bigger than the maximum allowed string (${maxResponseSize})` })
           }
         }
 
@@ -281,8 +332,9 @@ export default class HttpConnection extends BaseConnection {
         function onDataAsBuffer (chunk: Buffer): void {
           machine.transition(states.DATA)
           currentLength += Buffer.byteLength(chunk)
+          // TODO: switch to response.strictContentLength https://nodejs.org/api/http.html#responsestrictcontentlength
           if (currentLength > maxCompressedResponseSize) {
-            machine.transition(states.ABORT, response, `The content length (${currentLength}) is bigger than the maximum allowed buffer (${maxCompressedResponseSize})`)
+            machine.transition(states.ABORT, { response, error: `The content length (${currentLength}) is bigger than the maximum allowed buffer (${maxCompressedResponseSize})` })
           } else {
             (payload as Buffer[]).push(chunk)
           }
@@ -291,8 +343,9 @@ export default class HttpConnection extends BaseConnection {
         function onDataAsString (chunk: string): void {
           machine.transition(states.DATA)
           currentLength += Buffer.byteLength(chunk)
+          // TODO: switch to response.strictContentLength https://nodejs.org/api/http.html#responsestrictcontentlength
           if (currentLength > maxResponseSize) {
-            machine.transition(states.ABORT, response, `The content length (${currentLength}) is bigger than the maximum allowed string (${maxResponseSize})`)
+            machine.transition(states.ABORT, { response, error: `The content length (${currentLength}) is bigger than the maximum allowed string (${maxResponseSize})` })
           } else {
             payload = `${payload as string}${chunk}`
           }
@@ -307,21 +360,22 @@ export default class HttpConnection extends BaseConnection {
           if (err != null) {
             // @ts-expect-error
             if (err.message === 'aborted' && err.code === 'ECONNRESET') {
-              return machine.transition(states.ABORT, response, new ConnectionError('Response aborted while reading the body'))
+              return machine.transition(states.ABORT, { response, error: new ConnectionError('Response aborted while reading the body') })
             }
 
             if (err.name === 'RequestAbortedError') {
-              return machine.transition(states.ABORT, response)
+              return machine.transition(states.ABORT, { response })
             }
 
-            return machine.transition(states.ERROR, new ConnectionError(err.message))
+            return machine.transition(states.ERROR, { error: new ConnectionError(err.message) })
           }
 
-          return machine.transition(states.SUCCESS, {
+          const connectionRequestResponse = {
             body: isCompressed || bodyIsBinary ? Buffer.concat(payload as Buffer[]) : payload as string,
             statusCode: response.statusCode as number,
             headers: response.headers
-          })
+          }
+          return machine.transition(states.SUCCESS, { connectionRequestResponse })
         }
 
         if (!isCompressed && !bodyIsBinary) {
@@ -335,13 +389,13 @@ export default class HttpConnection extends BaseConnection {
       }
 
       const onTimeout = (): void => {
-        machine.transition(states.TIMEOUT, request)
+        machine.transition(states.TIMEOUT, { request })
       }
 
       const onError = (err: Error): void => {
         let message = err.message
         if (err.name === 'RequestAbortedError') {
-          return machine.transition(states.ABORT, request)
+          return machine.transition(states.ABORT, { request })
         }
 
         // @ts-expect-error
@@ -349,7 +403,7 @@ export default class HttpConnection extends BaseConnection {
           message += ` - Local: ${request.socket?.localAddress ?? 'unknown'}:${request.socket?.localPort ?? 'unknown'}, Remote: ${request.socket?.remoteAddress ?? 'unknown'}:${request.socket?.remotePort ?? 'unknown'}`
         }
 
-        return machine.transition(states.ERROR, new ConnectionError(message))
+        return machine.transition(states.ERROR, { error: new ConnectionError(message) })
       }
 
       const onSocket = (socket: TLSSocket): void => {
@@ -390,18 +444,18 @@ export default class HttpConnection extends BaseConnection {
         pipeline(params.body, request, err => {
           /* istanbul ignore if  */
           if (err != null && machine.currentState !== states.ERROR) {
-            machine.transition(states.ERROR, err)
+            machine.transition(states.ERROR, { error: err })
           }
         })
       } else {
         request.end(params.body)
       }
 
-      function cleanListeners (): void {
+      function cleanRequestListeners (): void {
         request.removeListener('response', onResponse)
         request.removeListener('timeout', onTimeout)
         request.removeListener('error', onError)
-        request.on('error', noop)
+
         request.removeListener('socket', onSocket)
         if (options.signal != null) {
           if ('removeEventListener' in options.signal) {
