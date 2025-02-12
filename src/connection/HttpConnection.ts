@@ -123,7 +123,7 @@ class StateMachine {
       let nextTransition: ActionTransition | null = null
       if (action != null) {
         // action runs before the transition in case it throws an assertion error
-        debugSM(`Running state machine action for ${state}`, options ?? {})
+        debugSM(`Running state machine action for ${state}`, options)
         nextTransition = action(options ?? {}) ?? null
       }
 
@@ -218,15 +218,18 @@ export default class HttpConnection extends BaseConnection {
         [states.REQUEST]: () => {
           this._openRequests++
         },
-        [states.RESPONSE]: ({ request }) => {
+        [states.RESPONSE]: () => {
           cleanRequestListeners()
           this._openRequests--
         },
         [states.ABORT]: ({ error, request, response }) => {
           assert(request != null || response != null, 'No request or response provided during ABORT transition')
 
-          cleanRequestListeners()
-          this._openRequests--
+          if (!machine.history.includes(states.RESPONSE)) {
+            cleanRequestListeners()
+            this._openRequests--
+          }
+
           request?.destroy()
           response?.destroy()
 
@@ -245,8 +248,11 @@ export default class HttpConnection extends BaseConnection {
         [states.TIMEOUT]: ({ error, request }) => {
           assert(request != null, 'No request provided during TIMEOUT transition')
 
-          cleanRequestListeners()
-          this._openRequests--
+          if (!machine.history.includes(states.RESPONSE)) {
+            debugSM('Timeout triggered after RESPONSE sent')
+            cleanRequestListeners()
+            this._openRequests--
+          }
           request?.destroy()
 
           reject(error ?? new TimeoutError('Request timed out'))
@@ -254,17 +260,19 @@ export default class HttpConnection extends BaseConnection {
         [states.ERROR]: ({ error }) => {
           assert(error != null, 'No error received during ERROR transition')
 
-          cleanRequestListeners()
-          this._openRequests--
+          if (!machine.history.includes(states.RESPONSE)) {
+            cleanRequestListeners()
+            this._openRequests--
+          }
           reject(error)
         },
         [states.SUCCESS]: ({ connectionRequestResponse }) => {
           assert(connectionRequestResponse != null, 'No connectionRequestResponse received during SUCCESS transition')
 
-          this._openRequests--
           resolve(connectionRequestResponse)
         }
       }
+
       const machine = new StateMachine(states.PREFLIGHT, requestStates, requestActions)
 
       const maxResponseSize = options.maxResponseSize ?? MAX_STRING_LENGTH
@@ -297,7 +305,7 @@ export default class HttpConnection extends BaseConnection {
       }
 
       const onResponse = (response: http.IncomingMessage): void => {
-        machine.transition(states.RESPONSE, { response })
+        machine.transition(states.RESPONSE)
 
         if (options.asStream === true) {
           const connectionRequestResponse = {
