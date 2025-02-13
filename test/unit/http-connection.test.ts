@@ -1050,6 +1050,42 @@ test('Socket destroyed while reading the body', async t => {
   server.stop()
 })
 
+test('Socket destroyed while sending the body', async t => {
+  t.plan(2)
+
+  function handler (req: http.IncomingMessage, _res: http.ServerResponse) {
+    let dataCounter = 0
+    req.on('data', () => {
+      dataCounter++
+      if (dataCounter === 1) {
+        req.destroy()
+      } else {
+        t.fail('Request should stop trying to send data')
+      }
+    })
+  }
+  const [{ port }, server] = await buildServer(handler)
+
+  const connection = new HttpConnection({
+    url: new URL(`http://localhost:${port}`),
+  })
+
+  try {
+    // run one large request where data will be received by socket in multiple chunks
+    await connection.request({
+      path: '/hello',
+      method: 'POST',
+      body: 'x'.repeat(99999999)
+    }, options)
+    t.fail('ConnectionError should have been caught')
+  } catch (err: any) {
+    t.ok(err instanceof ConnectionError, `Not a ConnectionError: ${err}`)
+    t.equal(err.message, 'Request aborted while sending the body')
+  }
+
+  server.stop()
+})
+
 test('Compressed response should return a buffer as body (gzip)', async t => {
   t.plan(2)
 
