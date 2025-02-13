@@ -61,7 +61,6 @@ enum states {
   REQUEST = 'request',
   ERROR = 'error',
   TIMEOUT = 'timeout',
-  ABORT = 'abort',
   RESPONSE = 'response',
   DATA = 'data',
   SUCCESS = 'success',
@@ -197,13 +196,11 @@ export default class HttpConnection extends BaseConnection {
         [states.INVALID]: null,
         // ERROR is the end state for requests that fail after being sent for reasons
         [states.ERROR]: null,
-        // ABORT is the end state for requests that are aborted
-        [states.ABORT]: null,
         // TIMEOUT is the end state for requests that timed out
         [states.TIMEOUT]: null,
-        [states.REQUEST]: [states.RESPONSE, states.ERROR, states.ABORT, states.TIMEOUT],
-        [states.RESPONSE]: [states.DATA, states.ERROR, states.ABORT, states.TIMEOUT, states.SUCCESS],
-        [states.DATA]: [states.DATA, states.ERROR, states.ABORT, states.TIMEOUT, states.SUCCESS],
+        [states.REQUEST]: [states.RESPONSE, states.ERROR, states.TIMEOUT],
+        [states.RESPONSE]: [states.DATA, states.ERROR, states.TIMEOUT, states.SUCCESS],
+        [states.DATA]: [states.DATA, states.ERROR, states.TIMEOUT, states.SUCCESS],
         // SUCCESS is the end state for a request that has received a response
         [states.SUCCESS]: null
       }
@@ -217,25 +214,6 @@ export default class HttpConnection extends BaseConnection {
         [states.RESPONSE]: () => {
           cleanRequestListeners()
           this._openRequests--
-        },
-        [states.ABORT]: ({ error, request, response }) => {
-          assert(request != null || response != null, 'No request or response provided during ABORT transition')
-
-          if (!machine.history.includes(states.RESPONSE)) {
-            cleanRequestListeners()
-            this._openRequests--
-          }
-
-          request?.destroy()
-          response?.destroy()
-
-          if (typeof error === 'string') {
-            reject(new RequestAbortedError(error))
-          } else if (error == null) {
-            reject(new RequestAbortedError('Request aborted'))
-          } else {
-            reject(error)
-          }
         },
         [states.INVALID]: ({ error }) => {
           assert(error != null, 'No error provided during INVALID transition')
@@ -291,7 +269,7 @@ export default class HttpConnection extends BaseConnection {
       }
 
       const abortListener = (): void => {
-        machine.transition(states.ABORT, { request })
+        machine.transition(states.ERROR, { request, error: new RequestAbortedError('Request aborted') })
       }
 
       machine.transition(states.REQUEST)
@@ -324,9 +302,9 @@ export default class HttpConnection extends BaseConnection {
           // TODO: switch to response.strictContentLength https://nodejs.org/api/http.html#responsestrictcontentlength
           const contentLength = Number(response.headers['content-length'])
           if (isCompressed && contentLength > maxCompressedResponseSize) {
-            machine.transition(states.ABORT, { response, error: `The content length (${contentLength}) is bigger than the maximum allowed buffer (${maxCompressedResponseSize})` })
+            machine.transition(states.ERROR, { response, error: new RequestAbortedError(`The content length (${contentLength}) is bigger than the maximum allowed buffer (${maxCompressedResponseSize})`) })
           } else if (contentLength > maxResponseSize) {
-            machine.transition(states.ABORT, { response, error: `The content length (${contentLength}) is bigger than the maximum allowed string (${maxResponseSize})` })
+            machine.transition(states.ERROR, { response, error: new RequestAbortedError(`The content length (${contentLength}) is bigger than the maximum allowed string (${maxResponseSize})`) })
           }
         }
 
@@ -341,7 +319,7 @@ export default class HttpConnection extends BaseConnection {
           currentLength += Buffer.byteLength(chunk)
           // TODO: switch to response.strictContentLength https://nodejs.org/api/http.html#responsestrictcontentlength
           if (currentLength > maxCompressedResponseSize) {
-            machine.transition(states.ABORT, { response, error: `The content length (${currentLength}) is bigger than the maximum allowed buffer (${maxCompressedResponseSize})` })
+            machine.transition(states.ERROR, { response, error: new RequestAbortedError(`The content length (${currentLength}) is bigger than the maximum allowed buffer (${maxCompressedResponseSize})`) })
           } else {
             (payload as Buffer[]).push(chunk)
           }
@@ -352,7 +330,7 @@ export default class HttpConnection extends BaseConnection {
           currentLength += Buffer.byteLength(chunk)
           // TODO: switch to response.strictContentLength https://nodejs.org/api/http.html#responsestrictcontentlength
           if (currentLength > maxResponseSize) {
-            machine.transition(states.ABORT, { response, error: `The content length (${currentLength}) is bigger than the maximum allowed string (${maxResponseSize})` })
+            machine.transition(states.ERROR, { response, error: new RequestAbortedError(`The content length (${currentLength}) is bigger than the maximum allowed string (${maxResponseSize})`) })
           } else {
             payload = `${payload as string}${chunk}`
           }
@@ -367,11 +345,11 @@ export default class HttpConnection extends BaseConnection {
           if (err != null) {
             // @ts-expect-error
             if (err.message === 'aborted' && err.code === 'ECONNRESET') {
-              return machine.transition(states.ABORT, { response, error: new ConnectionError('Response aborted while reading the body') })
+              return machine.transition(states.ERROR, { response, error: new ConnectionError('Response aborted while reading the body') })
             }
 
             if (err.name === 'RequestAbortedError') {
-              return machine.transition(states.ABORT, { response })
+              return machine.transition(states.ERROR, { response, error: err })
             }
 
             return machine.transition(states.ERROR, { error: new ConnectionError(err.message), response })
@@ -402,14 +380,14 @@ export default class HttpConnection extends BaseConnection {
       const onError = (err: Error): void => {
         let message = err.message
         if (err.name === 'RequestAbortedError') {
-          return machine.transition(states.ABORT, { request })
+          return machine.transition(states.ERROR, { request, error: err })
         }
 
         // @ts-expect-error
         if (err.code === 'ECONNRESET') {
           // @ts-expect-error
           if (err.errno === -104) {
-            return machine.transition(states.ABORT, { request, error: new ConnectionError('Request aborted while sending the body') })
+            return machine.transition(states.ERROR, { request, error: new ConnectionError('Request aborted while sending the body') })
           } else {
             message += ` - Local: ${request.socket?.localAddress ?? 'undefined'}:${request.socket?.localPort ?? 'undefined'}, Remote: ${request.socket?.remoteAddress ?? 'undefined'}:${request.socket?.remotePort ?? 'undefined'}`
           }
@@ -458,7 +436,7 @@ export default class HttpConnection extends BaseConnection {
         pipeline(params.body, request, err => {
           if (err != null) {
             debugSM('error at pipeline end', err)
-            if (!machine.history.includes(states.ABORT) && !machine.history.includes(states.ERROR)) {
+            if (!machine.history.includes(states.ERROR)) {
               onError(err)
             }
           }
