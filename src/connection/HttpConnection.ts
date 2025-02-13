@@ -26,7 +26,6 @@ import https from 'node:https'
 import Debug from 'debug'
 import buffer from 'node:buffer'
 import { TLSSocket } from 'node:tls'
-import { inspect } from 'node:util'
 import BaseConnection, {
   ConnectionOptions,
   ConnectionRequestParams,
@@ -123,7 +122,7 @@ class StateMachine {
       let nextTransition: ActionTransition | null = null
       if (action != null) {
         // action runs before the transition in case it throws an assertion error
-        debugSM(`Running state machine action for ${state}`, options)
+        debugSM(`Running state machine action for ${state}`, options ?? {})
         nextTransition = action(options ?? {}) ?? null
       }
 
@@ -138,10 +137,7 @@ class StateMachine {
         this.transition(state, options)
       }
     } else {
-      debugSM(`ERROR: Invalid transition event ${state} from ${currentState}`, this.history, options)
-      throw new StateMachineError(`ERROR: Invalid transition event ${state} from ${currentState}
-  state transition history: ${this.history.join(', ')}
-  options: ${inspect(options)}`)
+      throw new StateMachineError(`ERROR: Invalid transition event ${state} from ${currentState}; history: ${this.history.join(', ')}`)
     }
   }
 }
@@ -257,13 +253,16 @@ export default class HttpConnection extends BaseConnection {
 
           reject(error ?? new TimeoutError('Request timed out'))
         },
-        [states.ERROR]: ({ error }) => {
+        [states.ERROR]: ({ error, request, response }) => {
           assert(error != null, 'No error received during ERROR transition')
 
           if (!machine.history.includes(states.RESPONSE)) {
             cleanRequestListeners()
             this._openRequests--
           }
+          request?.destroy()
+          response?.destroy()
+
           reject(error)
         },
         [states.SUCCESS]: ({ connectionRequestResponse }) => {
@@ -375,7 +374,7 @@ export default class HttpConnection extends BaseConnection {
               return machine.transition(states.ABORT, { response })
             }
 
-            return machine.transition(states.ERROR, { error: new ConnectionError(err.message) })
+            return machine.transition(states.ERROR, { error: new ConnectionError(err.message), response })
           }
 
           const connectionRequestResponse = {
@@ -408,10 +407,15 @@ export default class HttpConnection extends BaseConnection {
 
         // @ts-expect-error
         if (err.code === 'ECONNRESET') {
-          message += ` - Local: ${request.socket?.localAddress ?? 'unknown'}:${request.socket?.localPort ?? 'unknown'}, Remote: ${request.socket?.remoteAddress ?? 'unknown'}:${request.socket?.remotePort ?? 'unknown'}`
+          // @ts-expect-error
+          if (err.errno === -104) {
+            return machine.transition(states.ABORT, { request, error: new ConnectionError('Request aborted while sending the body') })
+          } else {
+            message += ` - Local: ${request.socket?.localAddress ?? 'undefined'}:${request.socket?.localPort ?? 'undefined'}, Remote: ${request.socket?.remoteAddress ?? 'undefined'}:${request.socket?.remotePort ?? 'undefined'}`
+          }
         }
 
-        return machine.transition(states.ERROR, { error: new ConnectionError(message) })
+        return machine.transition(states.ERROR, { error: new ConnectionError(message), request })
       }
 
       const onSocket = (socket: TLSSocket): void => {
@@ -449,17 +453,13 @@ export default class HttpConnection extends BaseConnection {
 
       // starts the request
       if (isStream(params.body)) {
-        pipeline(params.body, request, error => {
-          /* istanbul ignore if  */
-          if (error != null) {
-            try {
-              machine.transition(states.ERROR, { error })
-            } catch (err: any) {
-              if (err instanceof StateMachineError) {
-                // request is already in an ended state; ignore the error
-              } else {
-                throw err
-              }
+        params.body.on('error', onError)
+
+        pipeline(params.body, request, err => {
+          if (err != null) {
+            debugSM('error at pipeline end', err)
+            if (!machine.history.includes(states.ABORT) && !machine.history.includes(states.ERROR)) {
+              onError(err)
             }
           }
         })
@@ -472,8 +472,10 @@ export default class HttpConnection extends BaseConnection {
         request.removeListener('timeout', onTimeout)
         request.removeListener('error', onError)
         request.on('error', noop)
-
         request.removeListener('socket', onSocket)
+        if (isStream(params.body)) {
+          params.body.removeListener('error', onError)
+        }
         if (options.signal != null) {
           if ('removeEventListener' in options.signal) {
             options.signal.removeEventListener('abort', abortListener)
