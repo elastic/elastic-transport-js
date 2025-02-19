@@ -842,8 +842,10 @@ test('Content length', t => {
           return {
             abort () {},
             removeListener () {},
+            destroy () {},
             setNoDelay () {},
             end () {},
+            once () {},
             on (event: string, cb: () => void) {
               if (event === 'response') {
                 process.nextTick(cb, stream)
@@ -892,8 +894,10 @@ test('Content length', t => {
           return {
             abort () {},
             removeListener () {},
+            destroy () {},
             setNoDelay () {},
             end () {},
+            once () {},
             on (event: string, cb: () => void) {
               if (event === 'response') {
                 process.nextTick(cb, stream)
@@ -942,8 +946,10 @@ test('Content length', t => {
           return {
             abort () {},
             removeListener () {},
+            destroy () {},
             setNoDelay () {},
             end () {},
+            once () {},
             on (event: string, cb: () => void) {
               if (event === 'response') {
                 process.nextTick(cb, stream)
@@ -992,8 +998,10 @@ test('Content length', t => {
           return {
             abort () {},
             removeListener () {},
+            destroy () {},
             setNoDelay () {},
             end () {},
+            once () {},
             on (event: string, cb: () => void) {
               if (event === 'response') {
                 process.nextTick(cb, stream)
@@ -1022,7 +1030,7 @@ test('Content length', t => {
   t.end()
 })
 
-test('Socket destroyed while reading the body', async t => {
+test('Socket destroyed while reading the response body', async t => {
   t.plan(2)
 
   async function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
@@ -1050,7 +1058,7 @@ test('Socket destroyed while reading the body', async t => {
   server.stop()
 })
 
-test('Socket destroyed while sending the body', async t => {
+test('Socket destroyed while sending the request body as string (ECONNRESET)', async t => {
   t.plan(2)
 
   function handler (req: http.IncomingMessage, _res: http.ServerResponse) {
@@ -1063,6 +1071,130 @@ test('Socket destroyed while sending the body', async t => {
         t.fail('Request should stop trying to send data')
       }
     })
+  }
+  const [{ port }, server] = await buildServer(handler)
+
+  const connection = new HttpConnection({
+    url: new URL(`http://localhost:${port}`),
+  })
+
+  try {
+    // run one large request where data will be received by socket in multiple chunks
+    await connection.request({
+      path: '/hello',
+      method: 'POST',
+      body: 'x'.repeat(99999999)
+    }, options)
+    t.fail('ConnectionError should have been caught')
+  } catch (err: any) {
+    t.ok(err instanceof ConnectionError, `Not a ConnectionError: ${err}`)
+    t.equal(err.message, 'Request aborted while sending the body')
+  }
+
+  server.stop()
+})
+
+test('Socket destroyed while sending the request body as stream (ECONNRESET)', async t => {
+  t.plan(2)
+
+  function handler (req: http.IncomingMessage, _res: http.ServerResponse) {
+    let dataCounter = 0
+    req.on('data', () => {
+      dataCounter++
+      if (dataCounter === 1) {
+        req.destroy()
+      } else {
+        t.fail('Request should stop trying to send data')
+      }
+    })
+  }
+  const [{ port }, server] = await buildServer(handler)
+
+  const connection = new HttpConnection({
+    url: new URL(`http://localhost:${port}`),
+  })
+
+  const body = new Readable({
+    async read (_size: number) {
+      await setTimeout(500)
+      this.push('x'.repeat(99999999))
+      await setTimeout(500)
+      this.push(null) // EOF
+    }
+  })
+
+  try {
+    // run one large request where data will be received by socket in multiple chunks
+    await connection.request({
+      path: '/hello',
+      method: 'POST',
+      body
+    }, options)
+    t.fail('ConnectionError should have been caught')
+  } catch (err: any) {
+    t.ok(err instanceof ConnectionError, `Not a ConnectionError: ${err}`)
+    t.equal(err.message, 'Request aborted while sending the body')
+  }
+
+  server.stop()
+})
+
+test('Connection closed while sending the request body as stream (EPIPE)', async t => {
+  t.plan(2)
+
+  let dataCounter = 0
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+    dataCounter++
+    if (dataCounter === 1) {
+      res.writeHead(413, { 'Connection': 'close' });
+      res.end('Payload Too Large');
+    } else {
+      t.fail('Request should stop trying to send data')
+    }
+  }
+  const [{ port }, server] = await buildServer(handler)
+
+  const connection = new HttpConnection({
+    url: new URL(`http://localhost:${port}`),
+  })
+
+  const body = new Readable({
+    async read (_size: number) {
+      await setTimeout(500)
+      this.push('x'.repeat(99999999))
+      await setTimeout(500)
+      this.push(null) // EOF
+    }
+  })
+
+  try {
+    // run one large request where data will be received by socket in multiple chunks
+    await connection.request({
+      path: '/hello',
+      method: 'POST',
+      body
+    }, options)
+    t.fail('ConnectionError should have been caught')
+  } catch (err: any) {
+    t.ok(err instanceof ConnectionError, `Not a ConnectionError: ${err}`)
+    t.equal(err.message, 'Request aborted while sending the body')
+  }
+
+  server.stop()
+})
+
+test('Connection closed while sending the request body as string (EPIPE)', async t => {
+  t.plan(2)
+
+  let dataCounter = 0
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+    dataCounter++
+    if (dataCounter === 1) {
+      res.writeHead(413, { 'Connection': 'close' });
+      res.end('Payload Too Large');
+    } else {
+      t.fail('Request should stop trying to send data')
+    }
   }
   const [{ port }, server] = await buildServer(handler)
 
