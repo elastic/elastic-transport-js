@@ -1093,7 +1093,9 @@ test('Connection closed while sending the request body as stream (EPIPE)', async
   } catch (err: any) {
     t.ok(err instanceof ConnectionError, `Not a ConnectionError: ${err}`)
     t.ok(
-      err.message === 'Response aborted while reading the body' || err.message.startsWith('write ECONNRESET - Local:'),
+      err.message === 'Response aborted while reading the body' ||
+        err.message.startsWith('write ECONNRESET - Local:') ||
+        err.message.startsWith('read ECONNRESET - Local:'),
       `Unexpected error message: ${err.message}`
     )
   }
@@ -1131,7 +1133,9 @@ test('Connection closed while sending the request body as string (EPIPE)', async
   } catch (err: any) {
     t.ok(err instanceof ConnectionError, `Not a ConnectionError: ${err}`)
     t.ok(
-      err.message === 'Response aborted while reading the body' || err.message.startsWith('write ECONNRESET - Local:'),
+      err.message === 'Response aborted while reading the body' ||
+        err.message.startsWith('write ECONNRESET - Local:') ||
+        err.message.startsWith('read ECONNRESET - Local:'),
       `Unexpected error message: ${err.message}`
     )
   }
