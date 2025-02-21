@@ -113,6 +113,17 @@ export default class HttpConnection extends BaseConnection {
       }
 
       debug('Starting a new request', params)
+
+      // tracking response.end, request.finish and the value of the returnable response object here is necessary:
+      // we only know a request is truly finished when one of the following is true:
+      // - request.finish and response.end have both fired (success)
+      // - request.error has fired (failure)
+      // - request.close has fired before its listener has been removed (failure)
+      // - response.close has fired (failure)
+      let responseEnded = false
+      let requestFinished = false
+      let connectionRequestResponse: ConnectionRequestResponse | ConnectionRequestResponseAsStream
+
       let request: http.ClientRequest
       try {
         request = this.makeRequest(requestParams)
@@ -135,7 +146,6 @@ export default class HttpConnection extends BaseConnection {
 
       const onResponse = (response: http.IncomingMessage): void => {
         cleanListeners()
-        this._openRequests--
 
         if (options.asStream === true) {
           return resolve({
@@ -189,29 +199,25 @@ export default class HttpConnection extends BaseConnection {
           }
         }
 
-        const onEnd = (err: Error): void => {
+        const onEnd = (): void => {
           response.removeListener('data', onData)
           response.removeListener('end', onEnd)
-          response.removeListener('error', onEnd)
-          request.removeListener('error', noop)
 
-          if (err != null) {
-            // @ts-expect-error
-            if (err.message === 'aborted' && err.code === 'ECONNRESET') {
-              response.destroy()
-              return reject(new ConnectionError('Response aborted while reading the body'))
-            }
-            if (err.name === 'RequestAbortedError') {
-              return reject(err)
-            }
-            return reject(new ConnectionError(err.message))
-          }
+          responseEnded = true
 
-          resolve({
+          connectionRequestResponse = {
             body: isCompressed || bodyIsBinary ? Buffer.concat(payload as Buffer[]) : payload as string,
             statusCode: response.statusCode as number,
             headers: response.headers
-          })
+          }
+
+          if (requestFinished) {
+            return resolve(connectionRequestResponse)
+          }
+        }
+
+        const onResponseClose = (): void => {
+          return reject(new ConnectionError('Response aborted while reading the body'))
         }
 
         if (!isCompressed && !bodyIsBinary) {
@@ -220,30 +226,38 @@ export default class HttpConnection extends BaseConnection {
 
         this.diagnostic.emit('deserialization', null, options)
         response.on('data', onData)
-        response.on('error', onEnd)
         response.on('end', onEnd)
+        response.on('close', onResponseClose)
       }
 
       const onTimeout = (): void => {
         cleanListeners()
-        this._openRequests--
-        request.once('error', () => {}) // we need to catch the request aborted error
+        request.once('error', noop) // we need to catch the request aborted error
         request.destroy()
-        reject(new TimeoutError('Request timed out'))
+        return reject(new TimeoutError('Request timed out'))
       }
 
       const onError = (err: Error): void => {
+        // @ts-expect-error
+        let { name, message, code } = err
+
+        // ignore this error, it means we got a response body for a request that didn't expect a body (e.g. HEAD)
+        // rather than failing, let it return a response with an empty string as body
+        if (code === 'HPE_INVALID_CONSTANT' || message.startsWith('Parse Error: Expected HTTP/')) {
+          return
+        }
+
         cleanListeners()
-        this._openRequests--
-        let message = err.message
-        if (err.name === 'RequestAbortedError') {
+        if (name === 'RequestAbortedError') {
           return reject(err)
         }
-        // @ts-expect-error
-        if (err.code === 'ECONNRESET') {
+
+        if (code === 'ECONNRESET') {
           message += ` - Local: ${request.socket?.localAddress ?? 'unknown'}:${request.socket?.localPort ?? 'unknown'}, Remote: ${request.socket?.remoteAddress ?? 'unknown'}:${request.socket?.remotePort ?? 'unknown'}`
+        } else if (code === 'EPIPE') {
+          message = 'Connection closed early by server'
         }
-        reject(new ConnectionError(message))
+        return reject(new ConnectionError(message))
       }
 
       const onSocket = (socket: TLSSocket): void => {
@@ -269,9 +283,42 @@ export default class HttpConnection extends BaseConnection {
         }
       }
 
+      const onFinish = (): void => {
+        requestFinished = true
+
+        if (responseEnded) {
+          if (connectionRequestResponse != null) {
+            return resolve(connectionRequestResponse)
+          } else {
+            return reject(new Error('No response body received'))
+          }
+        }
+      }
+
+      const cleanListeners = (): void => {
+        if (cleanedListeners) return
+
+        this._openRequests--
+
+        // we do NOT stop listening to request.error here
+        // all errors we care about in the request/response lifecycle will bubble up to request.error, and may occur even after the request has been sent
+        request.removeListener('response', onResponse)
+        request.removeListener('timeout', onTimeout)
+        request.removeListener('socket', onSocket)
+        if (options.signal != null) {
+          if ('removeEventListener' in options.signal) {
+            options.signal.removeEventListener('abort', abortListener)
+          } else {
+            options.signal.removeListener('abort', abortListener)
+          }
+        }
+        cleanedListeners = true
+      }
+
       request.on('response', onResponse)
       request.on('timeout', onTimeout)
       request.on('error', onError)
+      request.on('finish', onFinish)
       if (this[kCaFingerprint] != null && requestParams.protocol === 'https:') {
         request.on('socket', onSocket)
       }
@@ -285,30 +332,11 @@ export default class HttpConnection extends BaseConnection {
           /* istanbul ignore if  */
           if (err != null && !cleanedListeners) {
             cleanListeners()
-            this._openRequests--
-            reject(err)
+            return reject(err)
           }
         })
       } else {
         request.end(params.body)
-      }
-
-      return request
-
-      function cleanListeners (): void {
-        request.removeListener('response', onResponse)
-        request.removeListener('timeout', onTimeout)
-        request.removeListener('error', onError)
-        request.on('error', noop)
-        request.removeListener('socket', onSocket)
-        if (options.signal != null) {
-          if ('removeEventListener' in options.signal) {
-            options.signal.removeEventListener('abort', abortListener)
-          } else {
-            options.signal.removeListener('abort', abortListener)
-          }
-        }
-        cleanedListeners = true
       }
     })
   }
