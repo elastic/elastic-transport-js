@@ -118,7 +118,6 @@ export default class HttpConnection extends BaseConnection {
       // we only know a request is truly finished when one of the following is true:
       // - request.finish and response.end have both fired (success)
       // - request.error has fired (failure)
-      // - request.close has fired before its listener has been removed (failure)
       // - response.close has fired (failure)
       let responseEnded = false
       let requestFinished = false
