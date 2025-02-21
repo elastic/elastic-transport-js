@@ -938,7 +938,96 @@ test('Content length too big custom option (string)', async t => {
   }
 })
 
-test('Compressed responsed should return a buffer as body (gzip)', async t => {
+test('Connection closed while sending the request body as stream (EPIPE)', async t => {
+  t.plan(2)
+
+  let dataCounter = 0
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+    dataCounter++
+    if (dataCounter === 1) {
+      res.writeHead(413, { 'Connection': 'close' });
+      res.end('Payload Too Large');
+    } else {
+      t.fail('Request should stop trying to send data')
+    }
+  }
+  const [{ port }, server] = await buildServer(handler)
+
+  const connection = new HttpConnection({
+    url: new URL(`http://localhost:${port}`),
+  })
+
+  const body = new Readable({
+    async read (_size: number) {
+      // run one large request where data will be received by socket in multiple chunks
+      setTimeout(() => this.push('x'.repeat(99999999)), 100)
+      // EOF
+      setTimeout(() => this.push(null), 500)
+    }
+  })
+
+  try {
+    // run one large request where data will be received by socket in multiple chunks
+    await connection.request({
+      path: '/hello',
+      method: 'POST',
+      body
+    }, options)
+    t.fail('ConnectionError should have been caught')
+  } catch (err: any) {
+    t.ok(err instanceof ConnectionError, `Not a ConnectionError: ${err}`)
+    t.ok(
+      err.message === 'Response aborted while reading the body' ||
+        err.message.startsWith('write ECONNRESET - Local:') ||
+        err.message.startsWith('read ECONNRESET - Local:'),
+      `Unexpected error message: ${err.message}`
+    )
+  }
+
+  server.stop()
+})
+
+test('Connection closed while sending the request body as string (EPIPE)', async t => {
+  t.plan(2)
+
+  let dataCounter = 0
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+    dataCounter++
+    if (dataCounter === 1) {
+      res.writeHead(413, { 'Connection': 'close' });
+      res.end('Payload Too Large');
+    } else {
+      t.fail('Request should stop trying to send data')
+    }
+  }
+  const [{ port }, server] = await buildServer(handler)
+
+  const connection = new HttpConnection({
+    url: new URL(`http://localhost:${port}`),
+  })
+
+  try {
+    // run one large request where data will be received by socket in multiple chunks
+    await connection.request({
+      path: '/hello',
+      method: 'POST',
+      body: 'x'.repeat(99999999)
+    }, options)
+    t.fail('ConnectionError should have been caught')
+  } catch (err: any) {
+    t.ok(err instanceof ConnectionError, `Not a ConnectionError: ${err}`)
+    t.ok(
+      err.message === 'Response aborted while reading the body' ||
+        err.message.startsWith('write ECONNRESET - Local:') ||
+        err.message.startsWith('read ECONNRESET - Local:'),
+      `Unexpected error message: ${err.message}`
+    )
+  }
+
+  server.stop()
+})
+
+test('Compressed response should return a buffer as body (gzip)', async t => {
   t.plan(2)
 
   function handler (req: http.IncomingMessage, res: http.ServerResponse) {
