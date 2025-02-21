@@ -959,11 +959,10 @@ test('Connection closed while sending the request body as stream (EPIPE)', async
 
   const body = new Readable({
     async read (_size: number) {
-      await setTimeout(500)
       // run one large request where data will be received by socket in multiple chunks
-      this.push('x'.repeat(99999999))
-      await setTimeout(500)
-      this.push(null) // EOF
+      setTimeout(() => this.push('x'.repeat(99999999)), 100)
+      // EOF
+      setTimeout(() => this.push(null), 500)
     }
   })
 
