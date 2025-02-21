@@ -251,6 +251,8 @@ export default class HttpConnection extends BaseConnection {
 
         if (code === 'ECONNRESET') {
           message += ` - Local: ${request.socket?.localAddress ?? 'unknown'}:${request.socket?.localPort ?? 'unknown'}, Remote: ${request.socket?.remoteAddress ?? 'unknown'}:${request.socket?.remotePort ?? 'unknown'}`
+        } else if (code === 'EPIPE') {
+          message = 'Response aborted while reading the body'
         }
         return reject(new ConnectionError(message))
       }
