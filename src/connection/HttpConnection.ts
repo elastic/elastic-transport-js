@@ -242,9 +242,7 @@ export default class HttpConnection extends BaseConnection {
 
         // ignore this error, it means we got a response body for a request that didn't expect a body (e.g. HEAD)
         // rather than failing, let it return a response with an empty string as body
-        if (code === 'HPE_INVALID_CONSTANT' || message.startsWith('Parse Error: Expected HTTP/')) {
-          return
-        }
+        if (code === 'HPE_INVALID_CONSTANT' && message.startsWith('Parse Error: Expected HTTP/')) return
 
         cleanListeners()
         if (name === 'RequestAbortedError') {
@@ -253,8 +251,6 @@ export default class HttpConnection extends BaseConnection {
 
         if (code === 'ECONNRESET') {
           message += ` - Local: ${request.socket?.localAddress ?? 'unknown'}:${request.socket?.localPort ?? 'unknown'}, Remote: ${request.socket?.remoteAddress ?? 'unknown'}:${request.socket?.remotePort ?? 'unknown'}`
-        } else if (code === 'EPIPE') {
-          message = 'Connection closed early by server'
         }
         return reject(new ConnectionError(message))
       }
