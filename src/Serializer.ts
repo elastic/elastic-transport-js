@@ -31,8 +31,8 @@ export interface SerializerOptions {
 
 export default class Serializer {
   [kJsonOptions]: {
-    protoAction: string
-    constructorAction: string
+    protoAction: 'error' | 'ignore'
+    constructorAction: 'error' | 'ignore'
   }
 
   constructor (opts: SerializerOptions = {}) {
@@ -48,13 +48,11 @@ export default class Serializer {
    */
   serialize (object: Record<string, any>): string {
     debug('Serializing', object)
-    let json
     try {
-      json = JSON.stringify(object)
+      return JSON.stringify(object)
     } catch (err: any) {
       throw new SerializationError(err.message, object)
     }
-    return json
   }
 
   /**
@@ -62,18 +60,15 @@ export default class Serializer {
    */
   deserialize<T = unknown> (json: string): T {
     debug('Deserializing', json)
-    let object
     try {
-      // @ts-expect-error
-      object = sjson.parse(json, this[kJsonOptions])
+      return sjson.parse(json, this[kJsonOptions])
     } catch (err: any) {
       throw new DeserializationError(err.message, json)
     }
-    return object
   }
 
   /**
-   * Serializes an array of records into an ndjson string
+   * Serializes an array of records into a ndjson string
    */
   ndserialize (array: Array<Record<string, any> | string>): string {
     debug('ndserialize', array)
@@ -100,7 +95,7 @@ export default class Serializer {
     const keys = Object.keys(object)
     for (let i = 0, len = keys.length; i < len; i++) {
       const key = keys[i]
-      // elasticsearch will complain for keys without a value
+      // elasticsearch will complain about keys without a value
       if (object[key] === undefined) {
         delete object[key] // eslint-disable-line
       } else if (Array.isArray(object[key])) {
