@@ -113,3 +113,7 @@ jobs:
       - name: License checker
         run: |
           npm run license-checker
+
+      - name: License header check
+        run: |
+          npm run license-header
