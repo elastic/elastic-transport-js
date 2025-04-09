@@ -114,6 +114,10 @@ jobs:
         run: |
           npm run license-checker
 
+      - name: License header check
+        run: |
+          npm run license-header
+
   test-bun:
     name: Test Bun
     runs-on: ${{ matrix.os }}
