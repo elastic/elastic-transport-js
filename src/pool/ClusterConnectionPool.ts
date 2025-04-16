@@ -5,11 +5,13 @@
 
 import BaseConnectionPool, {
   ConnectionPoolOptions,
-  GetConnectionOptions
+  GetConnectionOptions,
+  defaultNodeFilter
 } from './BaseConnectionPool'
 import assert from 'node:assert'
 import Debug from 'debug'
 import { Connection, BaseConnection, ConnectionOptions } from '../connection'
+import { nodeFilterFn } from '../types'
 
 const debug = Debug('elasticsearch')
 
@@ -202,7 +204,7 @@ export default class ClusterConnectionPool extends BaseConnectionPool {
    * @returns {object|null} connection
    */
   getConnection (opts: GetConnectionOptions): Connection | null {
-    const filter = opts.filter != null ? opts.filter : () => true
+    const filter: nodeFilterFn = opts.filter != null ? opts.filter : defaultNodeFilter
     const selector = opts.selector != null ? opts.selector : (c: Connection[]) => c[0]
 
     this.resurrect({

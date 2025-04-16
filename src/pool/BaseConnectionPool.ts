@@ -49,6 +49,19 @@ export interface GetConnectionOptions {
   context: any
 }
 
+export function defaultNodeFilter (conn: Connection): boolean {
+  if (conn.roles != null) {
+    if (
+      // avoid master-only nodes
+      conn.roles.master &&
+      !conn.roles.data &&
+      !conn.roles.ingest &&
+      !conn.roles.ml
+    ) return false
+  }
+  return true
+}
+
 /**
  * Manages the HTTP connections to each Elasticsearch node,
  * keeping track of which are currently dead or alive, and
