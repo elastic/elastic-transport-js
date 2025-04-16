@@ -11,7 +11,8 @@ import {
   BaseConnection,
   Connection,
   errors,
-  events
+  events,
+  ConnectionOptions
 } from '../../'
 import { connection } from '../utils'
 const { TimeoutError } = errors
@@ -278,6 +279,42 @@ test('getConnection', t => {
     const href = 'http://localhost:9200/'
     pool.addConnection(href)
     t.ok(pool.getConnection(opts) instanceof HttpConnection)
+    t.end()
+  })
+
+  t.test('default node filter', t => {
+    const node1 = {
+      url: new URL('https://node1:9200/'),
+      roles: { master: true, data: false, ingest: false, ml: false }
+    }
+    const node2 = {
+      url: new URL('https://node2:9200/'),
+      roles: { master: true, data: true, ingest: false, ml: false }
+    }
+    const node3 = {
+      url: new URL('https://node3:9200/'),
+      roles: { master: true, data: false, ingest: true, ml: false }
+    }
+    const node4 = {
+      url: new URL('https://node4:9200/'),
+      roles: { master: true, data: false, ingest: false, ml: true }
+    }
+
+    const pool1 = new ClusterConnectionPool({ Connection: HttpConnection })
+    pool1.addConnection([node1, node2])
+    const conn1 = pool1.getConnection(opts)
+    t.equal(conn1?.url.hostname, 'node2')
+
+    const pool2 = new ClusterConnectionPool({ Connection: HttpConnection })
+    pool2.addConnection([node1, node3])
+    const conn2 = pool2.getConnection(opts)
+    t.equal(conn2?.url.hostname, 'node3')
+
+    const pool3 = new ClusterConnectionPool({ Connection: HttpConnection })
+    pool3.addConnection([node1, node4])
+    const conn3 = pool3.getConnection(opts)
+    t.equal(conn3?.url.hostname, 'node4')
+
     t.end()
   })
 

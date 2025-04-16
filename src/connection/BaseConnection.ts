@@ -20,6 +20,13 @@ import {
 import { ConfigurationError } from '../errors'
 import { kStatus, kDiagnostic, kCaFingerprint } from '../symbols'
 
+export interface ConnectionRoles {
+  master: boolean
+  data: boolean
+  ingest: boolean
+  ml: boolean
+}
+
 export interface ConnectionOptions {
   url: URL
   tls?: TlsConnectionOptions
@@ -33,6 +40,7 @@ export interface ConnectionOptions {
   proxy?: string | URL
   caFingerprint?: string
   maxEventListeners?: number
+  roles?: ConnectionRoles
 }
 
 export interface ConnectionRequestParams {
@@ -83,6 +91,7 @@ export default class BaseConnection {
   _openRequests: number
   weight: number
   maxEventListeners: number
+  roles?: ConnectionRoles
   [kStatus]: string
   [kCaFingerprint]: string | null
   [kDiagnostic]: Diagnostic
@@ -103,6 +112,7 @@ export default class BaseConnection {
     this.weight = 0
     this._openRequests = 0
     this.maxEventListeners = opts.maxEventListeners ?? 100
+    if (opts.roles != null) this.roles = opts.roles
     this[kStatus] = opts.status ?? BaseConnection.statuses.ALIVE
     this[kDiagnostic] = opts.diagnostic ?? new Diagnostic()
     this[kCaFingerprint] = opts.caFingerprint ?? null

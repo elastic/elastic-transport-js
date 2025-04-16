@@ -4,12 +4,12 @@
  */
 
 import { Connection, BaseConnection, ConnectionOptions } from '../connection'
+import { nodeFilterFn } from '../types'
 import BaseConnectionPool, {
   ConnectionPoolOptions,
-  GetConnectionOptions
+  GetConnectionOptions,
+  defaultNodeFilter
 } from './BaseConnectionPool'
-
-const noFilter = (): boolean => true
 
 export default class WeightedConnectionPool extends BaseConnectionPool {
   index: number
@@ -36,7 +36,7 @@ export default class WeightedConnectionPool extends BaseConnectionPool {
    * @returns {object|null} connection
    */
   getConnection (opts: GetConnectionOptions): Connection | null {
-    const filter = opts.filter != null ? opts.filter : noFilter
+    const filter: nodeFilterFn = opts.filter != null ? opts.filter : defaultNodeFilter
     // we should be able to find the next node in 1 array scan,
     // if we don't, it means that we are in an infinite loop
     let counter = 0
