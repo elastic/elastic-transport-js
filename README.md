@@ -8,13 +8,14 @@ This is a HTTP transport Node.js library for communicate with [Elastic](http://e
 like [Elasticsearch](https://github.com/elastic/elasticsearch).
 
 ## Install
+
 ```
 npm install @elastic/transport
 ```
 
 ### Node.js support
 
-NOTE: The minimum supported version of Node.js is `v18`.
+NOTE: The minimum supported version of Node.js is `v20`.
 
 The client versioning follows the Elastic Stack versioning, this means that
 major, minor, and patch releases are done following a precise schedule that
@@ -25,19 +26,20 @@ client **will drop the support of EOL versions of Node.js between minor releases
 Typically, as soon as a Node.js version goes into EOL, the client will continue
 to support that version for at least another minor release.
 
-Unless you are **always** using a supported version of Node.js, 
+Unless you are **always** using a supported version of Node.js,
 we recommend defining the client dependency in your
 `package.json` with the `~` instead of `^`. In this way, you will lock the
 dependency on the minor release and not the major. (for example, `~7.10.0` instead
 of `^7.10.0`).
 
-| Node.js Version | Node.js EOL date | End of support |
-| --------------- |------------------| -------------- |
-| `8.x` | December 2019 | `7.11` (early 2021) |       
-| `10.x` | April 2021 | `7.12` (mid 2021) |
-| `12.x` | April 2022 | `8.2` (early 2022) |
-| `14.x` | April 2023 | `8.8` (early 2023) | 
-| `16.x` | October 2023 | `8.14` (early 2024) |
+| Node.js Version | Node.js EOL date | End of support      |
+| --------------- | ---------------- | ------------------- |
+| `8.x`           | December 2019    | `7.11` (early 2021) |
+| `10.x`          | April 2021       | `7.12` (mid 2021)   |
+| `12.x`          | April 2022       | `8.2` (early 2022)  |
+| `14.x`          | April 2023       | `8.8` (early 2023)  |
+| `16.x`          | September 2023   | `8.11` (late 2023)  |
+| `18.x`          | April 2025       | `9.1` (mid 2025)    |
 
 ## API
 
