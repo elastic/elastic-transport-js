@@ -77,7 +77,6 @@
   "devDependencies": {
     "@opentelemetry/sdk-trace-base": "1.30.1",
     "@sinonjs/fake-timers": "14.0.0",
-    "@tapjs/clock": "3.0.1",
     "@types/debug": "4.1.12",
     "@types/ms": "2.1.0",
     "@types/node": "22.15.21",
@@ -111,7 +110,6 @@
     ],
     "allow-incomplete-coverage": true,
     "plugin": [
-      "@tapjs/clock",
       "@tapjs/before"
     ]
   }
