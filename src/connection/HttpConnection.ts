@@ -129,7 +129,15 @@ export default class HttpConnection extends BaseConnection {
         )
       }
 
-      const onResponse = (response: http.IncomingMessage): void => {
+      let response: http.IncomingMessage
+
+      const onResponseClose = (): void => {
+        return reject(new ConnectionError('Response aborted while reading the body'))
+      }
+
+      const onResponse = (res: http.IncomingMessage): void => {
+        response = res
+
         cleanListeners()
 
         if (options.asStream === true) {
@@ -197,12 +205,9 @@ export default class HttpConnection extends BaseConnection {
           }
 
           if (requestFinished) {
+            response.removeListener('close', onResponseClose)
             return resolve(connectionRequestResponse)
           }
-        }
-
-        const onResponseClose = (): void => {
-          return reject(new ConnectionError('Response aborted while reading the body'))
         }
 
         if (!isCompressed && !bodyIsBinary) {
@@ -270,6 +275,7 @@ export default class HttpConnection extends BaseConnection {
         requestFinished = true
 
         if (responseEnded) {
+          request?.removeListener('close', onResponseClose)
           if (connectionRequestResponse != null) {
             return resolve(connectionRequestResponse)
           } else {
