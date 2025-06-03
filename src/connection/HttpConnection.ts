@@ -275,7 +275,7 @@ export default class HttpConnection extends BaseConnection {
         requestFinished = true
 
         if (responseEnded) {
-          request?.removeListener('close', onResponseClose)
+          response?.removeListener('close', onResponseClose)
           if (connectionRequestResponse != null) {
             return resolve(connectionRequestResponse)
           } else {
