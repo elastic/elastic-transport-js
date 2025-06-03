@@ -132,7 +132,7 @@ export default class HttpConnection extends BaseConnection {
       let response: http.IncomingMessage
 
       const onResponseClose = (): void => {
-        return reject(new ConnectionError('Response aborted while reading the body'))
+        return reject(new ConnectionError('Connection closed while reading the body'))
       }
 
       const onResponse = (res: http.IncomingMessage): void => {
