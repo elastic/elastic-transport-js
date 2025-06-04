@@ -58,7 +58,7 @@ jobs:
         with:
           persist-credentials: false
           repository: elastic/elasticsearch-js
-          ref: 8.x
+          ref: 8.19
           path: client
 
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
