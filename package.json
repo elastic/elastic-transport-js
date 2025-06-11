@@ -96,6 +96,7 @@
   },
   "dependencies": {
     "@opentelemetry/api": "1.x",
+    "@opentelemetry/core": "2.x",
     "debug": "^4.4.1",
     "hpagent": "^1.2.0",
     "ms": "^2.1.3",
