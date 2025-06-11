@@ -30,7 +30,7 @@ const debug = Debug('elasticsearch')
 type AddConnectionOptions = string | ConnectionOptions
 export interface ConnectionPoolOptions {
   tls?: TlsConnectionOptions
-  agent?: HttpAgentOptions | UndiciAgentOptions | agentFn | false
+  agent?: HttpAgentOptions | UndiciAgentOptions | RequestInit | agentFn | false
   proxy?: string | URL
   auth?: BasicAuth | ApiKeyAuth | BearerAuth
   diagnostic?: Diagnostic
@@ -74,7 +74,7 @@ export default class BaseConnectionPool {
   Connection: typeof BaseConnection
   diagnostic: Diagnostic
   auth?: BasicAuth | ApiKeyAuth | BearerAuth
-  _agent?: HttpAgentOptions | UndiciAgentOptions | agentFn | false
+  _agent?: HttpAgentOptions | UndiciAgentOptions | RequestInit | agentFn | false
   _proxy?: string | URL
   _tls?: TlsConnectionOptions
   [kCaFingerprint]?: string

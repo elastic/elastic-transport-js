@@ -23,7 +23,7 @@ import BaseConnection, {
   isBinary
 } from './BaseConnection'
 import { kCaFingerprint } from '../symbols'
-import { Readable as ReadableStream, pipeline } from 'node:stream'
+import { pipeline } from 'node:stream'
 import {
   ConfigurationError,
   ConnectionError,
@@ -32,6 +32,7 @@ import {
 } from '../errors'
 import { setTimeout } from 'node:timers/promises'
 import { HttpAgentOptions } from '../types'
+import { isStream } from './utils'
 
 const debug = Debug('elasticsearch')
 const INVALID_PATH_REGEX = /[^\u0021-\u00ff]/
@@ -377,10 +378,6 @@ export default class HttpConnection extends BaseConnection {
 
     return request
   }
-}
-
-function isStream (obj: any): obj is ReadableStream {
-  return obj != null && typeof obj.pipe === 'function'
 }
 
 function resolve (host: string, path: string): string {

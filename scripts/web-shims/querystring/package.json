@@ -1,0 +1,9 @@
+{
+  "name": "querystring",
+  "version": "0.1.0",
+  "main": "index.mjs",
+  "type": "module",
+  "dependencies": {
+    "querystring-es3": "^0.2.1"
+  }
+}

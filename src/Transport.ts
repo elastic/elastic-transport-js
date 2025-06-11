@@ -9,7 +9,6 @@ import * as http from 'node:http'
 import zlib from 'node:zlib'
 import buffer from 'node:buffer'
 import { promisify } from 'node:util'
-import process from 'node:process'
 import ms from 'ms'
 import {
   ConnectionError,
@@ -70,13 +69,17 @@ import {
 import { setTimeout } from 'node:timers/promises'
 import opentelemetry, { Attributes, Exception, SpanKind, SpanStatusCode, Span, Tracer } from '@opentelemetry/api'
 
-const { version: clientVersion } = require('../package.json') // eslint-disable-line
 const debug = Debug('elasticsearch')
 const gzip = promisify(zlib.gzip)
 const unzip = promisify(zlib.unzip)
 const { createGzip } = zlib
 
-const userAgent = `elastic-transport-js/${clientVersion} (${os.platform()} ${os.release()}-${os.arch()}; Node.js ${process.version})` // eslint-disable-line
+let userAgent: string
+if (process.env.JS_PLATFORM === 'browser') {
+  userAgent = `elastic-transport-js/${process.env.TRANSPORT_VERSION} (${window.navigator.userAgent})`
+} else {
+  userAgent = `elastic-transport-js/${process.env.TRANSPORT_VERSION} (${os.platform()} ${os.release()}-${os.arch()}; Node.js ${process.version})` // eslint-disable-line
+}
 
 export interface TransportOptions {
   diagnostic?: Diagnostic
@@ -279,7 +282,7 @@ export default class Transport {
     this[kAcceptHeader] = opts.vendoredHeaders?.accept ?? 'application/json, text/plain'
     this[kRedaction] = opts.redaction ?? { type: 'replace', additionalKeys: [] }
     this[kRetryBackoff] = opts.retryBackoff ?? retryBackoff
-    this[kOtelTracer] = opentelemetry.trace.getTracer('@elastic/transport', clientVersion)
+    this[kOtelTracer] = opentelemetry.trace.getTracer('@elastic/transport', process.env.TRANSPORT_VERSION)
 
     if (opts.sniffOnStart === true) {
       this.sniff({

@@ -7,8 +7,10 @@ import Diagnostic, { events } from './lib/Diagnostic'
 import Transport from './lib/Transport'
 import {
   BaseConnection,
+  FetchConnection,
   HttpConnection,
-  UndiciConnection
+  UndiciConnection,
+  prepareHeaders
 } from './lib/connection'
 import {
   WeightedConnectionPool,
@@ -26,7 +28,7 @@ export type {
   ConnectionRequestOptions,
   ConnectionRequestOptionsAsStream,
   ConnectionRequestResponse,
-  ConnectionRequestResponseAsStream
+  ConnectionRequestResponseAsStream,
 } from './lib/connection'
 
 export type {
@@ -41,7 +43,8 @@ export type {
   TransportRequestOptions,
   TransportRequestOptionsWithMeta,
   TransportRequestOptionsWithOutMeta,
-  SniffOptions
+  SniffOptions,
+  RedactionOptions,
 } from './lib/Transport'
 
 export type {
@@ -51,8 +54,14 @@ export type {
   TransportResult,
   HttpAgentOptions,
   UndiciAgentOptions,
+  BasicAuth,
   ApiKeyAuth,
-  BearerAuth
+  BearerAuth,
+  Context,
+  agentFn,
+  nodeFilterFn,
+  nodeSelectorFn,
+  generateRequestIdFn
 } from './lib/types'
 
 export {
@@ -63,9 +72,11 @@ export {
   BaseConnectionPool,
   CloudConnectionPool,
   BaseConnection,
+  FetchConnection,
   HttpConnection,
   UndiciConnection,
   Serializer,
   errors,
-  events
+  events,
+  prepareHeaders
 }

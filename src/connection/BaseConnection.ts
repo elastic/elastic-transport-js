@@ -36,7 +36,7 @@ export interface ConnectionOptions {
   auth?: BasicAuth | ApiKeyAuth | BearerAuth
   diagnostic?: Diagnostic
   timeout?: number | null
-  agent?: HttpAgentOptions | UndiciAgentOptions | agentFn | boolean
+  agent?: HttpAgentOptions | UndiciAgentOptions | RequestInit | agentFn | boolean
   proxy?: string | URL
   caFingerprint?: string
   maxEventListeners?: number
