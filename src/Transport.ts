@@ -513,8 +513,9 @@ export default class Transport {
           } else if (requestUrl.protocol === 'http:') {
             otelSpan?.setAttribute('server.port', 80)
           }
-        } else if (requestUrl.port !== '9200') {
-          otelSpan?.setAttribute('server.port', parseInt(requestUrl.port, 10))
+        } else {
+          const port = parseInt(requestUrl.port, 10)
+          if (!Number.isNaN(port)) otelSpan?.setAttribute('server.port', port)
         }
 
         this[kDiagnostic].emit('request', null, result)
@@ -537,12 +538,14 @@ export default class Transport {
         result.statusCode = statusCode
         result.headers = headers
 
+        otelSpan?.setAttribute('db.response.status_code', statusCode.toString())
+
         if (headers['x-found-handling-cluster'] != null) {
-          otelSpan?.setAttribute('db.elasticsearch.cluster.name', headers['x-found-handling-cluster'])
+          otelSpan?.setAttribute('db.namespace', headers['x-found-handling-cluster'])
         }
 
         if (headers['x-found-handling-instance'] != null) {
-          otelSpan?.setAttribute('db.elasticsearch.node.name', headers['x-found-handling-instance'])
+          otelSpan?.setAttribute('elasticsearch.node.name', headers['x-found-handling-instance'])
         }
 
         if (this[kProductCheck] != null && headers['x-elastic-product'] !== this[kProductCheck] && statusCode >= 200 && statusCode < 300) {
@@ -708,9 +711,28 @@ export default class Transport {
         'http.request.method': params.method,
         'db.operation.name': params.meta?.name
       }
+
+      // add path params as otel attributes
       if (params.meta?.pathParts != null) {
-        for (const key of Object.keys(params.meta.pathParts)) {
-          attributes[`db.elasticsearch.path_parts.${key}`] = params.meta.pathParts[key]
+        for (const [key, value] of Object.entries(params.meta.pathParts)) {
+          attributes[`db.operation.parameter.${key}`] = value.toString()
+
+          if (['index', '_index', 'indices'].includes(key)) {
+            let indices: string[] = []
+            if (typeof value === 'string') {
+              indices.push(value)
+            } else if (Array.isArray(value)) {
+              indices = indices.concat(value.map(v => v.toString()))
+            } else if (typeof value === 'object') {
+              try {
+                const keys = Object.keys(value)
+                indices = indices.concat(keys.map(v => v.toString()))
+              } catch {
+                // ignore
+              }
+            }
+            if (indices.length > 0) attributes['db.collection.name'] = indices.join(', ')
+          }
         }
       }
 
