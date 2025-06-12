@@ -2466,8 +2466,9 @@ test('OpenTelemetry', t => {
   t.before(() => {
     exporter = new InMemorySpanExporter()
     processor = new SimpleSpanProcessor(exporter)
-    provider = new BasicTracerProvider()
-    provider.addSpanProcessor(processor)
+    provider = new BasicTracerProvider({
+      spanProcessors: [processor]
+    })
     provider.register()
   })
 
@@ -2573,6 +2574,145 @@ test('OpenTelemetry', t => {
 
     t.equal(spans[0].attributes['error.type'], 'TimeoutError')
     t.not(spans[0].status.code, 0)
+  })
+
+  t.test('disable otel if openTelemetry.enabled === false at instantiation', async t => {
+    t.plan(1)
+
+    function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      res.end('ok')
+    }
+
+    const [{ port }, server] = await buildServer(handler)
+    const pool = new WeightedConnectionPool({ Connection: UndiciConnection })
+    pool.addConnection(`http://localhost:${port}`)
+    const transport = new Transport({
+      connectionPool: pool,
+      openTelemetry: { enabled: false }
+    })
+
+    await transport.request({
+      path: '/hello',
+      method: 'GET',
+      meta: { name: 'hello' },
+    })
+
+    t.equal(exporter.getFinishedSpans().length, 0)
+
+    server.stop()
+  })
+
+  t.test('disable otel if OTEL_ELASTICSEARCH_ENABLED === false', async t => {
+    t.plan(1)
+
+    function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      res.end('ok')
+    }
+
+    const [{ port }, server] = await buildServer(handler)
+    const pool = new WeightedConnectionPool({ Connection: UndiciConnection })
+    pool.addConnection(`http://localhost:${port}`)
+
+    process.env.OTEL_ELASTICSEARCH_ENABLED = 'false'
+    const transport = new Transport({ connectionPool: pool })
+
+    await transport.request({
+      path: '/hello',
+      method: 'GET',
+      meta: { name: 'hello' },
+    })
+
+    t.equal(exporter.getFinishedSpans().length, 0)
+
+    process.env.OTEL_ELASTICSEARCH_ENABLED = ''
+    server.stop()
+  })
+
+  t.test('disable otel if openTelemetry.enabled === false at request time', async t => {
+    t.plan(1)
+
+    function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      res.end('ok')
+    }
+
+    const [{ port }, server] = await buildServer(handler)
+    const pool = new WeightedConnectionPool({ Connection: UndiciConnection })
+    pool.addConnection(`http://localhost:${port}`)
+
+    const transport = new Transport({
+      connectionPool: pool,
+      openTelemetry: { enabled: true }
+    })
+
+    await transport.request({
+      path: '/hello',
+      method: 'GET',
+      meta: { name: 'hello' },
+    }, { openTelemetry: { enabled: false } })
+
+    t.equal(exporter.getFinishedSpans().length, 0)
+
+    server.stop()
+  })
+
+  t.test('suppress tracing if openTelemetry.suppressInternalInstrumentation === true at instantiation', async t => {
+    t.plan(1)
+
+    function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      res.end('ok')
+    }
+
+    const [{ port }, server] = await buildServer(handler)
+    const pool = new WeightedConnectionPool({ Connection: UndiciConnection })
+    pool.addConnection(`http://localhost:${port}`)
+
+    const transport = new Transport({
+      connectionPool: pool,
+      openTelemetry: {
+        enabled: true,
+        suppressInternalInstrumentation: true
+      }
+    })
+
+    await transport.request({
+      path: '/hello',
+      method: 'GET',
+      meta: { name: 'hello' },
+    })
+
+    t.equal(exporter.getFinishedSpans().length, 0)
+
+    server.stop()
+  })
+
+  t.test('suppress tracing if openTelemetry.suppressInternalInstrumentation === true at request time', async t => {
+    t.plan(1)
+
+    function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      res.end('ok')
+    }
+
+    const [{ port }, server] = await buildServer(handler)
+    const pool = new WeightedConnectionPool({ Connection: UndiciConnection })
+    pool.addConnection(`http://localhost:${port}`)
+
+    const transport = new Transport({
+      connectionPool: pool,
+      openTelemetry: {
+        enabled: true,
+        suppressInternalInstrumentation: false
+      }
+    })
+
+    await transport.request({
+      path: '/hello',
+      method: 'GET',
+      meta: { name: 'hello' },
+    }, { openTelemetry: { suppressInternalInstrumentation: true } })
+
+    t.equal(exporter.getFinishedSpans().length, 0)
+
+    server.stop()
   })
 
   t.end()
