@@ -65,10 +65,12 @@ import {
   kAcceptHeader,
   kRedaction,
   kRetryBackoff,
-  kOtelTracer
+  kOtelTracer,
+  kOtelOptions
 } from './symbols'
 import { setTimeout as setTimeoutPromise } from 'node:timers/promises'
 import opentelemetry, { Attributes, Exception, SpanKind, SpanStatusCode, Span, Tracer } from '@opentelemetry/api'
+import { suppressTracing } from '@opentelemetry/core'
 
 const { version: clientVersion } = require('../package.json') // eslint-disable-line
 const debug = Debug('elasticsearch')
@@ -77,6 +79,11 @@ const unzip = promisify(zlib.unzip)
 const { createGzip } = zlib
 
 const userAgent = `elastic-transport-js/${clientVersion} (${os.platform()} ${os.release()}-${os.arch()}; Node.js ${process.version})` // eslint-disable-line
+
+export interface OpenTelemetryOptions {
+  enabled?: boolean
+  suppressInternalInstrumentation?: boolean
+}
 
 export interface TransportOptions {
   diagnostic?: Diagnostic
@@ -107,6 +114,7 @@ export interface TransportOptions {
   }
   redaction?: RedactionOptions
   retryBackoff?: (min: number, max: number, attempt: number) => number
+  openTelemetry?: OpenTelemetryOptions
 }
 
 export interface TransportRequestMetadata {
@@ -161,6 +169,7 @@ export interface TransportRequestOptions {
   meta?: boolean
   redaction?: RedactionOptions
   retryBackoff?: (min: number, max: number, attempt: number) => number
+  openTelemetry?: OpenTelemetryOptions
 }
 
 export interface TransportRequestOptionsWithMeta extends TransportRequestOptions {
@@ -217,6 +226,7 @@ export default class Transport {
   [kRedaction]: RedactionOptions
   [kRetryBackoff]: (min: number, max: number, attempt: number) => number
   [kOtelTracer]: Tracer
+  [kOtelOptions]: OpenTelemetryOptions
 
   static sniffReasons = {
     SNIFF_ON_START: 'sniff-on-start',
@@ -280,6 +290,12 @@ export default class Transport {
     this[kRedaction] = opts.redaction ?? { type: 'replace', additionalKeys: [] }
     this[kRetryBackoff] = opts.retryBackoff ?? retryBackoff
     this[kOtelTracer] = opentelemetry.trace.getTracer('@elastic/transport', clientVersion)
+
+    const otelEnabledDefault = process.env.OTEL_ELASTICSEARCH_ENABLED != null ? (process.env.OTEL_ELASTICSEARCH_ENABLED.toLowerCase() !== 'false') : true
+    this[kOtelOptions] = Object.assign({}, {
+      enabled: otelEnabledDefault,
+      suppressInternalInstrumentation: false
+    }, opts.openTelemetry ?? {})
 
     if (opts.sniffOnStart === true) {
       this.sniff({
@@ -673,8 +689,15 @@ export default class Transport {
   async request<TResponse = unknown, TContext = any> (params: TransportRequestParams, options?: TransportRequestOptionsWithMeta): Promise<TransportResult<TResponse, TContext>>
   async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptions): Promise<TResponse>
   async request (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<any> {
+    const otelOptions = Object.assign({}, this[kOtelOptions], options.openTelemetry ?? {})
+
     // wrap in OpenTelemetry span
-    if (params.meta?.name != null) {
+    if ((otelOptions?.enabled ?? true) && params.meta?.name != null) {
+      let context = opentelemetry.context.active()
+      if (otelOptions.suppressInternalInstrumentation ?? false) {
+        context = suppressTracing(context)
+      }
+
       // gather OpenTelemetry attributes
       const attributes: Attributes = {
         'db.system': 'elasticsearch',
@@ -687,7 +710,7 @@ export default class Transport {
         }
       }
 
-      return await this[kOtelTracer].startActiveSpan(params.meta.name, { attributes, kind: SpanKind.CLIENT }, async (otelSpan: Span) => {
+      return await this[kOtelTracer].startActiveSpan(params.meta.name, { attributes, kind: SpanKind.CLIENT }, context, async (otelSpan: Span) => {
         let response
         try {
           response = await this._request(params, options, otelSpan)
