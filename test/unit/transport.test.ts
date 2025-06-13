@@ -2507,6 +2507,7 @@ test('OpenTelemetry', t => {
       'url.full': `http://localhost:${port}/`,
       'server.address': 'localhost',
       'server.port': port,
+      'db.response.status_code': "200"
     })
     t.equal(spans[0].status.code, 0)
 
@@ -2541,8 +2542,9 @@ test('OpenTelemetry', t => {
       'url.full': `http://localhost:${port}/`,
       'server.address': 'localhost',
       'server.port': port,
-      'db.elasticsearch.cluster.name': 'foobar',
-      'db.elasticsearch.node.name': 'instance-1',
+      'db.namespace': 'foobar',
+      'elasticsearch.node.name': 'instance-1',
+      'db.response.status_code': '200'
     })
     t.equal(spans[0].status.code, 0)
 
