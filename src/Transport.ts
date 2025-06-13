@@ -715,6 +715,8 @@ export default class Transport {
       // add path params as otel attributes
       if (params.meta?.pathParts != null) {
         for (const [key, value] of Object.entries(params.meta.pathParts)) {
+          if (value == null) continue
+
           attributes[`db.operation.parameter.${key}`] = value.toString()
 
           if (['index', '_index', 'indices'].includes(key)) {
