@@ -1,6 +1,6 @@
 {
   "name": "@elastic/transport",
-  "version": "8.9.7",
+  "version": "8.10.0",
   "description": "Transport classes and utilities shared among Node.js Elastic client libraries",
   "main": "./index.js",
   "types": "index.d.ts",
