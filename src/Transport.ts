@@ -72,6 +72,7 @@ import { setTimeout } from 'node:timers/promises'
 import opentelemetry, { Attributes, Exception, SpanKind, SpanStatusCode, Span, Tracer } from '@opentelemetry/api'
 import { suppressTracing } from '@opentelemetry/core'
 
+const nodeVersion = process.versions.node
 const { version: clientVersion } = require('../package.json') // eslint-disable-line
 const debug = Debug('elasticsearch')
 const gzip = promisify(zlib.gzip)
@@ -115,6 +116,7 @@ export interface TransportOptions {
   redaction?: RedactionOptions
   retryBackoff?: (min: number, max: number, attempt: number) => number
   openTelemetry?: OpenTelemetryOptions
+  enableMetaHeader?: boolean
 }
 
 export interface TransportRequestMetadata {
@@ -261,6 +263,7 @@ export default class Transport {
     this[kNodeSelector] = opts.nodeSelector ?? roundRobinSelector()
     this[kHeaders] = Object.assign({},
       { 'user-agent': userAgent },
+      (opts.enableMetaHeader == null ? true : opts.enableMetaHeader) ? { 'x-elastic-client-meta': `et=${clientVersion as string},js=${nodeVersion}` } : null,
       opts.compression === true ? { 'accept-encoding': 'gzip,deflate' } : null,
       lowerCaseHeaders(opts.headers)
     )

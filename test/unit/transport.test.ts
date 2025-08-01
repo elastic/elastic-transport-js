@@ -1352,6 +1352,60 @@ test('User-Agent header', async t => {
   t.equal(res.statusCode, 200)
 })
 
+test('x-elastic-client-meta header', async t => {
+  const clientMeta = `et=${transportVersion as string},js=${process.versions.node}`
+
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
+      t.equal(opts.headers?.['x-elastic-client-meta'], clientMeta)
+      return {
+        body: { hello: 'world' },
+        statusCode: 200
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool,
+    headers: { 'x-foo': 'bar1' }
+  })
+
+  const res = await transport.request({
+    method: 'GET',
+    path: '/hello'
+  }, { meta: true })
+  t.equal(res.statusCode, 200)
+})
+
+test('x-elastic-client-meta header disabled', async t => {
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
+      t.equal(opts.headers?.['x-elastic-client-meta'], undefined)
+      return {
+        body: { hello: 'world' },
+        statusCode: 200
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool,
+    enableMetaHeader: false,
+  })
+
+  const res = await transport.request({
+    method: 'GET',
+    path: '/hello'
+  }, { meta: true })
+  t.equal(res.statusCode, 200)
+})
+
 test('generateRequestId', async t => {
   t.plan(5)
 
