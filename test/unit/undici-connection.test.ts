@@ -9,6 +9,7 @@ import * as http from 'node:http'
 import buffer from 'node:buffer'
 import { gzipSync, deflateSync } from 'node:zlib'
 import { Readable } from 'node:stream'
+import { Agent } from 'undici'
 import { test } from 'tap'
 import intoStream from 'into-stream'
 import FakeTimers from '@sinonjs/fake-timers'
@@ -830,7 +831,7 @@ test('Body too big custom option (string)', async t => {
       method: 'GET',
       path: '/'
     }, { ...options, maxResponseSize: 1 })
-    t.fail('Shold throw')
+    t.fail('Should throw')
   } catch (err: any) {
     t.ok(err instanceof RequestAbortedError)
     t.equal(err.message, 'The content length (9) is bigger than the maximum allowed string (1)')
@@ -865,7 +866,7 @@ test('Body too big custom option (buffer)', async t => {
       method: 'GET',
       path: '/'
     }, { ...options, maxCompressedResponseSize: 1 })
-    t.fail('Shold throw')
+    t.fail('Should throw')
   } catch (err: any) {
     t.ok(err instanceof RequestAbortedError)
     t.equal(err.message, 'The content length (29) is bigger than the maximum allowed buffer (1)')
@@ -952,7 +953,7 @@ test('Connection error', async t => {
 })
 
 test('Throw if detects http agent options', async t => {
-  t.plan(3)
+  t.plan(2)
 
   try {
     new UndiciConnection({
@@ -960,15 +961,6 @@ test('Throw if detects http agent options', async t => {
       agent: {
         keepAlive: false
       }
-    })
-  } catch (err: any) {
-    t.ok(err instanceof ConfigurationError)
-  }
-
-  try {
-    new UndiciConnection({
-      url: new URL('http://localhost:9200'),
-      agent: () => new http.Agent()
     })
   } catch (err: any) {
     t.ok(err instanceof ConfigurationError)
@@ -1222,4 +1214,43 @@ test('as stream', async t => {
   }
   t.equal(payload, 'ok')
   server.stop()
+})
+
+test('limit max open connections using Undici Agent', async t => {
+  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+    res.end('ok')
+  }
+
+  const agent = new Agent({
+    maxOrigins: 1,
+    connections: 1,
+    keepAliveMaxTimeout: 100,
+    keepAliveTimeout: 100
+  })
+
+  const [{ port: port1 }, server1] = await buildServer(handler)
+  const connection1 = new UndiciConnection({
+    url: new URL(`http://localhost:${port1}`),
+    agent: () => agent
+  })
+
+  const [{ port: port2 }, server2] = await buildServer(handler)
+  const connection2 = new UndiciConnection({
+    url: new URL(`http://localhost:${port2}`),
+    agent: () => agent
+  })
+
+  try {
+    await Promise.all([
+      connection1.request({ path: '/hello', method: 'GET' }, options),
+      connection2.request({ path: '/hello', method: 'GET' }, options)
+    ])
+    t.fail('Should throw')
+  } catch (err) {
+    t.ok(err instanceof ConnectionError)
+    t.equal(err.message, 'Agent has reached the maximum allowed origins')
+  }
+
+  server1.stop()
+  server2.stop()
 })
