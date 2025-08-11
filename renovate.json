@@ -6,9 +6,5 @@
     "npm:unpublishSafe",
     "mergeConfidence:all-badges"
   ],
-  "prConcurrentLimit": 10,
-  "baseBranchPatterns": [
-    "main",
-    "8.x"
-  ]
+  "prConcurrentLimit": 10
 }
