@@ -14,7 +14,7 @@ import { test } from 'tap'
 import intoStream from 'into-stream'
 import FakeTimers from '@sinonjs/fake-timers'
 import { buildServer } from '../utils'
-import { UndiciConnection, errors, ConnectionOptions } from '../../'
+import { UndiciConnection, errors, ConnectionOptions, ConnectionRequestResponse } from '../../'
 
 const {
   ConfigurationError,
@@ -1217,40 +1217,50 @@ test('as stream', async t => {
 })
 
 test('limit max open connections using Undici Agent', async t => {
-  function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+  const maxOrigins = 3
+  const connections = 3
+
+  async function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
     res.end('ok')
   }
-
   const agent = new Agent({
-    maxOrigins: 1,
-    connections: 1,
+    maxOrigins,
+    connections,
     keepAliveMaxTimeout: 100,
     keepAliveTimeout: 100
   })
 
-  const [{ port: port1 }, server1] = await buildServer(handler)
-  const connection1 = new UndiciConnection({
-    url: new URL(`http://localhost:${port1}`),
-    agent: () => agent
-  })
+  const conns: UndiciConnection[] = []
+  const after: Function[] = []
 
-  const [{ port: port2 }, server2] = await buildServer(handler)
-  const connection2 = new UndiciConnection({
-    url: new URL(`http://localhost:${port2}`),
-    agent: () => agent
-  })
-
-  try {
-    await Promise.all([
-      connection1.request({ path: '/hello', method: 'GET' }, options),
-      connection2.request({ path: '/hello', method: 'GET' }, options)
-    ])
-    t.fail('Should throw')
-  } catch (err) {
-    t.ok(err instanceof ConnectionError)
-    t.equal(err.message, 'Agent has reached the maximum allowed origins')
+  // create 1 more server than maxOrigins
+  for (let i = 0; i <= maxOrigins; i++) {
+    const [{ port }, server] = await buildServer(handler)
+    const conn = new UndiciConnection({
+      url: new URL(`http://localhost:${port}`),
+      agent: () => agent
+    })
+    conns.push(conn)
+    after.push(() => server.stop())
   }
 
-  server1.stop()
-  server2.stop()
+  let reqCount = 0
+  const reqs: Promise<ConnectionRequestResponse>[] = []
+
+  conns.forEach(async c => {
+    for (let i = 0; i < connections; i++) {
+      reqs.push(c.request({ path: '/hello', method: 'GET' }, options))
+      reqCount++
+    }
+  })
+  const results = await Promise.allSettled(reqs)
+
+  t.equal(results.filter(r => r.status === 'fulfilled').length, maxOrigins * connections)
+  t.equal(results.filter(r => r.status === 'rejected').length, connections)
+  results.filter(r => r.status === 'rejected').forEach(r => {
+    t.ok(r.reason instanceof ConnectionError)
+    t.equal(r.reason.message, 'Agent has reached the maximum allowed origins')
+  })
+
+  after.forEach(fn => fn())
 })
