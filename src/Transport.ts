@@ -430,10 +430,8 @@ export default class Transport {
         headers['content-type'] = headers['content-type'] ?? this[kJsonContentType]
         headers.accept = headers.accept ?? this[kJsonContentType]
       } else {
-        if (params.body !== '') {
-          headers['content-type'] = headers['content-type'] ?? 'text/plain'
-          headers.accept = headers.accept ?? this[kAcceptHeader]
-        }
+        headers['content-type'] = headers['content-type'] ?? 'text/plain'
+        headers.accept = headers.accept ?? this[kAcceptHeader]
         connectionParams.body = params.body
       }
 
@@ -450,10 +448,8 @@ export default class Transport {
         connectionParams.body = params.bulkBody
       }
 
-      if (connectionParams.body !== '') {
-        headers['content-type'] = headers['content-type'] ?? this[kNdjsonContentType]
-        headers.accept = headers.accept ?? this[kJsonContentType]
-      }
+      headers['content-type'] = headers['content-type'] ?? this[kNdjsonContentType]
+      headers.accept = headers.accept ?? this[kJsonContentType]
     }
 
     // serializes the querystring
