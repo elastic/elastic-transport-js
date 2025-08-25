@@ -263,6 +263,7 @@ export default class Transport {
     this[kNodeSelector] = opts.nodeSelector ?? roundRobinSelector()
     this[kHeaders] = Object.assign({},
       { 'user-agent': userAgent },
+      { 'content-type': 'application/json' },
       (opts.enableMetaHeader == null ? true : opts.enableMetaHeader) ? { 'x-elastic-client-meta': `et=${clientVersion as string},js=${nodeVersion}` } : null,
       opts.compression === true ? { 'accept-encoding': 'gzip,deflate' } : null,
       lowerCaseHeaders(opts.headers)
@@ -427,10 +428,14 @@ export default class Transport {
           this[kDiagnostic].emit('request', err, result)
           throw err
         }
-        headers['content-type'] = headers['content-type'] ?? this[kJsonContentType]
+        if ((options.headers?.['content-type'] == null) && (options.headers?.['Content-Type'] == null)) {
+          headers['content-type'] = this[kJsonContentType]
+        }
         headers.accept = headers.accept ?? this[kJsonContentType]
       } else {
-        headers['content-type'] = headers['content-type'] ?? 'text/plain'
+        if ((options.headers?.['content-type'] == null) && (options.headers?.['Content-Type'] == null)) {
+          headers['content-type'] = 'text/plain'
+        }
         headers.accept = headers.accept ?? this[kAcceptHeader]
         connectionParams.body = params.body
       }
@@ -448,7 +453,9 @@ export default class Transport {
         connectionParams.body = params.bulkBody
       }
 
-      headers['content-type'] = headers['content-type'] ?? this[kNdjsonContentType]
+      if ((options.headers?.['content-type'] == null) && (options.headers?.['Content-Type'] == null)) {
+        headers['content-type'] = this[kNdjsonContentType]
+      }
       headers.accept = headers.accept ?? this[kJsonContentType]
     }
 
