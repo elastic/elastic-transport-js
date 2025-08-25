@@ -236,6 +236,36 @@ test('Send POST (ndjson)', async t => {
   t.equal(res.statusCode, 200)
 })
 
+test('Send POST with empty bulkBody (should include content-type)', async t => {
+  t.plan(4)
+
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
+      t.equal(opts.headers?.accept, 'application/json')
+      t.ok(opts.headers?.['content-type'], 'content-type header should be present')
+      t.equal(opts.body, '')
+      return {
+        body: { hello: 'world' },
+        statusCode: 200
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool
+  })
+
+  const res = await transport.request({
+    method: 'POST',
+    path: '/hello',
+    bulkBody: ''
+  }, { meta: true })
+  t.equal(res.statusCode, 200)
+})
+
 test('Send POST (text/plain)', async t => {
   t.plan(4)
 
@@ -262,6 +292,36 @@ test('Send POST (text/plain)', async t => {
     method: 'POST',
     path: '/hello',
     body: 'hello world'
+  }, { meta: true })
+  t.equal(res.statusCode, 200)
+})
+
+test('Send POST with empty string body (should include content-type)', async t => {
+  t.plan(4)
+
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
+      t.equal(opts.headers?.accept, 'application/json, text/plain')
+      t.ok(opts.headers?.['content-type'], 'content-type header should be present')
+      t.equal(opts.body, '')
+      return {
+        body: { hello: 'world' },
+        statusCode: 200
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool
+  })
+
+  const res = await transport.request({
+    method: 'POST',
+    path: '/hello',
+    body: ''
   }, { meta: true })
   t.equal(res.statusCode, 200)
 })
