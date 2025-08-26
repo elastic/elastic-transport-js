@@ -17,8 +17,11 @@ coverage
 # coverage output
 coverage.lcov
 
-# nyc test coverage
+# test files and artifacts
+test
 .nyc_output
+.tap
+codecov.yml
 
 # Grunt intermediate storage (http://gruntjs.com/creating-plugins#storing-task-files)
 .grunt
@@ -54,11 +57,10 @@ elasticsearch*
 # because we should copy them in the main .d.ts file
 api/generated.d.ts
 
-# Ignore doc folder
+# Ignore docs files and folders
 docs
-
-# Ignore test folder
-test
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
 
 # Ignore scripts folder
 scripts
@@ -68,7 +70,6 @@ scripts
 .travis.yml
 certs
 .github
-CODE_OF_CONDUCT.md
-CONTRIBUTING.md
+renovate.json
 
 src
