@@ -1762,6 +1762,30 @@ test('Sniff interval', async t => {
   t.equal(res.statusCode, 200)
 })
 
+test('Empty request body should include content-type header', async t => {
+  t.plan(2)
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
+      t.equal(opts.headers?.['content-type'], 'application/json')
+      return {
+        body: { hello: 'world' },
+        statusCode: 200
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({ connectionPool: pool })
+
+  const res = await transport.request({
+    method: 'POST',
+    path: '/hello'
+  }, { meta: true })
+  t.equal(res.statusCode, 200)
+})
+
 test('No connection pool', t => {
   t.plan(1)
   try {
