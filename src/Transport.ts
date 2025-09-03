@@ -263,7 +263,6 @@ export default class Transport {
     this[kNodeSelector] = opts.nodeSelector ?? roundRobinSelector()
     this[kHeaders] = Object.assign({},
       { 'user-agent': userAgent },
-      { 'content-type': 'application/json' },
       (opts.enableMetaHeader == null ? true : opts.enableMetaHeader) ? { 'x-elastic-client-meta': `et=${clientVersion as string},js=${nodeVersion}` } : null,
       opts.compression === true ? { 'accept-encoding': 'gzip,deflate' } : null,
       lowerCaseHeaders(opts.headers)
@@ -490,6 +489,13 @@ export default class Transport {
     }
 
     headers.accept = headers.accept ?? this[kAcceptHeader]
+
+    // Set default content-type header for empty requests
+    // Only set if no content-type is already specified and there's no body
+    if (headers['content-type'] == null && (connectionParams.body == null || connectionParams.body === '')) {
+      headers['content-type'] = 'application/json'
+    }
+
     connectionParams.headers = headers
     while (meta.attempts <= maxRetries) {
       try {
