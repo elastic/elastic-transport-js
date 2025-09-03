@@ -428,15 +428,13 @@ export default class Transport {
           this[kDiagnostic].emit('request', err, result)
           throw err
         }
-        if ((options.headers?.['content-type'] == null) && (options.headers?.['Content-Type'] == null)) {
-          headers['content-type'] = this[kJsonContentType]
-        }
+        headers['content-type'] = headers['content-type'] ?? this[kJsonContentType]
         headers.accept = headers.accept ?? this[kJsonContentType]
       } else {
-        if ((options.headers?.['content-type'] == null) && (options.headers?.['Content-Type'] == null)) {
-          headers['content-type'] = 'text/plain'
+        if (params.body !== '') {
+          headers['content-type'] = headers['content-type'] ?? 'text/plain'
+          headers.accept = headers.accept ?? this[kAcceptHeader]
         }
-        headers.accept = headers.accept ?? this[kAcceptHeader]
         connectionParams.body = params.body
       }
 
@@ -453,10 +451,10 @@ export default class Transport {
         connectionParams.body = params.bulkBody
       }
 
-      if ((options.headers?.['content-type'] == null) && (options.headers?.['Content-Type'] == null)) {
-        headers['content-type'] = this[kNdjsonContentType]
+      if (connectionParams.body !== '') {
+        headers['content-type'] = headers['content-type'] ?? this[kNdjsonContentType]
+        headers.accept = headers.accept ?? this[kJsonContentType]
       }
-      headers.accept = headers.accept ?? this[kJsonContentType]
     }
 
     // serializes the querystring
