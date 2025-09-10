@@ -1,27 +1,13 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "local>elastic/renovate-config"
+    "local>elastic/renovate-config",
+    "schedule:automergeMonthly",
+    "npm:unpublishSafe",
+    "mergeConfidence:all-badges"
   ],
   "schedule": [
-    "* * * * 0"
+    "* 0-3 1 * *"
   ],
-  "packageRules": [
-    {
-      "matchDepTypes": [
-        "devDependencies"
-      ],
-      "automerge": true
-    },
-    {
-      "matchDepTypes": [
-        "dependencies"
-      ],
-      "rangeStrategy": "bump",
-      "automerge": false,
-      "matchPackageNames": [
-        "!@opentelemetry/api"
-      ]
-    }
-  ]
+  "prConcurrentLimit": 10
 }
