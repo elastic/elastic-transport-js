@@ -1259,7 +1259,7 @@ test('limit max open connections using Undici Agent', async t => {
   t.equal(results.filter(r => r.status === 'rejected').length, connections)
   results.filter(r => r.status === 'rejected').forEach(r => {
     t.ok(r.reason instanceof ConnectionError)
-    t.equal(r.reason.message, 'Agent has reached the maximum allowed origins')
+    t.equal(r.reason.message, 'Maximum allowed origins reached')
   })
 
   after.forEach(fn => fn())
