@@ -68,30 +68,34 @@ export class MiddlewareEngine {
 
   /**
    * Immutable context merging
-   * Creates new context object without mutating the original
+   * Only creates new objects when necessary to minimize GC pressure
    */
   private mergeContext (
     current: MiddlewareContext,
     updates: NonNullable<MiddlewareResult['context']>
   ): MiddlewareContext {
+    // Fast path: if no request changes, avoid object allocation
+    if (updates.request == null && updates.shared == null) {
+      return current
+    }
+
+    // Merge headers only if provided
+    let mergedRequest = current.request
+    if (updates.request != null) {
+      const mergedHeaders = updates.request.headers != null
+        ? { ...current.request.headers, ...updates.request.headers }
+        : current.request.headers
+
+      mergedRequest = {
+        ...current.request,
+        ...updates.request,
+        headers: mergedHeaders
+      }
+    }
+
     return {
       ...current,
-
-      // Merge request object if provided
-      request: updates.request != null
-        ? {
-            ...current.request,
-            ...updates.request,
-            headers: updates.request.headers != null
-              ? {
-                  ...current.request.headers,
-                  ...updates.request.headers
-                }
-              : current.request.headers
-          }
-        : current.request,
-
-      // Replace shared map if provided (maps are immutable)
+      request: mergedRequest,
       shared: updates.shared ?? current.shared
     }
   }
