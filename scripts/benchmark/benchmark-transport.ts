@@ -4,7 +4,6 @@
  */
 
 /**
- * Comprehensive Transport Benchmark
  * Compares three scenarios:
  * 1. Baseline: Current Transport (no middleware)
  * 2. With Middleware (Original): Deep merge spreading
@@ -14,12 +13,11 @@
 import { MiddlewareEngine } from '../../src/middleware/MiddlewareEngine'
 import { CompressionMiddleware } from '../../src/middleware/CompressionMiddleware'
 import { MiddlewareContext, MiddlewareResult, Middleware } from '../../src/middleware/types'
-import zlib from 'node:zlib'
+import * as zlib from 'node:zlib'
 import { promisify } from 'node:util'
 
 const gzipCompress = promisify(zlib.gzip)
 
-// Mock OpenTelemetry middleware
 class MockOpenTelemetryMiddleware implements Middleware {
   readonly name = 'opentelemetry'
   readonly priority = 5
@@ -42,7 +40,6 @@ class MockOpenTelemetryMiddleware implements Middleware {
   }
 }
 
-// Mock Authentication middleware
 class MockAuthMiddleware implements Middleware {
   readonly name = 'auth'
   readonly priority = 10
@@ -58,7 +55,6 @@ class MockAuthMiddleware implements Middleware {
   }
 }
 
-// Mock Kibana-specific middleware
 class MockKibanaMiddleware implements Middleware {
   readonly name = 'kibana'
   readonly priority = 15
@@ -74,7 +70,6 @@ class MockKibanaMiddleware implements Middleware {
   }
 }
 
-// Mock Retry middleware
 class MockRetryMiddleware implements Middleware {
   readonly name = 'retry'
   readonly priority = 60
@@ -110,7 +105,7 @@ function deepMergeOriginal (current: MiddlewareContext, updates: NonNullable<Mid
   }
 }
 
-// Baseline: Current Transport behavior WITH compression (fair comparison)
+// Baseline: Current Transport behavior WITH compression
 async function baselineTransport (context: MiddlewareContext): Promise<void> {
   // Inline header manipulation like current Transport
   const headers = {
@@ -176,7 +171,7 @@ async function middlewareOriginal (iterations: number): Promise<{ duration: numb
   }
 }
 
-// Middleware with optimized merge (current implementation)
+// Middleware with optimized merge
 async function middlewareOptimized (iterations: number): Promise<{ duration: number, heapDelta: number }> {
   const engine = new MiddlewareEngine()
   

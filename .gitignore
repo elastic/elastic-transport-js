@@ -110,7 +110,6 @@ package-lock.json
 lib
 .tap
 
-# Benchmark compiled output
-benchmark-gc.js
-benchmark-transport.js
-benchmark-headers-only.js
+# Benchmark compiled output (in scripts/benchmark/)
+scripts/benchmark/**/*.js
+scripts/benchmark/**/*.js.map
