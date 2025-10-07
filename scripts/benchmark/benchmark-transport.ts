@@ -262,7 +262,7 @@ async function main (): Promise<void> {
   console.log('  5. Retry tracking (priority: 60)')
 
   console.log('\n' + '-'.repeat(70))
-  console.log('Running benchmarks...')
+  console.log('Running benchmarks:')
   console.log('-'.repeat(70))
 
   const baseline = await runBaseline(iterations)
