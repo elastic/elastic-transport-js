@@ -55,7 +55,10 @@ export interface Middleware {
   readonly name: string
   readonly priority?: number
 
-  // Return MiddlewareResult | void instead of mutating
+  // Sync versions for simple operations (headers, tracking) - faster
+  onBeforeRequestSync?: (ctx: MiddlewareContext) => MiddlewareResult | undefined
+  onRequestSync?: (ctx: MiddlewareContext) => MiddlewareResult | undefined
+
   onBeforeRequest?: (ctx: MiddlewareContext) => Promise<MiddlewareResult | undefined> | MiddlewareResult | undefined
   onRequest?: (ctx: MiddlewareContext) => Promise<MiddlewareResult | undefined> | MiddlewareResult | undefined
 

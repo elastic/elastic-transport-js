@@ -30,17 +30,40 @@ export class MiddlewareEngine {
     initialContext: MiddlewareContext
   ): Promise<{ context: MiddlewareContext, error?: Error }> {
     let currentContext = initialContext
+    const syncPhase = (phase + 'Sync') as keyof Middleware
 
     for (const middleware of this.middleware) {
-      const handler = middleware[phase]
-      if (handler == null) continue
-
       try {
-        // Execute middleware handler
-        const result = await handler(currentContext)
+        // Try sync version first (faster, no await overhead)
+        const syncHandler = middleware[syncPhase] as ((ctx: MiddlewareContext) => MiddlewareResult | undefined) | undefined
+        if (syncHandler != null) {
+          const result = syncHandler(currentContext)
+
+          if (result === undefined) {
+            continue
+          }
+
+          if (result.error != null) {
+            return { context: currentContext, error: result.error }
+          }
+
+          if (result.continue === false) {
+            return { context: currentContext }
+          }
+
+          if (result.context != null) {
+            currentContext = this.mergeContext(currentContext, result.context)
+          }
+          continue
+        }
+
+        // Fall back to async version if no sync handler
+        const asyncHandler = middleware[phase]
+        if (asyncHandler == null) continue
+
+        const result = await asyncHandler(currentContext)
 
         if (result === undefined) {
-          // void return = no changes, continue to next middleware
           continue
         }
 
@@ -49,16 +72,13 @@ export class MiddlewareEngine {
         }
 
         if (result.continue === false) {
-          // Middleware requested to stop execution
           return { context: currentContext }
         }
 
         if (result.context != null) {
-          // Merge returned context changes immutably
           currentContext = this.mergeContext(currentContext, result.context)
         }
       } catch (error) {
-        // Log middleware error but continue execution with other middleware (fault tolerance)
         console.warn(`Middleware ${middleware.name} failed in ${phase}:`, error)
       }
     }
@@ -66,32 +86,30 @@ export class MiddlewareEngine {
     return { context: currentContext }
   }
 
-  /**
-   * Immutable context merging
-   * Creates new context object without mutating the original
-   */
   private mergeContext (
     current: MiddlewareContext,
     updates: NonNullable<MiddlewareResult['context']>
   ): MiddlewareContext {
+    if (updates.request == null && updates.shared == null) {
+      return current
+    }
+
+    let mergedRequest = current.request
+    if (updates.request != null) {
+      const mergedHeaders = updates.request.headers != null
+        ? { ...current.request.headers, ...updates.request.headers }
+        : current.request.headers
+
+      mergedRequest = {
+        ...current.request,
+        ...updates.request,
+        headers: mergedHeaders
+      }
+    }
+
     return {
       ...current,
-
-      // Merge request object if provided
-      request: updates.request != null
-        ? {
-            ...current.request,
-            ...updates.request,
-            headers: updates.request.headers != null
-              ? {
-                  ...current.request.headers,
-                  ...updates.request.headers
-                }
-              : current.request.headers
-          }
-        : current.request,
-
-      // Replace shared map if provided (maps are immutable)
+      request: mergedRequest,
       shared: updates.shared ?? current.shared
     }
   }

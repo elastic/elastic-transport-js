@@ -109,3 +109,8 @@ package-lock.json
 
 lib
 .tap
+
+# Benchmark compiled output
+benchmark-gc.js
+benchmark-transport.js
+benchmark-headers-only.js

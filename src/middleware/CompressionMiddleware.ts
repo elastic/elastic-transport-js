@@ -93,15 +93,8 @@ export class CompressionMiddleware implements Middleware {
     }
   }
 
-  /**
-   * Log compression info
-   * Always void return for cleanup
-   */
   onComplete = async (ctx: MiddlewareContext): Promise<void> => {
-    if (ctx.shared.get('compressionEnabled') === true) {
-      console.debug('Request processed with compression enabled')
-    }
-    // void return = no context changes
+    // Cleanup phase - silent in production
   }
 
   /**
