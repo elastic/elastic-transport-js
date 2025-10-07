@@ -11,9 +11,9 @@
  * 3. With Middleware (Optimized): Conditional merge
  */
 
-import { MiddlewareEngine } from './src/middleware/MiddlewareEngine'
-import { CompressionMiddleware } from './src/middleware/CompressionMiddleware'
-import { MiddlewareContext, MiddlewareResult, Middleware } from './src/middleware/types'
+import { MiddlewareEngine } from '../../src/middleware/MiddlewareEngine'
+import { CompressionMiddleware } from '../../src/middleware/CompressionMiddleware'
+import { MiddlewareContext, MiddlewareResult, Middleware } from '../../src/middleware/types'
 import zlib from 'node:zlib'
 import { promisify } from 'node:util'
 
@@ -297,7 +297,6 @@ async function main (): Promise<void> {
   console.log(`Baseline:              ${baseline.duration.toFixed(2)}ms (${(iterations / (baseline.duration / 1000)).toFixed(0)} ops/sec)`)
   console.log(`Original Middleware:   ${original.duration.toFixed(2)}ms (${(iterations / (original.duration / 1000)).toFixed(0)} ops/sec) +${((original.duration / baseline.duration - 1) * 100).toFixed(1)}%`)
   console.log(`Optimized Middleware:  ${optimized.duration.toFixed(2)}ms (${(iterations / (optimized.duration / 1000)).toFixed(0)} ops/sec) +${((optimized.duration / baseline.duration - 1) * 100).toFixed(1)}%`)
-  console.log('\nOptimized middleware adds minimal overhead while providing flexibility')
   console.log('='.repeat(70))
 }
 

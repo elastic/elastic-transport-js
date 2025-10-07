@@ -5,9 +5,9 @@
 
 // Benchmark comparing merge strategies
 
-import { MiddlewareEngine } from './src/middleware/MiddlewareEngine'
-import { CompressionMiddleware } from './src/middleware/CompressionMiddleware'
-import { MiddlewareContext, MiddlewareResult } from './src/middleware/types'
+import { MiddlewareEngine } from '../../src/middleware/MiddlewareEngine'
+import { CompressionMiddleware } from '../../src/middleware/CompressionMiddleware'
+import { MiddlewareContext, MiddlewareResult } from '../../src/middleware/types'
 
 function deepMergeOriginal (current: MiddlewareContext, updates: NonNullable<MiddlewareResult['context']>): MiddlewareContext {
   return {

@@ -5,8 +5,8 @@
 
 // Benchmark middleware overhead WITHOUT compression (fair comparison)
 
-import { MiddlewareEngine } from './src/middleware/MiddlewareEngine'
-import { MiddlewareContext, MiddlewareResult, Middleware } from './src/middleware/types'
+import { MiddlewareEngine } from '../../src/middleware/MiddlewareEngine'
+import { MiddlewareContext, MiddlewareResult, Middleware } from '../../src/middleware/types'
 
 // Mock OpenTelemetry middleware
 class MockOpenTelemetryMiddleware implements Middleware {
