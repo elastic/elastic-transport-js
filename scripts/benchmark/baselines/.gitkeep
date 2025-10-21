@@ -1,0 +1,10 @@
+# Baseline benchmark results for performance regression testing
+# 
+# Files in this directory serve as reference points for comparison.
+# When benchmarks are run, results are compared against these baselines.
+#
+# To update baselines:
+# 1. Run: npm run benchmark
+# 2. Run: node scripts/benchmark/save-baseline.js
+# 3. Commit the updated baseline files
+

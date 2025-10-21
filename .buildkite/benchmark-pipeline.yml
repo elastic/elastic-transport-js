@@ -1,0 +1,33 @@
+---
+# Benchmark pipeline for elastic-transport-js
+# Triggered manually via Buildkite UI
+agents:
+  provider: "gcp"
+  image: family/core-ubuntu-2204
+  memory: "8G"
+  cpu: "4"  # More CPUs for consistent benchmark results
+
+steps:
+  - label: ":chart_with_upwards_trend: Benchmark - Node.js {{ matrix.nodejs }}"
+    env:
+      NODE_VERSION: "{{ matrix.nodejs }}"
+    matrix:
+      setup:
+        nodejs:
+          - "20"
+          - "22"
+    command: ./.buildkite/run-benchmark.sh
+    artifact_paths:
+      - "benchmark-results/*.json"
+      - "benchmark-results/*.md"
+      - "benchmark-results/comparison-*.md"
+    
+  - wait: ~
+    continue_on_failure: true
+    
+  - label: ":memo: Aggregate Results"
+    command: ./.buildkite/aggregate-results.sh
+    artifact_paths:
+      - "benchmark-results/summary.md"
+      - "benchmark-results/summary.json"
+
