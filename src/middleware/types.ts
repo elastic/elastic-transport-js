@@ -4,34 +4,31 @@
  */
 
 import * as http from 'node:http'
-import { TransportRequestOptions } from '../Transport'
-import { RequestBody } from '../types'
+import { TransportRequestOptions, TransportRequestParams } from '../Transport'
+import { RequestBody, TransportResult, Context } from '../types'
+import { Connection } from '../connection'
 
-/**
- * POC: Minimal middleware context - immutable design
- */
 export interface MiddlewareContext {
-  // Request data (immutable)
   readonly request: {
     readonly method: string
     readonly path: string
     readonly body?: RequestBody
+    readonly querystring?: string
     readonly headers: Readonly<http.IncomingHttpHeaders>
   }
-
-  // Request options (immutable)
+  readonly params: Readonly<TransportRequestParams>
   readonly options: Readonly<TransportRequestOptions>
-
-  // Shared state between middleware (immutable map)
+  readonly meta: {
+    readonly requestId: any
+    readonly name: string | symbol
+    readonly context: Context
+    readonly connection: Connection | null
+    readonly attempts: number
+  }
   readonly shared: ReadonlyMap<string, any>
 }
 
-/**
- * POC: Middleware result for functional transformations
- * Return new state instead of mutating existing context
- */
 export interface MiddlewareResult {
-  // Updated context (partial merge into existing context)
   context?: {
     request?: {
       headers?: http.IncomingHttpHeaders
@@ -39,28 +36,21 @@ export interface MiddlewareResult {
     }
     shared?: ReadonlyMap<string, any>
   }
-
-  // Continue to next middleware (default: true)
   continue?: boolean
-
-  // Error to propagate (stops execution chain)
   error?: Error
 }
 
-/**
- * POC: Simplified middleware interface
- * Functional lifecycle hooks
- */
 export interface Middleware {
   readonly name: string
   readonly priority?: number
-
-  // Return MiddlewareResult | void instead of mutating
+  readonly enabled?: boolean
+  onBeforeRequestSync?: (ctx: MiddlewareContext) => MiddlewareResult | undefined
+  onRequestSync?: (ctx: MiddlewareContext) => MiddlewareResult | undefined
   onBeforeRequest?: (ctx: MiddlewareContext) => Promise<MiddlewareResult | undefined> | MiddlewareResult | undefined
   onRequest?: (ctx: MiddlewareContext) => Promise<MiddlewareResult | undefined> | MiddlewareResult | undefined
-
-  // Always void return for cleanup
+  onResponse?: (ctx: MiddlewareContext, result: TransportResult) => Promise<MiddlewareResult | undefined> | MiddlewareResult | undefined
+  onError?: (ctx: MiddlewareContext, error: Error) => Promise<MiddlewareResult | undefined> | MiddlewareResult | undefined
   onComplete?: (ctx: MiddlewareContext) => Promise<void> | void
 }
 
-export type MiddlewarePhase = 'onBeforeRequest' | 'onRequest' | 'onComplete'
+export type MiddlewarePhase = 'onBeforeRequest' | 'onRequest' | 'onResponse' | 'onError' | 'onComplete'
