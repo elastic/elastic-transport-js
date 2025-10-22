@@ -57,7 +57,12 @@
     "prebuild": "npm run clean-build && npm run lint",
     "build": "tsc",
     "clean-build": "rimraf ./lib && mkdir lib",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "benchmark": "npm run build && npx tsx scripts/benchmark/run-all-benchmarks.ts",
+    "benchmark:save-baseline": "npx tsx scripts/benchmark/save-baseline.ts",
+    "benchmark:mitata": "npm run build && npx tsx scripts/benchmark/benchmark-transport-mitata.ts",
+    "benchmark:gc": "npm run build && npx tsx --expose-gc scripts/benchmark/benchmark-gc-tracking.ts",
+    "benchmark:merge": "npm run build && npx tsx scripts/benchmark/benchmark-merge-strategies.ts"
   },
   "repository": {
     "type": "git",
@@ -86,6 +91,7 @@
     "@types/stoppable": "1.1.3",
     "into-stream": "6.0.0",
     "license-checker": "25.0.1",
+    "mitata": "^1.0.34",
     "node-abort-controller": "3.1.1",
     "proxy": "2.2.0",
     "rimraf": "6.0.1",

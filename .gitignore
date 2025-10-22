@@ -110,6 +110,9 @@ package-lock.json
 lib
 .tap
 
+# Benchmark results (generated locally)
+benchmark-results
+
 # Benchmark compiled output (in scripts/benchmark/)
 scripts/benchmark/**/*.js
 scripts/benchmark/**/*.js.map
