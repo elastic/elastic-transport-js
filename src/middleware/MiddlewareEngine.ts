@@ -4,43 +4,55 @@
  */
 
 import { Middleware, MiddlewareContext, MiddlewareResult, MiddlewarePhase } from './types'
+import { TransportResult } from '../types'
 
-/**
- * POC: Minimal middleware execution engine
- * Sequential execution with immutable context transformations
- */
 export class MiddlewareEngine {
   private readonly middleware: Middleware[] = []
 
-  /**
-   * Register middleware with automatic priority sorting
-   */
   register (middleware: Middleware): void {
     this.middleware.push(middleware)
-    // Sort by priority (lower numbers execute first)
     this.middleware.sort((a, b) => (a.priority ?? 100) - (b.priority ?? 100))
   }
 
-  /**
-   * Execute middleware phase functionally
-   * Each middleware gets result of previous middleware
-   */
   async executePhase (
     phase: MiddlewarePhase,
-    initialContext: MiddlewareContext
+    initialContext: MiddlewareContext,
+    additionalArg?: TransportResult | Error
   ): Promise<{ context: MiddlewareContext, error?: Error }> {
     let currentContext = initialContext
+    const syncPhase = (phase + 'Sync') as keyof Middleware
 
     for (const middleware of this.middleware) {
-      const handler = middleware[phase]
-      if (handler == null) continue
+      if (middleware.enabled === false) {
+        continue
+      }
 
       try {
-        // Execute middleware handler
-        const result = await handler(currentContext)
+        const syncHandler = middleware[syncPhase] as ((ctx: MiddlewareContext) => MiddlewareResult | undefined) | undefined
+        if (syncHandler != null) {
+          const result = syncHandler(currentContext)
+          if (result !== undefined) {
+            if (result.error != null) {
+              return { context: currentContext, error: result.error }
+            }
+            if (result.continue === false) {
+              return { context: currentContext }
+            }
+            if (result.context != null) {
+              currentContext = this.mergeContext(currentContext, result.context)
+            }
+          }
+          continue
+        }
+
+        const asyncHandler = middleware[phase] as ((ctx: MiddlewareContext, ...args: any[]) => Promise<MiddlewareResult | undefined> | MiddlewareResult | undefined) | undefined
+        if (asyncHandler == null) continue
+
+        const result = additionalArg != null
+          ? await asyncHandler(currentContext, additionalArg)
+          : await asyncHandler(currentContext)
 
         if (result === undefined) {
-          // void return = no changes, continue to next middleware
           continue
         }
 
@@ -49,16 +61,13 @@ export class MiddlewareEngine {
         }
 
         if (result.continue === false) {
-          // Middleware requested to stop execution
           return { context: currentContext }
         }
 
         if (result.context != null) {
-          // Merge returned context changes immutably
           currentContext = this.mergeContext(currentContext, result.context)
         }
       } catch (error) {
-        // Log middleware error but continue execution with other middleware (fault tolerance)
         console.warn(`Middleware ${middleware.name} failed in ${phase}:`, error)
       }
     }
@@ -66,39 +75,34 @@ export class MiddlewareEngine {
     return { context: currentContext }
   }
 
-  /**
-   * Immutable context merging
-   * Creates new context object without mutating the original
-   */
   private mergeContext (
     current: MiddlewareContext,
     updates: NonNullable<MiddlewareResult['context']>
   ): MiddlewareContext {
+    if (updates.request == null && updates.shared == null) {
+      return current
+    }
+
+    let mergedRequest = current.request
+    if (updates.request != null) {
+      const mergedHeaders = updates.request.headers != null
+        ? { ...current.request.headers, ...updates.request.headers }
+        : current.request.headers
+
+      mergedRequest = {
+        ...current.request,
+        ...updates.request,
+        headers: mergedHeaders
+      }
+    }
+
     return {
       ...current,
-
-      // Merge request object if provided
-      request: updates.request != null
-        ? {
-            ...current.request,
-            ...updates.request,
-            headers: updates.request.headers != null
-              ? {
-                  ...current.request.headers,
-                  ...updates.request.headers
-                }
-              : current.request.headers
-          }
-        : current.request,
-
-      // Replace shared map if provided (maps are immutable)
+      request: mergedRequest,
       shared: updates.shared ?? current.shared
     }
   }
 
-  /**
-   * Get registered middleware for debugging
-   */
   getRegisteredMiddleware (): readonly Middleware[] {
     return [...this.middleware]
   }

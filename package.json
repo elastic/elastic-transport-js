@@ -57,7 +57,8 @@
     "prebuild": "npm run clean-build && npm run lint",
     "build": "tsc",
     "clean-build": "rimraf ./lib && mkdir lib",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "benchmark:real": "npm run build && node scripts/benchmark/benchmark-transport-real.js"
   },
   "repository": {
     "type": "git",

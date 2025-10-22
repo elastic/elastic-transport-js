@@ -66,11 +66,24 @@ import {
   kRedaction,
   kRetryBackoff,
   kOtelTracer,
-  kOtelOptions
+  kOtelOptions,
+  kMiddlewareEngine,
+  kUseMiddleware
 } from './symbols'
 import { setTimeout } from 'node:timers/promises'
 import opentelemetry, { Attributes, Exception, SpanKind, SpanStatusCode, Span, Tracer } from '@opentelemetry/api'
 import { suppressTracing } from '@opentelemetry/core'
+import {
+  MiddlewareEngine,
+  MiddlewareContext,
+  OpenTelemetryMiddleware,
+  HeaderManagementMiddleware,
+  ContentTypeMiddleware,
+  CompressionMiddleware,
+  ErrorRedactionMiddleware,
+  RetryMiddleware,
+  ProductCheckMiddleware
+} from './middleware'
 
 const nodeVersion = process.versions.node
 const { version: clientVersion } = require('../package.json') // eslint-disable-line
@@ -117,6 +130,7 @@ export interface TransportOptions {
   retryBackoff?: (min: number, max: number, attempt: number) => number
   openTelemetry?: OpenTelemetryOptions
   enableMetaHeader?: boolean
+  useMiddleware?: boolean
 }
 
 export interface TransportRequestMetadata {
@@ -230,6 +244,8 @@ export default class Transport {
   [kRetryBackoff]: (min: number, max: number, attempt: number) => number
   [kOtelTracer]: Tracer
   [kOtelOptions]: OpenTelemetryOptions
+  [kMiddlewareEngine]: MiddlewareEngine
+  [kUseMiddleware]: boolean
 
   static sniffReasons = {
     SNIFF_ON_START: 'sniff-on-start',
@@ -300,6 +316,48 @@ export default class Transport {
       enabled: otelEnabledDefault,
       suppressInternalInstrumentation: false
     }, opts.openTelemetry ?? {})
+
+    this[kUseMiddleware] = opts.useMiddleware === true
+    this[kMiddlewareEngine] = new MiddlewareEngine()
+
+    if (this[kUseMiddleware]) {
+      this[kMiddlewareEngine].register(new OpenTelemetryMiddleware({
+        enabled: this[kOtelOptions].enabled,
+        suppressInternalInstrumentation: this[kOtelOptions].suppressInternalInstrumentation,
+        tracer: this[kOtelTracer]
+      }))
+
+      this[kMiddlewareEngine].register(new HeaderManagementMiddleware({
+        userAgent,
+        clientMeta: (opts.enableMetaHeader == null ? true : opts.enableMetaHeader) ? `et=${clientVersion as string},js=${nodeVersion}` : undefined,
+        acceptEncoding: opts.compression === true ? 'gzip,deflate' : undefined,
+        opaqueIdPrefix: this[kOpaqueIdPrefix],
+        defaultHeaders: opts.headers
+      }))
+
+      this[kMiddlewareEngine].register(new ContentTypeMiddleware({
+        serializer: this[kSerializer],
+        jsonContentType: this[kJsonContentType],
+        ndjsonContentType: this[kNdjsonContentType],
+        acceptHeader: this[kAcceptHeader]
+      }))
+
+      this[kMiddlewareEngine].register(new CompressionMiddleware({
+        enabled: opts.compression
+      }))
+
+      this[kMiddlewareEngine].register(new ErrorRedactionMiddleware(this[kRedaction]))
+
+      this[kMiddlewareEngine].register(new RetryMiddleware({
+        maxRetries: this[kMaxRetries],
+        retryOnTimeout: this[kRetryOnTimeout],
+        retryBackoff: this[kRetryBackoff]
+      }))
+
+      this[kMiddlewareEngine].register(new ProductCheckMiddleware({
+        productCheck: this[kProductCheck]
+      }))
+    }
 
     if (opts.sniffOnStart === true) {
       this.sniff({
@@ -707,23 +765,24 @@ export default class Transport {
   async request<TResponse = unknown, TContext = any> (params: TransportRequestParams, options?: TransportRequestOptionsWithMeta): Promise<TransportResult<TResponse, TContext>>
   async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptions): Promise<TResponse>
   async request (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<any> {
+    if (this[kUseMiddleware]) {
+      return await this._requestWithMiddleware(params, options)
+    }
+
     const otelOptions = Object.assign({}, this[kOtelOptions], options.openTelemetry ?? {})
 
-    // wrap in OpenTelemetry span
     if ((otelOptions?.enabled ?? true) && params.meta?.name != null) {
       let context = opentelemetry.context.active()
       if (otelOptions.suppressInternalInstrumentation ?? false) {
         context = suppressTracing(context)
       }
 
-      // gather OpenTelemetry attributes
       const attributes: Attributes = {
         'db.system': 'elasticsearch',
         'http.request.method': params.method,
         'db.operation.name': params.meta?.name
       }
 
-      // add path params as otel attributes
       if (params.meta?.pathParts != null) {
         for (const [key, value] of Object.entries(params.meta.pathParts)) {
           if (value == null) continue
@@ -741,7 +800,6 @@ export default class Transport {
                 const keys = Object.keys(value)
                 indices = indices.concat(keys.map(v => v.toString()))
               } catch {
-                // ignore
               }
             }
             if (indices.length > 0) attributes['db.collection.name'] = indices.join(', ')
@@ -768,6 +826,276 @@ export default class Transport {
     } else {
       return await this._request(params, options)
     }
+  }
+
+  private async _requestWithMiddleware (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<any> {
+    const meta: TransportResult['meta'] = {
+      context: null,
+      request: {
+        params: {
+          method: params.method,
+          path: params.path
+        },
+        options,
+        id: options.id ?? this[kGenerateRequestId](params, options)
+      },
+      name: this[kName],
+      connection: null,
+      attempts: 0,
+      aborted: false
+    }
+
+    if (this[kContext] != null && options.context != null) {
+      meta.context = Object.assign({}, this[kContext], options.context)
+    } else if (this[kContext] !== null) {
+      meta.context = this[kContext]
+    } else if (options.context != null) {
+      meta.context = options.context
+    }
+
+    const querystring = options.querystring == null
+      ? this[kSerializer].qserialize(params.querystring)
+      : this[kSerializer].qserialize(Object.assign({}, params.querystring, options.querystring))
+
+    let middlewareContext: MiddlewareContext = {
+      request: {
+        method: params.method,
+        path: params.path,
+        body: params.body,
+        querystring,
+        headers: {}
+      },
+      params,
+      options,
+      meta: {
+        requestId: meta.request.id,
+        name: this[kName],
+        context: meta.context as Context,
+        connection: null,
+        attempts: 0
+      },
+      shared: new Map()
+    }
+
+    this[kDiagnostic].emit('serialization', null, { meta, body: undefined, statusCode: 0, headers: {}, warnings: null })
+
+    const beforeResult = await this[kMiddlewareEngine].executePhase('onBeforeRequest', middlewareContext)
+    if (beforeResult.error != null) {
+      throw beforeResult.error
+    }
+    middlewareContext = beforeResult.context
+
+    const requestResult = await this[kMiddlewareEngine].executePhase('onRequest', middlewareContext)
+    if (requestResult.error != null) {
+      throw requestResult.error
+    }
+    middlewareContext = requestResult.context
+
+    const connectionParams: ConnectionRequestParams = {
+      method: middlewareContext.request.method,
+      path: middlewareContext.request.path,
+      body: middlewareContext.request.body as string | Buffer | ReadableStream | undefined,
+      querystring: middlewareContext.request.querystring,
+      headers: middlewareContext.request.headers as http.IncomingHttpHeaders
+    }
+
+    const result: TransportResult = {
+      body: undefined,
+      statusCode: 0,
+      headers: {},
+      meta,
+      get warnings () {
+        if (this.headers?.warning == null) {
+          return null
+        }
+        const { warning } = this.headers
+        const warnings: string[] = Array.isArray(warning) ? warning : [warning]
+        return warnings
+          .flatMap(w => w.split(/(?!\B"[^"]*),(?![^"]*"\B)/))
+          .filter((warning) => warning.match(/^\d\d\d Elasticsearch-/))
+      }
+    }
+
+    const returnMeta = options.meta ?? false
+    const maxRetries = isStream(params.body ?? params.bulkBody) ? 0 : (typeof options.maxRetries === 'number' ? options.maxRetries : this[kMaxRetries])
+    const signal = options.signal
+    const maxResponseSize = options.maxResponseSize ?? this[kMaxResponseSize]
+    const maxCompressedResponseSize = options.maxCompressedResponseSize ?? this[kMaxCompressedResponseSize]
+    const errorOptions: ErrorOptions = {
+      redaction: typeof options.redaction === 'object' ? options.redaction : this[kRedaction]
+    }
+
+    while (meta.attempts <= maxRetries) {
+      try {
+        if (signal?.aborted === true) {
+          throw new RequestAbortedError('Request has been aborted by the user', result, errorOptions)
+        }
+
+        meta.connection = this.getConnection({
+          requestId: meta.request.id,
+          context: meta.context
+        })
+        if (meta.connection === null) {
+          throw new NoLivingConnectionsError('There are no living connections', result, errorOptions)
+        }
+
+        middlewareContext = {
+          ...middlewareContext,
+          meta: {
+            ...middlewareContext.meta,
+            connection: meta.connection,
+            attempts: meta.attempts
+          }
+        }
+
+        this[kDiagnostic].emit('request', null, result)
+
+        let timeout = options.requestTimeout ?? this[kRequestTimeout] ?? undefined
+        if (timeout != null) timeout = toMs(timeout)
+
+        let { statusCode, headers, body } = await meta.connection.request(connectionParams, {
+          requestId: meta.request.id,
+          name: this[kName],
+          context: meta.context,
+          maxResponseSize,
+          maxCompressedResponseSize,
+          signal,
+          timeout,
+          ...(options.asStream === true ? { asStream: true } : null)
+        })
+        result.statusCode = statusCode
+        result.headers = headers
+
+        if (options.asStream === true) {
+          result.body = body
+          this[kDiagnostic].emit('response', null, result)
+          await this[kMiddlewareEngine].executePhase('onComplete', middlewareContext)
+          return returnMeta ? result : body
+        }
+
+        const contentEncoding = (headers['content-encoding'] ?? '').toLowerCase()
+        if (contentEncoding.includes('gzip') || contentEncoding.includes('deflate')) {
+          body = await unzip(body)
+        }
+
+        if (Buffer.isBuffer(body) && !isBinary(headers['content-type'] ?? '')) {
+          body = body.toString()
+        }
+
+        const isHead = params.method === 'HEAD'
+        if (headers['content-type'] !== undefined &&
+            (headers['content-type']?.includes('application/json') ||
+             headers['content-type']?.includes('application/vnd.elasticsearch+json')) &&
+             !isHead && body !== '') {
+          result.body = this[kSerializer].deserialize(body as string)
+        } else {
+          result.body = isHead && statusCode < 400 ? true : body
+        }
+
+        const responseResult = await this[kMiddlewareEngine].executePhase('onResponse', middlewareContext, result)
+        if (responseResult.error != null) {
+          throw responseResult.error
+        }
+
+        const ignoreStatusCode = (Array.isArray(options.ignore) && options.ignore.includes(statusCode)) ||
+          (isHead && statusCode === 404)
+
+        if (!ignoreStatusCode && (statusCode === 502 || statusCode === 503 || statusCode === 504)) {
+          this[kConnectionPool].markDead(meta.connection)
+          if (meta.attempts < maxRetries) {
+            meta.attempts++
+            debug(`Retrying request, there are still ${maxRetries - meta.attempts} attempts`, params)
+            continue
+          }
+        } else {
+          this[kConnectionPool].markAlive(meta.connection)
+        }
+
+        if (!ignoreStatusCode && statusCode >= 400) {
+          throw new ResponseError(result, errorOptions)
+        } else {
+          if (isHead && statusCode === 404) {
+            result.body = false
+          }
+          this[kDiagnostic].emit('response', null, result)
+          await this[kMiddlewareEngine].executePhase('onComplete', middlewareContext)
+          return returnMeta ? result : result.body
+        }
+      } catch (error: any) {
+        const errorResult = await this[kMiddlewareEngine].executePhase('onError', middlewareContext, error)
+        let errorToThrow = error
+        if (errorResult.error != null) {
+          errorToThrow = errorResult.error
+        }
+
+        switch (errorToThrow.name) {
+          case 'ProductNotSupportedError':
+          case 'NoLivingConnectionsError':
+          case 'DeserializationError':
+          case 'ResponseError':
+            this[kDiagnostic].emit('response', errorToThrow, result)
+            await this[kMiddlewareEngine].executePhase('onComplete', middlewareContext)
+            throw errorToThrow
+          case 'RequestAbortedError': {
+            meta.aborted = true
+            const wrappedError = new RequestAbortedError(errorToThrow.message, result, errorOptions)
+            this[kDiagnostic].emit('response', wrappedError, result)
+            await this[kMiddlewareEngine].executePhase('onComplete', middlewareContext)
+            throw wrappedError
+          }
+          // @ts-expect-error `case` fallthrough is intentional: should retry if retryOnTimeout is true
+          case 'TimeoutError':
+            if (!this[kRetryOnTimeout]) {
+              const wrappedError = new TimeoutError(errorToThrow.message, result, errorOptions)
+              this[kDiagnostic].emit('response', wrappedError, result)
+              await this[kMiddlewareEngine].executePhase('onComplete', middlewareContext)
+              throw wrappedError
+            }
+          // eslint-disable-next-line no-fallthrough
+          case 'ConnectionError': {
+            this[kConnectionPool].markDead(meta.connection as Connection)
+
+            if (this[kSniffOnConnectionFault]) {
+              this.sniff({
+                reason: Transport.sniffReasons.SNIFF_ON_CONNECTION_FAULT,
+                requestId: meta.request.id,
+                context: meta.context
+              })
+            }
+
+            if (meta.attempts < maxRetries) {
+              meta.attempts++
+              debug(`Retrying request, there are still ${maxRetries - meta.attempts} attempts`, params)
+
+              if (meta.attempts >= this[kConnectionPool].size) {
+                const backoff = options.retryBackoff ?? this[kRetryBackoff]
+                const backoffWait = backoff(0, 4, meta.attempts)
+                if (backoffWait > 0) {
+                  await setTimeout(backoffWait * 1000)
+                }
+              }
+
+              continue
+            }
+
+            const wrappedError = errorToThrow.name === 'TimeoutError'
+              ? new TimeoutError(errorToThrow.message, result, errorOptions)
+              : new ConnectionError(errorToThrow.message, result, errorOptions)
+            this[kDiagnostic].emit('response', wrappedError, result)
+            await this[kMiddlewareEngine].executePhase('onComplete', middlewareContext)
+            throw wrappedError
+          }
+
+          default:
+            this[kDiagnostic].emit('response', errorToThrow, result)
+            await this[kMiddlewareEngine].executePhase('onComplete', middlewareContext)
+            throw errorToThrow
+        }
+      }
+    }
+
+    await this[kMiddlewareEngine].executePhase('onComplete', middlewareContext)
+    return returnMeta ? result : result.body
   }
 
   getConnection (opts: GetConnectionOptions): Connection | null {
