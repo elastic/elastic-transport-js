@@ -136,6 +136,7 @@ export interface TransportOptions {
 export interface TransportRequestMetadata {
   name: string
   pathParts?: Record<string, any>
+  acceptedParams?: string[]
 }
 
 export interface TransportRequestParams {
