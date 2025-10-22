@@ -38,7 +38,9 @@
     "./connection/UndiciConnection": "./lib/connection/UndiciConnection.js",
     "./lib/connection/UndiciConnection": "./lib/connection/UndiciConnection.js",
     "./pool/WeightedConnectionPool": "./lib/pool/WeightedConnectionPool.js",
-    "./lib/pool/WeightedConnectionPool": "./lib/pool/WeightedConnectionPool.js"
+    "./lib/pool/WeightedConnectionPool": "./lib/pool/WeightedConnectionPool.js",
+    "./middleware": "./lib/middleware/index.js",
+    "./lib/middleware": "./lib/middleware/index.js"
   },
   "scripts": {
     "test": "npm run build && npm run lint && tap",
