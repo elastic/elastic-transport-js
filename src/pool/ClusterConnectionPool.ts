@@ -36,6 +36,8 @@ export default class ClusterConnectionPool extends BaseConnectionPool {
   resurrectTimeoutCutoff: number
   pingTimeout: number
   resurrectStrategy: number
+  private roundRobinIndex: number
+  private readonly useWeightedRoundRobin: boolean
 
   static resurrectStrategies = {
     none: 0,
@@ -43,10 +45,12 @@ export default class ClusterConnectionPool extends BaseConnectionPool {
     optimistic: 2
   }
 
-  constructor (opts: ConnectionPoolOptions) {
+  constructor (opts: ConnectionPoolOptions & { useWeightedRoundRobin?: boolean }) {
     super(opts)
 
     this.dead = []
+    this.roundRobinIndex = 0
+    this.useWeightedRoundRobin = opts.useWeightedRoundRobin ?? false
     // the resurrect timeout is 60s
     this.resurrectTimeout = 1000 * 60
     // number of consecutive failures after which
@@ -194,6 +198,54 @@ export default class ClusterConnectionPool extends BaseConnectionPool {
   }
 
   /**
+   * Round-robin selector that cycles through available connections
+   * @param connections Array of available connections
+   * @returns Selected connection
+   */
+  private roundRobinSelector (connections: Connection[]): Connection | null {
+    if (connections.length === 0) return null
+    const selected = connections[this.roundRobinIndex % connections.length]
+    this.roundRobinIndex = (this.roundRobinIndex + 1) % connections.length
+    return selected
+  }
+
+  /**
+   * Weighted round-robin selector that considers connection weights
+   * @param connections Array of available connections
+   * @returns Selected connection
+   */
+  private weightedRoundRobinSelector (connections: Connection[]): Connection | null {
+    if (connections.length === 0) return null
+
+    // Simple weighted round-robin implementation
+    // This is a simplified version compared to WeightedConnectionPool
+    // but provides better load distribution than simple round-robin
+    let totalWeight = 0
+    for (const conn of connections) {
+      totalWeight += (conn.weight ?? 1)
+    }
+
+    if (totalWeight === 0) {
+      // Fallback to simple round-robin if no weights
+      return this.roundRobinSelector(connections)
+    }
+
+    let currentWeight = 0
+    const targetWeight = this.roundRobinIndex % totalWeight
+
+    for (const conn of connections) {
+      currentWeight += (conn.weight ?? 1)
+      if (currentWeight > targetWeight) {
+        this.roundRobinIndex = (this.roundRobinIndex + 1) % totalWeight
+        return conn
+      }
+    }
+
+    // Fallback to first connection
+    return connections[0]
+  }
+
+  /**
    * Returns an alive connection if present,
    * otherwise returns a dead connection.
    * By default it filters the `master` only nodes.
@@ -205,7 +257,11 @@ export default class ClusterConnectionPool extends BaseConnectionPool {
    */
   getConnection (opts: GetConnectionOptions): Connection | null {
     const filter: nodeFilterFn = opts.filter != null ? opts.filter : defaultNodeFilter
-    const selector = opts.selector != null ? opts.selector : (c: Connection[]) => c[0]
+    const selector = opts.selector != null
+      ? opts.selector
+      : (this.useWeightedRoundRobin
+          ? this.weightedRoundRobinSelector.bind(this)
+          : this.roundRobinSelector.bind(this))
 
     this.resurrect({
       now: opts.now,
@@ -240,6 +296,7 @@ export default class ClusterConnectionPool extends BaseConnectionPool {
   async empty (): Promise<void> {
     await super.empty()
     this.dead = []
+    this.roundRobinIndex = 0
   }
 
   /**
@@ -251,6 +308,7 @@ export default class ClusterConnectionPool extends BaseConnectionPool {
   update (connections: Array<Connection | ConnectionOptions>): this {
     super.update(connections)
     this.dead = []
+    this.roundRobinIndex = 0
     return this
   }
 }
