@@ -28,6 +28,7 @@ export class OpenTelemetryMiddleware implements Middleware {
     return this.options.enabled !== false
   }
 
+  // ORIGINAL: Transport.ts lines 781-818 (span creation and attribute setting)
   onBeforeRequest = (ctx: MiddlewareContext): MiddlewareResult | undefined => {
     if (!this.enabled || ctx.params.meta?.name == null) {
       return undefined
@@ -92,6 +93,7 @@ export class OpenTelemetryMiddleware implements Middleware {
     return undefined
   }
 
+  // ORIGINAL: Transport.ts lines 617-626 (response status and cluster attributes)
   onResponse = (ctx: MiddlewareContext, result: TransportResult): MiddlewareResult | undefined => {
     const span = this.spans.get(ctx)
     if (span == null) return undefined
@@ -109,6 +111,7 @@ export class OpenTelemetryMiddleware implements Middleware {
     return undefined
   }
 
+  // ORIGINAL: Transport.ts lines 825-828 (error recording)
   onError = (ctx: MiddlewareContext, error: Error): MiddlewareResult | undefined => {
     const span = this.spans.get(ctx)
     if (span == null) return undefined
@@ -120,6 +123,7 @@ export class OpenTelemetryMiddleware implements Middleware {
     return undefined
   }
 
+  // ORIGINAL: Transport.ts line 832 (span end)
   onComplete = (ctx: MiddlewareContext): void => {
     const span = this.spans.get(ctx)
     if (span == null) return

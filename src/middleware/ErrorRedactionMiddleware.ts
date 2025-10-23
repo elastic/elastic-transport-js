@@ -12,6 +12,7 @@ export class ErrorRedactionMiddleware implements Middleware {
 
   constructor (private readonly options: RedactionOptions) {}
 
+  // ORIGINAL: Transport.ts lines 467-469 (errorOptions configuration)
   onError = (ctx: MiddlewareContext, error: Error): MiddlewareResult | undefined => {
     if (this.options.type === 'off') {
       return undefined

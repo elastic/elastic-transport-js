@@ -21,6 +21,7 @@ export class HeaderManagementMiddleware implements Middleware {
 
   constructor (private readonly options: HeaderManagementOptions) {}
 
+  // ORIGINAL: Transport.ts lines 281-286 (constructor), 474-481 (_request method)
   onBeforeRequestSync = (ctx: MiddlewareContext): MiddlewareResult | undefined => {
     const headers: http.IncomingHttpHeaders = {}
 

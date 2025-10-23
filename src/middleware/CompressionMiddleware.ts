@@ -29,6 +29,7 @@ export class CompressionMiddleware implements Middleware {
     return this.options.enabled === true
   }
 
+  // ORIGINAL: Transport.ts line 285 (accept-encoding header in constructor)
   onBeforeRequestSync = (ctx: MiddlewareContext): MiddlewareResult | undefined => {
     if (!this.enabled) {
       return undefined
@@ -45,6 +46,7 @@ export class CompressionMiddleware implements Middleware {
     }
   }
 
+  // ORIGINAL: Transport.ts lines 531-553 (gzip compression for streams and buffers)
   onRequest = async (ctx: MiddlewareContext): Promise<MiddlewareResult | undefined> => {
     if (!this.enabled) {
       return undefined

@@ -17,6 +17,7 @@ export class ProductCheckMiddleware implements Middleware {
 
   constructor (private readonly options: ProductCheckOptions) {}
 
+  // ORIGINAL: Transport.ts lines 628-634 (x-elastic-product header validation)
   onResponse = (ctx: MiddlewareContext, result: TransportResult): MiddlewareResult | undefined => {
     if (this.options.productCheck == null) {
       return undefined

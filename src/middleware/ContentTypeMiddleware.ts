@@ -26,6 +26,7 @@ export class ContentTypeMiddleware implements Middleware {
 
   constructor (private readonly options: ContentTypeOptions) {}
 
+  // ORIGINAL: Transport.ts lines 483-520 (JSON/NDJSON serialization), 555-562 (default headers)
   onRequest = (ctx: MiddlewareContext): MiddlewareResult | undefined => {
     const headers = { ...ctx.request.headers }
     let body = ctx.request.body

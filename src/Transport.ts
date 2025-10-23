@@ -278,6 +278,7 @@ export default class Transport {
 
     this[kNodeFilter] = opts.nodeFilter ?? defaultNodeFilter
     this[kNodeSelector] = opts.nodeSelector ?? roundRobinSelector()
+    // MIDDLEWARE: HeaderManagementMiddleware handles user-agent, client-meta, accept-encoding, and custom headers
     this[kHeaders] = Object.assign({},
       { 'user-agent': userAgent },
       (opts.enableMetaHeader == null ? true : opts.enableMetaHeader) ? { 'x-elastic-client-meta': `et=${clientVersion as string},js=${nodeVersion}` } : null,
@@ -311,6 +312,7 @@ export default class Transport {
     this[kRetryBackoff] = opts.retryBackoff ?? retryBackoff
     this[kOtelTracer] = opentelemetry.trace.getTracer('@elastic/transport', clientVersion)
 
+    // MIDDLEWARE: OpenTelemetryMiddleware handles distributed tracing
     const otelEnabledDefault = process.env.OTEL_ELASTICSEARCH_ENABLED != null ? (process.env.OTEL_ELASTICSEARCH_ENABLED.toLowerCase() !== 'false') : true
     this[kOtelOptions] = Object.assign({}, {
       enabled: otelEnabledDefault,
@@ -469,6 +471,7 @@ export default class Transport {
     }
 
     this[kDiagnostic].emit('serialization', null, result)
+    // MIDDLEWARE: HeaderManagementMiddleware merges default and custom headers, handles opaque-id
     const headers = Object.assign({}, this[kHeaders], lowerCaseHeaders(options.headers))
 
     if (options.opaqueId !== undefined) {
@@ -477,6 +480,7 @@ export default class Transport {
         : options.opaqueId
     }
 
+    // MIDDLEWARE: ContentTypeMiddleware handles JSON/NDJSON serialization and content-type headers
     // handle json body
     if (params.body != null) {
       if (shouldSerialize(params.body)) {
@@ -524,6 +528,7 @@ export default class Transport {
       )
     }
 
+    // MIDDLEWARE: CompressionMiddleware handles gzip compression for both streams and buffers
     // handle compression
     if (connectionParams.body !== '' && connectionParams.body != null) {
       if (isStream(connectionParams.body)) {
@@ -547,6 +552,7 @@ export default class Transport {
       }
     }
 
+    // MIDDLEWARE: ContentTypeMiddleware sets default accept and content-type headers
     headers.accept = headers.accept ?? this[kAcceptHeader]
 
     // Set default content-type header for empty requests
@@ -570,6 +576,7 @@ export default class Transport {
           throw new NoLivingConnectionsError('There are no living connections', result, errorOptions)
         }
 
+        // MIDDLEWARE: OpenTelemetryMiddleware sets URL and server attributes on span
         // generate required OpenTelemetry attributes from the request URL
         const requestUrl = meta.connection.url
         otelSpan?.setAttributes({
@@ -607,6 +614,7 @@ export default class Transport {
         result.statusCode = statusCode
         result.headers = headers
 
+        // MIDDLEWARE: OpenTelemetryMiddleware sets response status and cluster/node attributes
         otelSpan?.setAttribute('db.response.status_code', statusCode.toString())
 
         if (headers['x-found-handling-cluster'] != null) {
@@ -617,6 +625,7 @@ export default class Transport {
           otelSpan?.setAttribute('elasticsearch.node.name', headers['x-found-handling-instance'])
         }
 
+        // MIDDLEWARE: ProductCheckMiddleware validates x-elastic-product header
         if (this[kProductCheck] != null && headers['x-elastic-product'] !== this[kProductCheck] && statusCode >= 200 && statusCode < 300) {
           /* eslint-disable @typescript-eslint/prefer-ts-expect-error */
           // @ts-ignore
@@ -659,6 +668,7 @@ export default class Transport {
         const ignoreStatusCode = (Array.isArray(options.ignore) && options.ignore.includes(statusCode)) ||
           (isHead && statusCode === 404)
 
+        // MIDDLEWARE: RetryMiddleware tracks retry attempts and configuration
         if (!ignoreStatusCode && (statusCode === 502 || statusCode === 503 || statusCode === 504)) {
           // if the statusCode is 502/3/4 we should run our retry strategy
           // and mark the connection as dead
@@ -686,6 +696,8 @@ export default class Transport {
           return returnMeta ? result : result.body
         }
       } catch (error: any) {
+        // MIDDLEWARE: ErrorRedactionMiddleware configures error redaction options
+        // MIDDLEWARE: RetryMiddleware handles retry logic and backoff strategy
         switch (error.name) {
           // should not retry
           case 'ProductNotSupportedError':
@@ -769,6 +781,7 @@ export default class Transport {
       return await this._requestWithMiddleware(params, options)
     }
 
+    // MIDDLEWARE: OpenTelemetryMiddleware creates spans and sets operation attributes
     const otelOptions = Object.assign({}, this[kOtelOptions], options.openTelemetry ?? {})
 
     if ((otelOptions?.enabled ?? true) && params.meta?.name != null) {
@@ -807,6 +820,7 @@ export default class Transport {
         }
       }
 
+      // MIDDLEWARE: OpenTelemetryMiddleware manages span lifecycle and error recording
       return await this[kOtelTracer].startActiveSpan(params.meta.name, { attributes, kind: SpanKind.CLIENT }, context, async (otelSpan: Span) => {
         let response
         try {
