@@ -197,11 +197,6 @@ export default class ClusterConnectionPool extends BaseConnectionPool {
     }
   }
 
-  /**
-   * Round-robin selector that cycles through available connections
-   * @param connections Array of available connections
-   * @returns Selected connection
-   */
   private roundRobinSelector (connections: Connection[]): Connection | null {
     if (connections.length === 0) return null
     const selected = connections[this.roundRobinIndex % connections.length]
@@ -209,24 +204,15 @@ export default class ClusterConnectionPool extends BaseConnectionPool {
     return selected
   }
 
-  /**
-   * Weighted round-robin selector that considers connection weights
-   * @param connections Array of available connections
-   * @returns Selected connection
-   */
   private weightedRoundRobinSelector (connections: Connection[]): Connection | null {
     if (connections.length === 0) return null
 
-    // Simple weighted round-robin implementation
-    // This is a simplified version compared to WeightedConnectionPool
-    // but provides better load distribution than simple round-robin
     let totalWeight = 0
     for (const conn of connections) {
       totalWeight += (conn.weight ?? 1)
     }
 
     if (totalWeight === 0) {
-      // Fallback to simple round-robin if no weights
       return this.roundRobinSelector(connections)
     }
 
@@ -241,7 +227,6 @@ export default class ClusterConnectionPool extends BaseConnectionPool {
       }
     }
 
-    // Fallback to first connection
     return connections[0]
   }
 
