@@ -415,3 +415,212 @@ test('empty should reset dead list', async t => {
   t.same(pool.dead, [])
 })
 
+test('round-robin selector', t => {
+  const pool = new ClusterConnectionPool({ Connection: HttpConnection })
+  const connections = [
+    { id: 'node-1', url: { href: 'http://localhost:9200' } },
+    { id: 'node-2', url: { href: 'http://localhost:9201' } },
+    { id: 'node-3', url: { href: 'http://localhost:9202' } }
+  ]
+
+  const results = []
+  for (let i = 0; i < 9; i++) {
+    const selected = pool.roundRobinSelector(connections)
+    results.push(selected.id)
+  }
+
+  const expected = ['node-1', 'node-2', 'node-3', 'node-1', 'node-2', 'node-3', 'node-1', 'node-2', 'node-3']
+  t.same(results, expected)
+  t.end()
+})
+
+test('round-robin selector with empty connections', t => {
+  const pool = new ClusterConnectionPool({ Connection: HttpConnection })
+  const selected = pool.roundRobinSelector([])
+  t.equal(selected, null)
+  t.end()
+})
+
+test('weighted round-robin selector', t => {
+  const pool = new ClusterConnectionPool({ Connection: HttpConnection, useWeightedRoundRobin: true })
+  const connections = [
+    { id: 'node-1', url: { href: 'http://localhost:9200' }, weight: 1 },
+    { id: 'node-2', url: { href: 'http://localhost:9201' }, weight: 2 },
+    { id: 'node-3', url: { href: 'http://localhost:9202' }, weight: 3 }
+  ]
+
+  const results = []
+  for (let i = 0; i < 12; i++) {
+    const selected = pool.weightedRoundRobinSelector(connections)
+    results.push(selected.id)
+  }
+
+  const counts = { 'node-1': 0, 'node-2': 0, 'node-3': 0 }
+  results.forEach(id => { counts[id]++ })
+
+  t.equal(counts['node-1'], 2)
+  t.equal(counts['node-2'], 4)
+  t.equal(counts['node-3'], 6)
+  t.end()
+})
+
+test('weighted round-robin selector with no weights', t => {
+  const pool = new ClusterConnectionPool({ Connection: HttpConnection, useWeightedRoundRobin: true })
+  const connections = [
+    { id: 'node-1', url: { href: 'http://localhost:9200' } },
+    { id: 'node-2', url: { href: 'http://localhost:9201' } }
+  ]
+
+  const results = []
+  for (let i = 0; i < 4; i++) {
+    const selected = pool.weightedRoundRobinSelector(connections)
+    results.push(selected.id)
+  }
+
+  const expected = ['node-1', 'node-2', 'node-1', 'node-2']
+  t.same(results, expected)
+  t.end()
+})
+
+test('weighted round-robin selector with empty connections', t => {
+  const pool = new ClusterConnectionPool({ Connection: HttpConnection, useWeightedRoundRobin: true })
+  const selected = pool.weightedRoundRobinSelector([])
+  t.equal(selected, null)
+  t.end()
+})
+
+test('getConnection uses round-robin by default', t => {
+  const pool = new ClusterConnectionPool({ Connection: HttpConnection })
+  pool.addConnection('http://localhost:9200')
+  pool.addConnection('http://localhost:9201')
+  pool.addConnection('http://localhost:9202')
+
+  const results: string[] = []
+  for (let i = 0; i < 6; i++) {
+    const connection = pool.getConnection({
+      now: Date.now(),
+      requestId: `test-${i}`,
+      name: 'test',
+      context: {}
+    })
+    if (connection?.id) results.push(connection.id)
+  }
+
+  const expected = ['http://localhost:9200/', 'http://localhost:9201/', 'http://localhost:9202/', 'http://localhost:9200/', 'http://localhost:9201/', 'http://localhost:9202/']
+  t.same(results, expected)
+  t.end()
+})
+
+test('getConnection uses weighted round-robin when enabled', t => {
+  const pool = new ClusterConnectionPool({ 
+    Connection: HttpConnection, 
+    useWeightedRoundRobin: true 
+  })
+  pool.addConnection('http://localhost:9200')
+  pool.addConnection('http://localhost:9201')
+  pool.addConnection('http://localhost:9202')
+
+  pool.connections[0].weight = 1
+  pool.connections[1].weight = 2
+  pool.connections[2].weight = 3
+
+  const results: string[] = []
+  for (let i = 0; i < 12; i++) {
+    const connection = pool.getConnection({
+      now: Date.now(),
+      requestId: `test-${i}`,
+      name: 'test',
+      context: {}
+    })
+    if (connection?.id) results.push(connection.id)
+  }
+
+  const counts: Record<string, number> = { 'http://localhost:9200/': 0, 'http://localhost:9201/': 0, 'http://localhost:9202/': 0 }
+  results.forEach(id => { counts[id]++ })
+
+  t.equal(counts['http://localhost:9200/'], 2)
+  t.equal(counts['http://localhost:9201/'], 4)
+  t.equal(counts['http://localhost:9202/'], 6)
+  t.end()
+})
+
+
+test('round-robin continues after pool empty and re-add', async t => {
+  const pool = new ClusterConnectionPool({ Connection: HttpConnection })
+  pool.addConnection('http://localhost:9200')
+  pool.addConnection('http://localhost:9201')
+  pool.addConnection('http://localhost:9202')
+
+  pool.getConnection({
+    now: Date.now(),
+    requestId: 'test-1',
+    name: 'test',
+    context: {}
+  })
+
+  await pool.empty()
+  
+  pool.addConnection('http://localhost:9200')
+  pool.addConnection('http://localhost:9201')
+  
+  const conn2 = pool.getConnection({
+    now: Date.now(),
+    requestId: 'test-2',
+    name: 'test',
+    context: {}
+  })
+
+  t.equal(conn2?.id, 'http://localhost:9200/')
+  t.end()
+})
+
+test('round-robin resets after pool update', t => {
+  const pool = new ClusterConnectionPool({ Connection: HttpConnection })
+  pool.addConnection('http://localhost:9200')
+  pool.addConnection('http://localhost:9201')
+  pool.addConnection('http://localhost:9202')
+
+  pool.getConnection({ now: Date.now(), requestId: 'test-1', name: 'test', context: {} })
+  pool.getConnection({ now: Date.now(), requestId: 'test-2', name: 'test', context: {} })
+
+  const results1: string[] = []
+  for (let i = 0; i < 3; i++) {
+    const conn = pool.getConnection({ now: Date.now(), requestId: `test-${i}`, name: 'test', context: {} })
+    if (conn?.id) results1.push(conn.id)
+  }
+
+  pool.empty()
+  pool.addConnection('http://localhost:9203')
+  pool.addConnection('http://localhost:9204')
+
+  const conn = pool.getConnection({
+    now: Date.now(),
+    requestId: 'test-final',
+    name: 'test',
+    context: {}
+  })
+
+  t.equal(conn?.id, 'http://localhost:9203/')
+  t.end()
+})
+
+test('custom selector overrides default round-robin', t => {
+  const pool = new ClusterConnectionPool({ Connection: HttpConnection })
+  pool.addConnection('http://localhost:9200')
+  pool.addConnection('http://localhost:9201')
+  pool.addConnection('http://localhost:9202')
+
+  const customSelector = (connections: Connection[]) => connections[connections.length - 1]
+
+  const connection = pool.getConnection({
+    now: Date.now(),
+    requestId: 'test-1',
+    name: 'test',
+    context: {},
+    selector: customSelector
+  })
+
+  t.equal(connection?.id, 'http://localhost:9202/')
+  t.end()
+})
+
