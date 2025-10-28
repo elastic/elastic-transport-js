@@ -11,7 +11,7 @@ export interface RetryOptions {
   retryBackoff: (min: number, max: number, attempt: number) => number
 }
 
-export class RetryMiddleware implements Middleware {
+export class Retry implements Middleware {
   readonly name = 'retry'
   readonly priority = 95
 

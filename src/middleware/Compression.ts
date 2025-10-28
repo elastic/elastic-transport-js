@@ -19,7 +19,7 @@ function isStream (obj: any): obj is ReadableStream {
   return obj != null && typeof obj.pipe === 'function'
 }
 
-export class CompressionMiddleware implements Middleware {
+export class Compression implements Middleware {
   readonly name = 'compression'
   readonly priority = 20
 

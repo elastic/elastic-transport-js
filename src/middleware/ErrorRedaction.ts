@@ -6,7 +6,7 @@
 import { Middleware, MiddlewareContext, MiddlewareResult } from './types'
 import { RedactionOptions } from '../Transport'
 
-export class ErrorRedactionMiddleware implements Middleware {
+export class ErrorRedaction implements Middleware {
   readonly name = 'error-redaction'
   readonly priority = 90
 

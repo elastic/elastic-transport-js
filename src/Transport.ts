@@ -76,13 +76,13 @@ import { suppressTracing } from '@opentelemetry/core'
 import {
   MiddlewareEngine,
   MiddlewareContext,
-  OpenTelemetryMiddleware,
-  HeaderManagementMiddleware,
-  ContentTypeMiddleware,
-  CompressionMiddleware,
-  ErrorRedactionMiddleware,
-  RetryMiddleware,
-  ProductCheckMiddleware
+  OpenTelemetry,
+  HeaderManagement,
+  ContentType,
+  Compression,
+  ErrorRedaction,
+  Retry,
+  ProductCheck
 } from './middleware'
 
 const nodeVersion = process.versions.node
@@ -323,13 +323,13 @@ export default class Transport {
     this[kMiddlewareEngine] = new MiddlewareEngine()
 
     if (this[kUseMiddleware]) {
-      this[kMiddlewareEngine].register(new OpenTelemetryMiddleware({
+      this[kMiddlewareEngine].register(new OpenTelemetry({
         enabled: this[kOtelOptions].enabled,
         suppressInternalInstrumentation: this[kOtelOptions].suppressInternalInstrumentation,
         tracer: this[kOtelTracer]
       }))
 
-      this[kMiddlewareEngine].register(new HeaderManagementMiddleware({
+      this[kMiddlewareEngine].register(new HeaderManagement({
         userAgent,
         clientMeta: (opts.enableMetaHeader == null ? true : opts.enableMetaHeader) ? `et=${clientVersion as string},js=${nodeVersion}` : undefined,
         acceptEncoding: opts.compression === true ? 'gzip,deflate' : undefined,
@@ -337,26 +337,26 @@ export default class Transport {
         defaultHeaders: opts.headers
       }))
 
-      this[kMiddlewareEngine].register(new ContentTypeMiddleware({
+      this[kMiddlewareEngine].register(new ContentType({
         serializer: this[kSerializer],
         jsonContentType: this[kJsonContentType],
         ndjsonContentType: this[kNdjsonContentType],
         acceptHeader: this[kAcceptHeader]
       }))
 
-      this[kMiddlewareEngine].register(new CompressionMiddleware({
+      this[kMiddlewareEngine].register(new Compression({
         enabled: opts.compression
       }))
 
-      this[kMiddlewareEngine].register(new ErrorRedactionMiddleware(this[kRedaction]))
+      this[kMiddlewareEngine].register(new ErrorRedaction(this[kRedaction]))
 
-      this[kMiddlewareEngine].register(new RetryMiddleware({
+      this[kMiddlewareEngine].register(new Retry({
         maxRetries: this[kMaxRetries],
         retryOnTimeout: this[kRetryOnTimeout],
         retryBackoff: this[kRetryBackoff]
       }))
 
-      this[kMiddlewareEngine].register(new ProductCheckMiddleware({
+      this[kMiddlewareEngine].register(new ProductCheck({
         productCheck: this[kProductCheck]
       }))
     }

@@ -15,7 +15,7 @@ export interface HeaderManagementOptions {
   defaultHeaders?: http.IncomingHttpHeaders
 }
 
-export class HeaderManagementMiddleware implements Middleware {
+export class HeaderManagement implements Middleware {
   readonly name = 'header-management'
   readonly priority = 5
 

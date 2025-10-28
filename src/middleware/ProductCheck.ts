@@ -11,7 +11,7 @@ export interface ProductCheckOptions {
   productCheck: string | null
 }
 
-export class ProductCheckMiddleware implements Middleware {
+export class ProductCheck implements Middleware {
   readonly name = 'product-check'
   readonly priority = 50
 

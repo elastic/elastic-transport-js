@@ -20,7 +20,7 @@ function shouldSerialize (obj: any): obj is Record<string, any> | Array<Record<s
          !Buffer.isBuffer(obj)
 }
 
-export class ContentTypeMiddleware implements Middleware {
+export class ContentType implements Middleware {
   readonly name = 'content-type'
   readonly priority = 15
 

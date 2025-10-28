@@ -14,7 +14,7 @@ export interface OpenTelemetryOptions {
   tracer?: Tracer
 }
 
-export class OpenTelemetryMiddleware implements Middleware {
+export class OpenTelemetry implements Middleware {
   readonly name = 'opentelemetry'
   readonly priority = 1
   private readonly tracer: Tracer
