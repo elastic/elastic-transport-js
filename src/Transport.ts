@@ -893,17 +893,8 @@ export default class Transport {
 
     this[kDiagnostic].emit('serialization', null, { meta, body: undefined, statusCode: 0, headers: {}, warnings: null })
 
-    const beforeResult = await this[kMiddlewareEngine].executePhase('onBeforeRequest', middlewareContext)
-    if (beforeResult.error != null) {
-      throw beforeResult.error
-    }
-    middlewareContext = beforeResult.context
-
-    const requestResult = await this[kMiddlewareEngine].executePhase('onRequest', middlewareContext)
-    if (requestResult.error != null) {
-      throw requestResult.error
-    }
-    middlewareContext = requestResult.context
+    middlewareContext = await this[kMiddlewareEngine].executePhase('onBeforeRequest', middlewareContext)
+    middlewareContext = await this[kMiddlewareEngine].executePhase('onRequest', middlewareContext)
 
     const connectionParams: ConnectionRequestParams = {
       method: middlewareContext.request.method,
@@ -1006,10 +997,7 @@ export default class Transport {
           result.body = isHead && statusCode < 400 ? true : body
         }
 
-        const responseResult = await this[kMiddlewareEngine].executePhase('onResponse', middlewareContext, result)
-        if (responseResult.error != null) {
-          throw responseResult.error
-        }
+        await this[kMiddlewareEngine].executePhase('onResponse', middlewareContext, result)
 
         const ignoreStatusCode = (Array.isArray(options.ignore) && options.ignore.includes(statusCode)) ||
           (isHead && statusCode === 404)
@@ -1036,23 +1024,19 @@ export default class Transport {
           return returnMeta ? result : result.body
         }
       } catch (error: any) {
-        const errorResult = await this[kMiddlewareEngine].executePhase('onError', middlewareContext, error)
-        let errorToThrow = error
-        if (errorResult.error != null) {
-          errorToThrow = errorResult.error
-        }
+        await this[kMiddlewareEngine].executePhase('onError', middlewareContext, error)
 
-        switch (errorToThrow.name) {
+        switch (error.name) {
           case 'ProductNotSupportedError':
           case 'NoLivingConnectionsError':
           case 'DeserializationError':
           case 'ResponseError':
-            this[kDiagnostic].emit('response', errorToThrow, result)
+            this[kDiagnostic].emit('response', error, result)
             await this[kMiddlewareEngine].executePhase('onComplete', middlewareContext)
-            throw errorToThrow
+            throw error
           case 'RequestAbortedError': {
             meta.aborted = true
-            const wrappedError = new RequestAbortedError(errorToThrow.message, result, errorOptions)
+            const wrappedError = new RequestAbortedError(error.message, result, errorOptions)
             this[kDiagnostic].emit('response', wrappedError, result)
             await this[kMiddlewareEngine].executePhase('onComplete', middlewareContext)
             throw wrappedError
@@ -1060,7 +1044,7 @@ export default class Transport {
           // @ts-expect-error `case` fallthrough is intentional: should retry if retryOnTimeout is true
           case 'TimeoutError':
             if (!this[kRetryOnTimeout]) {
-              const wrappedError = new TimeoutError(errorToThrow.message, result, errorOptions)
+              const wrappedError = new TimeoutError(error.message, result, errorOptions)
               this[kDiagnostic].emit('response', wrappedError, result)
               await this[kMiddlewareEngine].executePhase('onComplete', middlewareContext)
               throw wrappedError
@@ -1092,18 +1076,18 @@ export default class Transport {
               continue
             }
 
-            const wrappedError = errorToThrow.name === 'TimeoutError'
-              ? new TimeoutError(errorToThrow.message, result, errorOptions)
-              : new ConnectionError(errorToThrow.message, result, errorOptions)
+            const wrappedError = error.name === 'TimeoutError'
+              ? new TimeoutError(error.message, result, errorOptions)
+              : new ConnectionError(error.message, result, errorOptions)
             this[kDiagnostic].emit('response', wrappedError, result)
             await this[kMiddlewareEngine].executePhase('onComplete', middlewareContext)
             throw wrappedError
           }
 
           default:
-            this[kDiagnostic].emit('response', errorToThrow, result)
+            this[kDiagnostic].emit('response', error, result)
             await this[kMiddlewareEngine].executePhase('onComplete', middlewareContext)
-            throw errorToThrow
+            throw error
         }
       }
     }

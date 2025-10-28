@@ -33,11 +33,7 @@ export class ContentTypeMiddleware implements Middleware {
 
     if (ctx.params.body != null) {
       if (shouldSerialize(ctx.params.body)) {
-        try {
-          body = this.options.serializer.serialize(ctx.params.body)
-        } catch (err: any) {
-          return { error: err }
-        }
+        body = this.options.serializer.serialize(ctx.params.body)
         headers['content-type'] = headers['content-type'] ?? this.options.jsonContentType
         headers.accept = headers.accept ?? this.options.jsonContentType
       } else {
@@ -49,11 +45,7 @@ export class ContentTypeMiddleware implements Middleware {
       }
     } else if (ctx.params.bulkBody != null) {
       if (shouldSerialize(ctx.params.bulkBody)) {
-        try {
-          body = this.options.serializer.ndserialize(ctx.params.bulkBody as Array<Record<string, any>>)
-        } catch (err: any) {
-          return { error: err }
-        }
+        body = this.options.serializer.ndserialize(ctx.params.bulkBody as Array<Record<string, any>>)
       } else {
         body = ctx.params.bulkBody
       }

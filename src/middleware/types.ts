@@ -37,15 +37,12 @@ export interface MiddlewareResult {
     shared?: ReadonlyMap<string, any>
   }
   continue?: boolean
-  error?: Error
 }
 
 export interface Middleware {
   readonly name: string
   readonly priority?: number
   readonly enabled?: boolean
-  onBeforeRequestSync?: (ctx: MiddlewareContext) => MiddlewareResult | undefined
-  onRequestSync?: (ctx: MiddlewareContext) => MiddlewareResult | undefined
   onBeforeRequest?: (ctx: MiddlewareContext) => Promise<MiddlewareResult | undefined> | MiddlewareResult | undefined
   onRequest?: (ctx: MiddlewareContext) => Promise<MiddlewareResult | undefined> | MiddlewareResult | undefined
   onResponse?: (ctx: MiddlewareContext, result: TransportResult) => Promise<MiddlewareResult | undefined> | MiddlewareResult | undefined

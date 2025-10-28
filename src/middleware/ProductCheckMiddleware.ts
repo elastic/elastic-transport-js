@@ -29,9 +29,7 @@ export class ProductCheckMiddleware implements Middleware {
       const errorOptions: ErrorOptions = {
         redaction: ctx.options.redaction ?? { type: 'replace', additionalKeys: [] }
       }
-      return {
-        error: new ProductNotSupportedError(this.options.productCheck, result, errorOptions)
-      }
+      throw new ProductNotSupportedError(this.options.productCheck, result, errorOptions)
     }
 
     return undefined

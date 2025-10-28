@@ -30,7 +30,7 @@ export class CompressionMiddleware implements Middleware {
   }
 
   // ORIGINAL: Transport.ts line 285 (accept-encoding header in constructor)
-  onBeforeRequestSync = (ctx: MiddlewareContext): MiddlewareResult | undefined => {
+  onBeforeRequest = (ctx: MiddlewareContext): MiddlewareResult | undefined => {
     if (!this.enabled) {
       return undefined
     }

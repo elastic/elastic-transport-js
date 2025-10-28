@@ -6,6 +6,13 @@
 import { Middleware, MiddlewareContext, MiddlewareResult, MiddlewarePhase } from './types'
 import { TransportResult } from '../types'
 
+export class MiddlewareException extends Error {
+  constructor (message: string, options?: ErrorOptions) {
+    super(message, options)
+    this.name = 'MiddlewareException'
+  }
+}
+
 export class MiddlewareEngine {
   private readonly middleware: Middleware[] = []
 
@@ -18,61 +25,43 @@ export class MiddlewareEngine {
     phase: MiddlewarePhase,
     initialContext: MiddlewareContext,
     additionalArg?: TransportResult | Error
-  ): Promise<{ context: MiddlewareContext, error?: Error }> {
+  ): Promise<MiddlewareContext> {
     let currentContext = initialContext
-    const syncPhase = (phase + 'Sync') as keyof Middleware
 
     for (const middleware of this.middleware) {
       if (middleware.enabled === false) {
         continue
       }
 
+      const handler = middleware[phase] as ((ctx: MiddlewareContext, ...args: any[]) => Promise<MiddlewareResult | undefined> | MiddlewareResult | undefined) | undefined
+      if (handler == null) continue
+
       try {
-        const syncHandler = middleware[syncPhase] as ((ctx: MiddlewareContext) => MiddlewareResult | undefined) | undefined
-        if (syncHandler != null) {
-          const result = syncHandler(currentContext)
-          if (result !== undefined) {
-            if (result.error != null) {
-              return { context: currentContext, error: result.error }
-            }
-            if (result.continue === false) {
-              return { context: currentContext }
-            }
-            if (result.context != null) {
-              currentContext = this.mergeContext(currentContext, result.context)
-            }
-          }
-          continue
-        }
+        const handlerResult = additionalArg != null
+          ? handler(currentContext, additionalArg)
+          : handler(currentContext)
 
-        const asyncHandler = middleware[phase] as ((ctx: MiddlewareContext, ...args: any[]) => Promise<MiddlewareResult | undefined> | MiddlewareResult | undefined) | undefined
-        if (asyncHandler == null) continue
-
-        const result = additionalArg != null
-          ? await asyncHandler(currentContext, additionalArg)
-          : await asyncHandler(currentContext)
+        const result = (handlerResult != null && typeof (handlerResult as any).then === 'function')
+          ? await (handlerResult as Promise<MiddlewareResult | undefined>)
+          : handlerResult as MiddlewareResult | undefined
 
         if (result === undefined) {
           continue
         }
 
-        if (result.error != null) {
-          return { context: currentContext, error: result.error }
-        }
-
         if (result.continue === false) {
-          return { context: currentContext }
+          return currentContext
         }
 
         if (result.context != null) {
           currentContext = this.mergeContext(currentContext, result.context)
         }
       } catch (error) {
-        console.warn(`Middleware ${middleware.name} failed in ${phase}:`, error)
+        throw new MiddlewareException(`Middleware ${middleware.name} failed in ${phase}`, { cause: error })
       }
     }
 
-    return { context: currentContext }
+    return currentContext
   }
 
   private mergeContext (

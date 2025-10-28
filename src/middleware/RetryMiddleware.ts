@@ -18,7 +18,7 @@ export class RetryMiddleware implements Middleware {
   constructor (private readonly options: RetryOptions) {}
 
   // ORIGINAL: Transport.ts lines 671-682, 699-770 (retry logic and backoff strategy)
-  onBeforeRequestSync = (ctx: MiddlewareContext): MiddlewareResult | undefined => {
+  onBeforeRequest = (ctx: MiddlewareContext): MiddlewareResult | undefined => {
     const shared = new Map(ctx.shared)
     shared.set('retryConfig', {
       maxRetries: this.options.maxRetries,
