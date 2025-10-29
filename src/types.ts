@@ -35,6 +35,7 @@ export interface DiagnosticResult<TResponse = unknown, TContext = unknown> {
       hosts: any[]
       reason: string
     }
+    duration?: number
   }
 }
 

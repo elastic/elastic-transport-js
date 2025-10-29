@@ -2797,3 +2797,56 @@ test('OpenTelemetry', t => {
 
   t.end()
 })
+
+test('Request duration is tracked in meta', async t => {
+  t.plan(6)
+
+  const pool = new WeightedConnectionPool({ Connection: MockConnection })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({ connectionPool: pool })
+
+  transport.diagnostic.on(events.RESPONSE, (err, meta) => {
+    t.error(err)
+    t.ok(meta?.meta.duration !== undefined, 'duration should be defined')
+    t.equal(typeof meta?.meta.duration, 'number', 'duration should be a number')
+    t.ok((meta?.meta.duration ?? 0) >= 0, 'duration should be non-negative')
+  })
+
+  const res = await transport.request({
+    method: 'GET',
+    path: '/hello'
+  }, { meta: true })
+
+  t.equal(res.statusCode, 200)
+  t.ok(res.meta.duration !== undefined && res.meta.duration >= 0, 'duration in result should be non-negative')
+})
+
+test('Request duration is tracked on errors', async t => {
+  t.plan(5)
+
+  const pool = new WeightedConnectionPool({ Connection: MockConnectionError })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool,
+    maxRetries: 0
+  })
+
+  transport.diagnostic.on(events.RESPONSE, (err, meta) => {
+    t.ok(err instanceof ConnectionError, 'should have error')
+    t.ok(meta?.meta.duration !== undefined, 'duration should be defined even on error')
+    t.equal(typeof meta?.meta.duration, 'number', 'duration should be a number')
+    t.ok((meta?.meta.duration ?? 0) >= 0, 'duration should be non-negative')
+  })
+
+  try {
+    await transport.request({
+      method: 'GET',
+      path: '/hello'
+    }, { meta: true })
+    t.fail('should have thrown')
+  } catch (err: any) {
+    t.ok(err instanceof ConnectionError)
+  }
+})
