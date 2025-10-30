@@ -65,6 +65,7 @@ import {
   kAcceptHeader,
   kRedaction,
   kRetryBackoff,
+  kShouldRetry,
   kOtelTracer,
   kOtelOptions,
   kMiddlewareEngine,
@@ -80,8 +81,6 @@ import {
   HeaderManagement,
   ContentType,
   Compression,
-  ErrorRedaction,
-  Retry,
   ProductCheck
 } from './middleware'
 
@@ -128,6 +127,7 @@ export interface TransportOptions {
   }
   redaction?: RedactionOptions
   retryBackoff?: (min: number, max: number, attempt: number) => number
+  shouldRetry?: (error: Error, attempt: number) => boolean
   openTelemetry?: OpenTelemetryOptions
   enableMetaHeader?: boolean
   useMiddleware?: boolean
@@ -242,6 +242,7 @@ export default class Transport {
   [kAcceptHeader]: string
   [kRedaction]: RedactionOptions
   [kRetryBackoff]: (min: number, max: number, attempt: number) => number
+  [kShouldRetry]: (error: Error, attempt: number) => boolean
   [kOtelTracer]: Tracer
   [kOtelOptions]: OpenTelemetryOptions
   [kMiddlewareEngine]: MiddlewareEngine
@@ -310,6 +311,7 @@ export default class Transport {
     this[kAcceptHeader] = opts.vendoredHeaders?.accept ?? 'application/json, text/plain'
     this[kRedaction] = opts.redaction ?? { type: 'replace', additionalKeys: [] }
     this[kRetryBackoff] = opts.retryBackoff ?? retryBackoff
+    this[kShouldRetry] = opts.shouldRetry ?? this.defaultShouldRetry.bind(this)
     this[kOtelTracer] = opentelemetry.trace.getTracer('@elastic/transport', clientVersion)
 
     // MIDDLEWARE: OpenTelemetryMiddleware handles distributed tracing
@@ -346,14 +348,6 @@ export default class Transport {
 
       this[kMiddlewareEngine].register(new Compression({
         enabled: opts.compression
-      }))
-
-      this[kMiddlewareEngine].register(new ErrorRedaction(this[kRedaction]))
-
-      this[kMiddlewareEngine].register(new Retry({
-        maxRetries: this[kMaxRetries],
-        retryOnTimeout: this[kRetryOnTimeout],
-        retryBackoff: this[kRetryBackoff]
       }))
 
       this[kMiddlewareEngine].register(new ProductCheck({
@@ -402,6 +396,30 @@ export default class Transport {
 
   get diagnostic (): Diagnostic {
     return this[kDiagnostic]
+  }
+
+  private defaultShouldRetry (error: Error, attempt: number): boolean {
+    if (attempt >= this[kMaxRetries]) {
+      return false
+    }
+
+    switch (error.name) {
+      case 'ConnectionError':
+        return true
+
+      case 'TimeoutError':
+        return this[kRetryOnTimeout]
+
+      case 'ProductNotSupportedError':
+      case 'NoLivingConnectionsError':
+      case 'DeserializationError':
+      case 'ResponseError':
+      case 'RequestAbortedError':
+        return false
+
+      default:
+        return false
+    }
   }
 
   private async _request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptionsWithOutMeta, otelSpan?: Span): Promise<TResponse>
@@ -696,10 +714,7 @@ export default class Transport {
           return returnMeta ? result : result.body
         }
       } catch (error: any) {
-        // MIDDLEWARE: ErrorRedactionMiddleware configures error redaction options
-        // MIDDLEWARE: RetryMiddleware handles retry logic and backoff strategy
         switch (error.name) {
-          // should not retry
           case 'ProductNotSupportedError':
           case 'NoLivingConnectionsError':
           case 'DeserializationError':
@@ -708,12 +723,10 @@ export default class Transport {
             throw error
           case 'RequestAbortedError': {
             meta.aborted = true
-            // Wrap the error to get a clean stack trace
             const wrappedError = new RequestAbortedError(error.message, result, errorOptions)
             this[kDiagnostic].emit('response', wrappedError, result)
             throw wrappedError
           }
-          // should maybe retry
           // @ts-expect-error `case` fallthrough is intentional: should retry if retryOnTimeout is true
           case 'TimeoutError':
             if (!this[kRetryOnTimeout]) {
@@ -721,11 +734,8 @@ export default class Transport {
               this[kDiagnostic].emit('response', wrappedError, result)
               throw wrappedError
             }
-          // should retry
           // eslint-disable-next-line no-fallthrough
           case 'ConnectionError': {
-            // if there is an error in the connection
-            // let's mark the connection as dead
             this[kConnectionPool].markDead(meta.connection as Connection)
 
             if (this[kSniffOnConnectionFault]) {
@@ -736,14 +746,11 @@ export default class Transport {
               })
             }
 
-            // retry logic
             if (meta.attempts < maxRetries) {
               meta.attempts++
               debug(`Retrying request, there are still ${maxRetries - meta.attempts} attempts`, params)
 
-              // don't use exponential backoff until retrying on each node
               if (meta.attempts >= this[kConnectionPool].size) {
-                // exponential backoff on retries, with jitter
                 const backoff = options.retryBackoff ?? this[kRetryBackoff]
                 const backoffWait = backoff(0, 4, meta.attempts)
                 if (backoffWait > 0) {
@@ -754,7 +761,6 @@ export default class Transport {
               continue
             }
 
-            // Wrap the error to get a clean stack trace
             const wrappedError = error.name === 'TimeoutError'
               ? new TimeoutError(error.message, result, errorOptions)
               : new ConnectionError(error.message, result, errorOptions)
@@ -762,7 +768,6 @@ export default class Transport {
             throw wrappedError
           }
 
-          // edge cases, such as bad compression
           default:
             this[kDiagnostic].emit('response', error, result)
             throw error
@@ -887,8 +892,7 @@ export default class Transport {
         context: meta.context as Context,
         connection: null,
         attempts: 0
-      },
-      shared: new Map()
+      }
     }
 
     this[kDiagnostic].emit('serialization', null, { meta, body: undefined, statusCode: 0, headers: {}, warnings: null })
@@ -1026,69 +1030,51 @@ export default class Transport {
       } catch (error: any) {
         await this[kMiddlewareEngine].executePhase('onError', middlewareContext, error)
 
-        switch (error.name) {
-          case 'ProductNotSupportedError':
-          case 'NoLivingConnectionsError':
-          case 'DeserializationError':
-          case 'ResponseError':
-            this[kDiagnostic].emit('response', error, result)
-            await this[kMiddlewareEngine].executePhase('onComplete', middlewareContext)
-            throw error
-          case 'RequestAbortedError': {
-            meta.aborted = true
-            const wrappedError = new RequestAbortedError(error.message, result, errorOptions)
-            this[kDiagnostic].emit('response', wrappedError, result)
-            await this[kMiddlewareEngine].executePhase('onComplete', middlewareContext)
-            throw wrappedError
-          }
-          // @ts-expect-error `case` fallthrough is intentional: should retry if retryOnTimeout is true
-          case 'TimeoutError':
-            if (!this[kRetryOnTimeout]) {
-              const wrappedError = new TimeoutError(error.message, result, errorOptions)
-              this[kDiagnostic].emit('response', wrappedError, result)
-              await this[kMiddlewareEngine].executePhase('onComplete', middlewareContext)
-              throw wrappedError
-            }
-          // eslint-disable-next-line no-fallthrough
-          case 'ConnectionError': {
-            this[kConnectionPool].markDead(meta.connection as Connection)
-
-            if (this[kSniffOnConnectionFault]) {
-              this.sniff({
-                reason: Transport.sniffReasons.SNIFF_ON_CONNECTION_FAULT,
-                requestId: meta.request.id,
-                context: meta.context
-              })
-            }
-
-            if (meta.attempts < maxRetries) {
-              meta.attempts++
-              debug(`Retrying request, there are still ${maxRetries - meta.attempts} attempts`, params)
-
-              if (meta.attempts >= this[kConnectionPool].size) {
-                const backoff = options.retryBackoff ?? this[kRetryBackoff]
-                const backoffWait = backoff(0, 4, meta.attempts)
-                if (backoffWait > 0) {
-                  await setTimeout(backoffWait * 1000)
-                }
-              }
-
-              continue
-            }
-
-            const wrappedError = error.name === 'TimeoutError'
-              ? new TimeoutError(error.message, result, errorOptions)
-              : new ConnectionError(error.message, result, errorOptions)
-            this[kDiagnostic].emit('response', wrappedError, result)
-            await this[kMiddlewareEngine].executePhase('onComplete', middlewareContext)
-            throw wrappedError
-          }
-
-          default:
-            this[kDiagnostic].emit('response', error, result)
-            await this[kMiddlewareEngine].executePhase('onComplete', middlewareContext)
-            throw error
+        if (error.name === 'RequestAbortedError') {
+          meta.aborted = true
+          const wrappedError = new RequestAbortedError(error.message, result, errorOptions)
+          this[kDiagnostic].emit('response', wrappedError, result)
+          await this[kMiddlewareEngine].executePhase('onComplete', middlewareContext)
+          throw wrappedError
         }
+
+        if (error.name === 'ConnectionError') {
+          this[kConnectionPool].markDead(meta.connection as Connection)
+
+          if (this[kSniffOnConnectionFault]) {
+            this.sniff({
+              reason: Transport.sniffReasons.SNIFF_ON_CONNECTION_FAULT,
+              requestId: meta.request.id,
+              context: meta.context
+            })
+          }
+        }
+
+        const shouldRetry = this[kShouldRetry](error, meta.attempts)
+
+        if (shouldRetry) {
+          meta.attempts++
+          debug(`Retrying request, there are still ${maxRetries - meta.attempts} attempts`, params)
+
+          if (meta.attempts >= this[kConnectionPool].size) {
+            const backoff = options.retryBackoff ?? this[kRetryBackoff]
+            const backoffWait = backoff(0, 4, meta.attempts)
+            if (backoffWait > 0) {
+              await setTimeout(backoffWait * 1000)
+            }
+          }
+
+          continue
+        }
+
+        const wrappedError = error.name === 'TimeoutError'
+          ? new TimeoutError(error.message, result, errorOptions)
+          : error.name === 'ConnectionError'
+            ? new ConnectionError(error.message, result, errorOptions)
+            : error
+        this[kDiagnostic].emit('response', wrappedError, result)
+        await this[kMiddlewareEngine].executePhase('onComplete', middlewareContext)
+        throw wrappedError
       }
     }
 

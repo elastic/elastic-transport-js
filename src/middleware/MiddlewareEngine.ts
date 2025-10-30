@@ -68,27 +68,23 @@ export class MiddlewareEngine {
     current: MiddlewareContext,
     updates: NonNullable<MiddlewareResult['context']>
   ): MiddlewareContext {
-    if (updates.request == null && updates.shared == null) {
+    if (updates.request == null) {
       return current
     }
 
-    let mergedRequest = current.request
-    if (updates.request != null) {
-      const mergedHeaders = updates.request.headers != null
-        ? { ...current.request.headers, ...updates.request.headers }
-        : current.request.headers
+    const mergedHeaders = updates.request.headers != null
+      ? { ...current.request.headers, ...updates.request.headers }
+      : current.request.headers
 
-      mergedRequest = {
-        ...current.request,
-        ...updates.request,
-        headers: mergedHeaders
-      }
+    const mergedRequest = {
+      ...current.request,
+      ...updates.request,
+      headers: mergedHeaders
     }
 
     return {
       ...current,
-      request: mergedRequest,
-      shared: updates.shared ?? current.shared
+      request: mergedRequest
     }
   }
 

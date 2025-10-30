@@ -25,7 +25,6 @@ export interface MiddlewareContext {
     readonly connection: Connection | null
     readonly attempts: number
   }
-  readonly shared: ReadonlyMap<string, any>
 }
 
 export interface MiddlewareResult {
@@ -34,7 +33,6 @@ export interface MiddlewareResult {
       headers?: http.IncomingHttpHeaders
       body?: RequestBody
     }
-    shared?: ReadonlyMap<string, any>
   }
   continue?: boolean
 }
