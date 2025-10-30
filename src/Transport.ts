@@ -65,12 +65,24 @@ import {
   kAcceptHeader,
   kRedaction,
   kRetryBackoff,
+  kShouldRetry,
   kOtelTracer,
-  kOtelOptions
+  kOtelOptions,
+  kMiddlewareEngine,
+  kUseMiddleware
 } from './symbols'
 import { setTimeout } from 'node:timers/promises'
 import opentelemetry, { Attributes, Exception, SpanKind, SpanStatusCode, Span, Tracer } from '@opentelemetry/api'
 import { suppressTracing } from '@opentelemetry/core'
+import {
+  MiddlewareEngine,
+  MiddlewareContext,
+  OpenTelemetry,
+  HeaderManagement,
+  ContentType,
+  Compression,
+  ProductCheck
+} from './middleware'
 
 const nodeVersion = process.versions.node
 const { version: clientVersion } = require('../package.json') // eslint-disable-line
@@ -115,8 +127,10 @@ export interface TransportOptions {
   }
   redaction?: RedactionOptions
   retryBackoff?: (min: number, max: number, attempt: number) => number
+  shouldRetry?: (error: Error, attempt: number) => boolean
   openTelemetry?: OpenTelemetryOptions
   enableMetaHeader?: boolean
+  useMiddleware?: boolean
 }
 
 export interface TransportRequestMetadata {
@@ -228,8 +242,11 @@ export default class Transport {
   [kAcceptHeader]: string
   [kRedaction]: RedactionOptions
   [kRetryBackoff]: (min: number, max: number, attempt: number) => number
+  [kShouldRetry]: (error: Error, attempt: number) => boolean
   [kOtelTracer]: Tracer
   [kOtelOptions]: OpenTelemetryOptions
+  [kMiddlewareEngine]: MiddlewareEngine
+  [kUseMiddleware]: boolean
 
   static sniffReasons = {
     SNIFF_ON_START: 'sniff-on-start',
@@ -262,6 +279,7 @@ export default class Transport {
 
     this[kNodeFilter] = opts.nodeFilter ?? defaultNodeFilter
     this[kNodeSelector] = opts.nodeSelector ?? roundRobinSelector()
+    // MIDDLEWARE: HeaderManagementMiddleware handles user-agent, client-meta, accept-encoding, and custom headers
     this[kHeaders] = Object.assign({},
       { 'user-agent': userAgent },
       (opts.enableMetaHeader == null ? true : opts.enableMetaHeader) ? { 'x-elastic-client-meta': `et=${clientVersion as string},js=${nodeVersion}` } : null,
@@ -293,13 +311,49 @@ export default class Transport {
     this[kAcceptHeader] = opts.vendoredHeaders?.accept ?? 'application/json, text/plain'
     this[kRedaction] = opts.redaction ?? { type: 'replace', additionalKeys: [] }
     this[kRetryBackoff] = opts.retryBackoff ?? retryBackoff
+    this[kShouldRetry] = opts.shouldRetry ?? this.defaultShouldRetry.bind(this)
     this[kOtelTracer] = opentelemetry.trace.getTracer('@elastic/transport', clientVersion)
 
+    // MIDDLEWARE: OpenTelemetryMiddleware handles distributed tracing
     const otelEnabledDefault = process.env.OTEL_ELASTICSEARCH_ENABLED != null ? (process.env.OTEL_ELASTICSEARCH_ENABLED.toLowerCase() !== 'false') : true
     this[kOtelOptions] = Object.assign({}, {
       enabled: otelEnabledDefault,
       suppressInternalInstrumentation: false
     }, opts.openTelemetry ?? {})
+
+    this[kUseMiddleware] = opts.useMiddleware === true
+    this[kMiddlewareEngine] = new MiddlewareEngine()
+
+    if (this[kUseMiddleware]) {
+      this[kMiddlewareEngine].register(new OpenTelemetry({
+        enabled: this[kOtelOptions].enabled,
+        suppressInternalInstrumentation: this[kOtelOptions].suppressInternalInstrumentation,
+        tracer: this[kOtelTracer]
+      }))
+
+      this[kMiddlewareEngine].register(new HeaderManagement({
+        userAgent,
+        clientMeta: (opts.enableMetaHeader == null ? true : opts.enableMetaHeader) ? `et=${clientVersion as string},js=${nodeVersion}` : undefined,
+        acceptEncoding: opts.compression === true ? 'gzip,deflate' : undefined,
+        opaqueIdPrefix: this[kOpaqueIdPrefix],
+        defaultHeaders: opts.headers
+      }))
+
+      this[kMiddlewareEngine].register(new ContentType({
+        serializer: this[kSerializer],
+        jsonContentType: this[kJsonContentType],
+        ndjsonContentType: this[kNdjsonContentType],
+        acceptHeader: this[kAcceptHeader]
+      }))
+
+      this[kMiddlewareEngine].register(new Compression({
+        enabled: opts.compression
+      }))
+
+      this[kMiddlewareEngine].register(new ProductCheck({
+        productCheck: this[kProductCheck]
+      }))
+    }
 
     if (opts.sniffOnStart === true) {
       this.sniff({
@@ -342,6 +396,30 @@ export default class Transport {
 
   get diagnostic (): Diagnostic {
     return this[kDiagnostic]
+  }
+
+  private defaultShouldRetry (error: Error, attempt: number): boolean {
+    if (attempt >= this[kMaxRetries]) {
+      return false
+    }
+
+    switch (error.name) {
+      case 'ConnectionError':
+        return true
+
+      case 'TimeoutError':
+        return this[kRetryOnTimeout]
+
+      case 'ProductNotSupportedError':
+      case 'NoLivingConnectionsError':
+      case 'DeserializationError':
+      case 'ResponseError':
+      case 'RequestAbortedError':
+        return false
+
+      default:
+        return false
+    }
   }
 
   private async _request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptionsWithOutMeta, otelSpan?: Span): Promise<TResponse>
@@ -411,6 +489,7 @@ export default class Transport {
     }
 
     this[kDiagnostic].emit('serialization', null, result)
+    // MIDDLEWARE: HeaderManagementMiddleware merges default and custom headers, handles opaque-id
     const headers = Object.assign({}, this[kHeaders], lowerCaseHeaders(options.headers))
 
     if (options.opaqueId !== undefined) {
@@ -419,6 +498,7 @@ export default class Transport {
         : options.opaqueId
     }
 
+    // MIDDLEWARE: ContentTypeMiddleware handles JSON/NDJSON serialization and content-type headers
     // handle json body
     if (params.body != null) {
       if (shouldSerialize(params.body)) {
@@ -466,6 +546,7 @@ export default class Transport {
       )
     }
 
+    // MIDDLEWARE: CompressionMiddleware handles gzip compression for both streams and buffers
     // handle compression
     if (connectionParams.body !== '' && connectionParams.body != null) {
       if (isStream(connectionParams.body)) {
@@ -489,6 +570,7 @@ export default class Transport {
       }
     }
 
+    // MIDDLEWARE: ContentTypeMiddleware sets default accept and content-type headers
     headers.accept = headers.accept ?? this[kAcceptHeader]
 
     // Set default content-type header for empty requests
@@ -515,6 +597,7 @@ export default class Transport {
           throw new NoLivingConnectionsError('There are no living connections', result, errorOptions)
         }
 
+        // MIDDLEWARE: OpenTelemetryMiddleware sets URL and server attributes on span
         // generate required OpenTelemetry attributes from the request URL
         const requestUrl = meta.connection.url
         otelSpan?.setAttributes({
@@ -552,6 +635,7 @@ export default class Transport {
         result.statusCode = statusCode
         result.headers = headers
 
+        // MIDDLEWARE: OpenTelemetryMiddleware sets response status and cluster/node attributes
         otelSpan?.setAttribute('db.response.status_code', statusCode.toString())
 
         if (headers['x-found-handling-cluster'] != null) {
@@ -562,6 +646,7 @@ export default class Transport {
           otelSpan?.setAttribute('elasticsearch.node.name', headers['x-found-handling-instance'])
         }
 
+        // MIDDLEWARE: ProductCheckMiddleware validates x-elastic-product header
         if (this[kProductCheck] != null && headers['x-elastic-product'] !== this[kProductCheck] && statusCode >= 200 && statusCode < 300) {
           /* eslint-disable @typescript-eslint/prefer-ts-expect-error */
           // @ts-ignore
@@ -607,6 +692,7 @@ export default class Transport {
         const ignoreStatusCode = (Array.isArray(options.ignore) && options.ignore.includes(statusCode)) ||
           (isHead && statusCode === 404)
 
+        // MIDDLEWARE: RetryMiddleware tracks retry attempts and configuration
         if (!ignoreStatusCode && (statusCode === 502 || statusCode === 503 || statusCode === 504)) {
           // if the statusCode is 502/3/4 we should run our retry strategy
           // and mark the connection as dead
@@ -642,7 +728,6 @@ export default class Transport {
         meta.duration = Number(endTime - startTime) / 1e6
 
         switch (error.name) {
-          // should not retry
           case 'ProductNotSupportedError':
           case 'NoLivingConnectionsError':
           case 'DeserializationError':
@@ -651,12 +736,10 @@ export default class Transport {
             throw error
           case 'RequestAbortedError': {
             meta.aborted = true
-            // Wrap the error to get a clean stack trace
             const wrappedError = new RequestAbortedError(error.message, result, errorOptions)
             this[kDiagnostic].emit('response', wrappedError, result)
             throw wrappedError
           }
-          // should maybe retry
           // @ts-expect-error `case` fallthrough is intentional: should retry if retryOnTimeout is true
           case 'TimeoutError':
             if (!this[kRetryOnTimeout]) {
@@ -664,11 +747,8 @@ export default class Transport {
               this[kDiagnostic].emit('response', wrappedError, result)
               throw wrappedError
             }
-          // should retry
           // eslint-disable-next-line no-fallthrough
           case 'ConnectionError': {
-            // if there is an error in the connection
-            // let's mark the connection as dead
             this[kConnectionPool].markDead(meta.connection as Connection)
 
             if (this[kSniffOnConnectionFault]) {
@@ -679,14 +759,11 @@ export default class Transport {
               })
             }
 
-            // retry logic
             if (meta.attempts < maxRetries) {
               meta.attempts++
               debug(`Retrying request, there are still ${maxRetries - meta.attempts} attempts`, params)
 
-              // don't use exponential backoff until retrying on each node
               if (meta.attempts >= this[kConnectionPool].size) {
-                // exponential backoff on retries, with jitter
                 const backoff = options.retryBackoff ?? this[kRetryBackoff]
                 const backoffWait = backoff(0, 4, meta.attempts)
                 if (backoffWait > 0) {
@@ -697,7 +774,6 @@ export default class Transport {
               continue
             }
 
-            // Wrap the error to get a clean stack trace
             const wrappedError = error.name === 'TimeoutError'
               ? new TimeoutError(error.message, result, errorOptions)
               : new ConnectionError(error.message, result, errorOptions)
@@ -705,7 +781,6 @@ export default class Transport {
             throw wrappedError
           }
 
-          // edge cases, such as bad compression
           default:
             this[kDiagnostic].emit('response', error, result)
             throw error
@@ -720,23 +795,25 @@ export default class Transport {
   async request<TResponse = unknown, TContext = any> (params: TransportRequestParams, options?: TransportRequestOptionsWithMeta): Promise<TransportResult<TResponse, TContext>>
   async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptions): Promise<TResponse>
   async request (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<any> {
+    if (this[kUseMiddleware]) {
+      return await this._requestWithMiddleware(params, options)
+    }
+
+    // MIDDLEWARE: OpenTelemetryMiddleware creates spans and sets operation attributes
     const otelOptions = Object.assign({}, this[kOtelOptions], options.openTelemetry ?? {})
 
-    // wrap in OpenTelemetry span
     if ((otelOptions?.enabled ?? true) && params.meta?.name != null) {
       let context = opentelemetry.context.active()
       if (otelOptions.suppressInternalInstrumentation ?? false) {
         context = suppressTracing(context)
       }
 
-      // gather OpenTelemetry attributes
       const attributes: Attributes = {
         'db.system': 'elasticsearch',
         'http.request.method': params.method,
         'db.operation.name': params.meta?.name
       }
 
-      // add path params as otel attributes
       if (params.meta?.pathParts != null) {
         for (const [key, value] of Object.entries(params.meta.pathParts)) {
           if (value == null) continue
@@ -754,7 +831,6 @@ export default class Transport {
                 const keys = Object.keys(value)
                 indices = indices.concat(keys.map(v => v.toString()))
               } catch {
-                // ignore
               }
             }
             if (indices.length > 0) attributes['db.collection.name'] = indices.join(', ')
@@ -762,6 +838,7 @@ export default class Transport {
         }
       }
 
+      // MIDDLEWARE: OpenTelemetryMiddleware manages span lifecycle and error recording
       return await this[kOtelTracer].startActiveSpan(params.meta.name, { attributes, kind: SpanKind.CLIENT }, context, async (otelSpan: Span) => {
         let response
         try {
@@ -781,6 +858,241 @@ export default class Transport {
     } else {
       return await this._request(params, options)
     }
+  }
+
+  private async _requestWithMiddleware (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<any> {
+    const meta: TransportResult['meta'] = {
+      context: null,
+      request: {
+        params: {
+          method: params.method,
+          path: params.path
+        },
+        options,
+        id: options.id ?? this[kGenerateRequestId](params, options)
+      },
+      name: this[kName],
+      connection: null,
+      attempts: 0,
+      aborted: false
+    }
+
+    if (this[kContext] != null && options.context != null) {
+      meta.context = Object.assign({}, this[kContext], options.context)
+    } else if (this[kContext] !== null) {
+      meta.context = this[kContext]
+    } else if (options.context != null) {
+      meta.context = options.context
+    }
+
+    const querystring = options.querystring == null
+      ? this[kSerializer].qserialize(params.querystring)
+      : this[kSerializer].qserialize(Object.assign({}, params.querystring, options.querystring))
+
+    let middlewareContext: MiddlewareContext = {
+      request: {
+        method: params.method,
+        path: params.path,
+        body: params.body,
+        querystring,
+        headers: {}
+      },
+      params,
+      options,
+      meta: {
+        requestId: meta.request.id,
+        name: this[kName],
+        context: meta.context as Context,
+        connection: null,
+        attempts: 0
+      }
+    }
+
+    this[kDiagnostic].emit('serialization', null, { meta, body: undefined, statusCode: 0, headers: {}, warnings: null })
+
+    middlewareContext = await this[kMiddlewareEngine].executePhase('onBeforeRequest', middlewareContext)
+    middlewareContext = await this[kMiddlewareEngine].executePhase('onRequest', middlewareContext)
+
+    const connectionParams: ConnectionRequestParams = {
+      method: middlewareContext.request.method,
+      path: middlewareContext.request.path,
+      body: middlewareContext.request.body as string | Buffer | ReadableStream | undefined,
+      querystring: middlewareContext.request.querystring,
+      headers: middlewareContext.request.headers as http.IncomingHttpHeaders
+    }
+
+    const result: TransportResult = {
+      body: undefined,
+      statusCode: 0,
+      headers: {},
+      meta,
+      get warnings () {
+        if (this.headers?.warning == null) {
+          return null
+        }
+        const { warning } = this.headers
+        const warnings: string[] = Array.isArray(warning) ? warning : [warning]
+        return warnings
+          .flatMap(w => w.split(/(?!\B"[^"]*),(?![^"]*"\B)/))
+          .filter((warning) => warning.match(/^\d\d\d Elasticsearch-/))
+      }
+    }
+
+    const returnMeta = options.meta ?? false
+    const maxRetries = isStream(params.body ?? params.bulkBody) ? 0 : (typeof options.maxRetries === 'number' ? options.maxRetries : this[kMaxRetries])
+    const signal = options.signal
+    const maxResponseSize = options.maxResponseSize ?? this[kMaxResponseSize]
+    const maxCompressedResponseSize = options.maxCompressedResponseSize ?? this[kMaxCompressedResponseSize]
+    const errorOptions: ErrorOptions = {
+      redaction: typeof options.redaction === 'object' ? options.redaction : this[kRedaction]
+    }
+
+    while (meta.attempts <= maxRetries) {
+      try {
+        if (signal?.aborted === true) {
+          throw new RequestAbortedError('Request has been aborted by the user', result, errorOptions)
+        }
+
+        meta.connection = this.getConnection({
+          requestId: meta.request.id,
+          context: meta.context
+        })
+        if (meta.connection === null) {
+          throw new NoLivingConnectionsError('There are no living connections', result, errorOptions)
+        }
+
+        middlewareContext = {
+          ...middlewareContext,
+          meta: {
+            ...middlewareContext.meta,
+            connection: meta.connection,
+            attempts: meta.attempts
+          }
+        }
+
+        this[kDiagnostic].emit('request', null, result)
+
+        let timeout = options.requestTimeout ?? this[kRequestTimeout] ?? undefined
+        if (timeout != null) timeout = toMs(timeout)
+
+        let { statusCode, headers, body } = await meta.connection.request(connectionParams, {
+          requestId: meta.request.id,
+          name: this[kName],
+          context: meta.context,
+          maxResponseSize,
+          maxCompressedResponseSize,
+          signal,
+          timeout,
+          ...(options.asStream === true ? { asStream: true } : null)
+        })
+        result.statusCode = statusCode
+        result.headers = headers
+
+        if (options.asStream === true) {
+          result.body = body
+          this[kDiagnostic].emit('response', null, result)
+          await this[kMiddlewareEngine].executePhase('onComplete', middlewareContext)
+          return returnMeta ? result : body
+        }
+
+        const contentEncoding = (headers['content-encoding'] ?? '').toLowerCase()
+        if (contentEncoding.includes('gzip') || contentEncoding.includes('deflate')) {
+          body = await unzip(body)
+        }
+
+        if (Buffer.isBuffer(body) && !isBinary(headers['content-type'] ?? '')) {
+          body = body.toString()
+        }
+
+        const isHead = params.method === 'HEAD'
+        if (headers['content-type'] !== undefined &&
+            (headers['content-type']?.includes('application/json') ||
+             headers['content-type']?.includes('application/vnd.elasticsearch+json')) &&
+             !isHead && body !== '') {
+          result.body = this[kSerializer].deserialize(body as string)
+        } else {
+          result.body = isHead && statusCode < 400 ? true : body
+        }
+
+        await this[kMiddlewareEngine].executePhase('onResponse', middlewareContext, result)
+
+        const ignoreStatusCode = (Array.isArray(options.ignore) && options.ignore.includes(statusCode)) ||
+          (isHead && statusCode === 404)
+
+        if (!ignoreStatusCode && (statusCode === 502 || statusCode === 503 || statusCode === 504)) {
+          this[kConnectionPool].markDead(meta.connection)
+          if (meta.attempts < maxRetries) {
+            meta.attempts++
+            debug(`Retrying request, there are still ${maxRetries - meta.attempts} attempts`, params)
+            continue
+          }
+        } else {
+          this[kConnectionPool].markAlive(meta.connection)
+        }
+
+        if (!ignoreStatusCode && statusCode >= 400) {
+          throw new ResponseError(result, errorOptions)
+        } else {
+          if (isHead && statusCode === 404) {
+            result.body = false
+          }
+          this[kDiagnostic].emit('response', null, result)
+          await this[kMiddlewareEngine].executePhase('onComplete', middlewareContext)
+          return returnMeta ? result : result.body
+        }
+      } catch (error: any) {
+        await this[kMiddlewareEngine].executePhase('onError', middlewareContext, error)
+
+        if (error.name === 'RequestAbortedError') {
+          meta.aborted = true
+          const wrappedError = new RequestAbortedError(error.message, result, errorOptions)
+          this[kDiagnostic].emit('response', wrappedError, result)
+          await this[kMiddlewareEngine].executePhase('onComplete', middlewareContext)
+          throw wrappedError
+        }
+
+        if (error.name === 'ConnectionError') {
+          this[kConnectionPool].markDead(meta.connection as Connection)
+
+          if (this[kSniffOnConnectionFault]) {
+            this.sniff({
+              reason: Transport.sniffReasons.SNIFF_ON_CONNECTION_FAULT,
+              requestId: meta.request.id,
+              context: meta.context
+            })
+          }
+        }
+
+        const shouldRetry = this[kShouldRetry](error, meta.attempts)
+
+        if (shouldRetry) {
+          meta.attempts++
+          debug(`Retrying request, there are still ${maxRetries - meta.attempts} attempts`, params)
+
+          if (meta.attempts >= this[kConnectionPool].size) {
+            const backoff = options.retryBackoff ?? this[kRetryBackoff]
+            const backoffWait = backoff(0, 4, meta.attempts)
+            if (backoffWait > 0) {
+              await setTimeout(backoffWait * 1000)
+            }
+          }
+
+          continue
+        }
+
+        const wrappedError = error.name === 'TimeoutError'
+          ? new TimeoutError(error.message, result, errorOptions)
+          : error.name === 'ConnectionError'
+            ? new ConnectionError(error.message, result, errorOptions)
+            : error
+        this[kDiagnostic].emit('response', wrappedError, result)
+        await this[kMiddlewareEngine].executePhase('onComplete', middlewareContext)
+        throw wrappedError
+      }
+    }
+
+    await this[kMiddlewareEngine].executePhase('onComplete', middlewareContext)
+    return returnMeta ? result : result.body
   }
 
   getConnection (opts: GetConnectionOptions): Connection | null {

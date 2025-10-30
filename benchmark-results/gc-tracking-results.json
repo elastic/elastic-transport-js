@@ -1,0 +1,921 @@
+{
+  "benchmark": {
+    "iterations": 10000,
+    "duration": 486.422416,
+    "opsPerSec": 20558.263087941243,
+    "heapDelta": 1958448
+  },
+  "gc": {
+    "totalEvents": 51,
+    "totalGCTime": 6.411749243736267,
+    "byKind": {
+      "Major (Mark-Sweep-Compact)": {
+        "count": 1,
+        "totalTime": 1.3932499885559082
+      },
+      "Minor (Scavenge)": {
+        "count": 50,
+        "totalTime": 5.018499255180359
+      }
+    },
+    "events": [
+      {
+        "kind": 4,
+        "kindName": "Major (Mark-Sweep-Compact)",
+        "duration": 1.3932499885559082,
+        "timestamp": 154.176833
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.09633302688598633,
+        "timestamp": 163.520042
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.09224998950958252,
+        "timestamp": 169.550417
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.1207500696182251,
+        "timestamp": 176.222833
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.10066604614257812,
+        "timestamp": 182.015792
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.12458407878875732,
+        "timestamp": 188.632583
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.06829202175140381,
+        "timestamp": 194.114125
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.05783402919769287,
+        "timestamp": 199.210458
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.09404194355010986,
+        "timestamp": 205.013708
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.057791948318481445,
+        "timestamp": 210.641125
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.08491694927215576,
+        "timestamp": 216.034333
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.06400001049041748,
+        "timestamp": 221.256708
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.07254195213317871,
+        "timestamp": 227.04325
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.06924998760223389,
+        "timestamp": 232.591333
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.04870808124542236,
+        "timestamp": 237.622792
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.09870898723602295,
+        "timestamp": 243.861958
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.07554209232330322,
+        "timestamp": 250.209625
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.08299994468688965,
+        "timestamp": 256.451458
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.06487500667572021,
+        "timestamp": 261.831125
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.06137502193450928,
+        "timestamp": 267.23275
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.20625007152557373,
+        "timestamp": 273.830708
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.1285001039505005,
+        "timestamp": 287.002375
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.11916601657867432,
+        "timestamp": 299.170667
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.1228330135345459,
+        "timestamp": 310.710125
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.10362493991851807,
+        "timestamp": 322.056458
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.10345792770385742,
+        "timestamp": 333.889625
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.2021249532699585,
+        "timestamp": 346.345375
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.1021660566329956,
+        "timestamp": 358.075167
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.10645794868469238,
+        "timestamp": 370.195625
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.09991705417633057,
+        "timestamp": 382.178125
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.10187506675720215,
+        "timestamp": 394.262042
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.11554098129272461,
+        "timestamp": 406.530042
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.09641599655151367,
+        "timestamp": 418.484417
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.10979199409484863,
+        "timestamp": 431.015083
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.129707932472229,
+        "timestamp": 443.218542
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.08670806884765625,
+        "timestamp": 454.731917
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.10183393955230713,
+        "timestamp": 467.247083
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.10249996185302734,
+        "timestamp": 478.899292
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.10774993896484375,
+        "timestamp": 491.064667
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.1137920618057251,
+        "timestamp": 502.45825
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.09487497806549072,
+        "timestamp": 515.264458
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.09733307361602783,
+        "timestamp": 527.988417
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.1109170913696289,
+        "timestamp": 540.037333
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.10204100608825684,
+        "timestamp": 552.261542
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.08745801448822021,
+        "timestamp": 564.2675
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.09616696834564209,
+        "timestamp": 577.231708
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.1054999828338623,
+        "timestamp": 588.933917
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.10541689395904541,
+        "timestamp": 601.570583
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.12070798873901367,
+        "timestamp": 614.765042
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.10454201698303223,
+        "timestamp": 626.984
+      },
+      {
+        "kind": 1,
+        "kindName": "Minor (Scavenge)",
+        "duration": 0.09766602516174316,
+        "timestamp": 639.339792
+      }
+    ]
+  },
+  "heap": {
+    "samples": 97,
+    "minHeapUsed": 7589728,
+    "maxHeapUsed": 11483088,
+    "avgHeapUsed": 9486959.917525774,
+    "heapGrowth": 3893360,
+    "snapshots": [
+      {
+        "timestamp": 1761080889818,
+        "heapUsed": 8053352,
+        "heapTotal": 12419072,
+        "external": 3700350
+      },
+      {
+        "timestamp": 1761080889823,
+        "heapUsed": 7792104,
+        "heapTotal": 12419072,
+        "external": 3225094
+      },
+      {
+        "timestamp": 1761080889828,
+        "heapUsed": 7589728,
+        "heapTotal": 12419072,
+        "external": 2723646
+      },
+      {
+        "timestamp": 1761080889833,
+        "heapUsed": 8845200,
+        "heapTotal": 12943360,
+        "external": 4764022
+      },
+      {
+        "timestamp": 1761080889838,
+        "heapUsed": 8615152,
+        "heapTotal": 12943360,
+        "external": 4333558
+      },
+      {
+        "timestamp": 1761080889843,
+        "heapUsed": 8400128,
+        "heapTotal": 12943360,
+        "external": 3911286
+      },
+      {
+        "timestamp": 1761080889848,
+        "heapUsed": 8591384,
+        "heapTotal": 12943360,
+        "external": 3162310
+      },
+      {
+        "timestamp": 1761080889853,
+        "heapUsed": 8043336,
+        "heapTotal": 12943360,
+        "external": 2987566
+      },
+      {
+        "timestamp": 1761080889858,
+        "heapUsed": 8059888,
+        "heapTotal": 12943360,
+        "external": 2951174
+      },
+      {
+        "timestamp": 1761080889863,
+        "heapUsed": 9437784,
+        "heapTotal": 12943360,
+        "external": 5361038
+      },
+      {
+        "timestamp": 1761080889868,
+        "heapUsed": 9258800,
+        "heapTotal": 12943360,
+        "external": 5019750
+      },
+      {
+        "timestamp": 1761080889873,
+        "heapUsed": 9147368,
+        "heapTotal": 12943360,
+        "external": 4816806
+      },
+      {
+        "timestamp": 1761080889878,
+        "heapUsed": 9080344,
+        "heapTotal": 12943360,
+        "external": 4693038
+      },
+      {
+        "timestamp": 1761080889883,
+        "heapUsed": 8907640,
+        "heapTotal": 12943360,
+        "external": 4429118
+      },
+      {
+        "timestamp": 1761080889888,
+        "heapUsed": 8673080,
+        "heapTotal": 12943360,
+        "external": 3954062
+      },
+      {
+        "timestamp": 1761080889893,
+        "heapUsed": 8616624,
+        "heapTotal": 12943360,
+        "external": 3901278
+      },
+      {
+        "timestamp": 1761080889898,
+        "heapUsed": 8532104,
+        "heapTotal": 12943360,
+        "external": 3742926
+      },
+      {
+        "timestamp": 1761080889903,
+        "heapUsed": 8154408,
+        "heapTotal": 12943360,
+        "external": 3022150
+      },
+      {
+        "timestamp": 1761080889908,
+        "heapUsed": 9462864,
+        "heapTotal": 12943360,
+        "external": 5511190
+      },
+      {
+        "timestamp": 1761080889913,
+        "heapUsed": 9133592,
+        "heapTotal": 12943360,
+        "external": 4904174
+      },
+      {
+        "timestamp": 1761080889918,
+        "heapUsed": 8976448,
+        "heapTotal": 12943360,
+        "external": 4640254
+      },
+      {
+        "timestamp": 1761080889923,
+        "heapUsed": 8896384,
+        "heapTotal": 12943360,
+        "external": 4455510
+      },
+      {
+        "timestamp": 1761080889928,
+        "heapUsed": 8624488,
+        "heapTotal": 12943360,
+        "external": 3954062
+      },
+      {
+        "timestamp": 1761080889933,
+        "heapUsed": 8233552,
+        "heapTotal": 17137664,
+        "external": 3074934
+      },
+      {
+        "timestamp": 1761080889938,
+        "heapUsed": 9595192,
+        "heapTotal": 17137664,
+        "external": 5827894
+      },
+      {
+        "timestamp": 1761080889943,
+        "heapUsed": 10918560,
+        "heapTotal": 17137664,
+        "external": 8493486
+      },
+      {
+        "timestamp": 1761080889948,
+        "heapUsed": 8840464,
+        "heapTotal": 17137664,
+        "external": 4288966
+      },
+      {
+        "timestamp": 1761080889953,
+        "heapUsed": 10255872,
+        "heapTotal": 17137664,
+        "external": 7147494
+      },
+      {
+        "timestamp": 1761080889958,
+        "heapUsed": 8251424,
+        "heapTotal": 17137664,
+        "external": 2942974
+      },
+      {
+        "timestamp": 1761080889963,
+        "heapUsed": 9745976,
+        "heapTotal": 17137664,
+        "external": 6012638
+      },
+      {
+        "timestamp": 1761080889968,
+        "heapUsed": 11109560,
+        "heapTotal": 17137664,
+        "external": 8818382
+      },
+      {
+        "timestamp": 1761080889973,
+        "heapUsed": 9268144,
+        "heapTotal": 17137664,
+        "external": 4999742
+      },
+      {
+        "timestamp": 1761080889978,
+        "heapUsed": 10808488,
+        "heapTotal": 17137664,
+        "external": 8174974
+      },
+      {
+        "timestamp": 1761080889983,
+        "heapUsed": 8822552,
+        "heapTotal": 17137664,
+        "external": 4138806
+      },
+      {
+        "timestamp": 1761080889988,
+        "heapUsed": 10261736,
+        "heapTotal": 17137664,
+        "external": 7102902
+      },
+      {
+        "timestamp": 1761080889993,
+        "heapUsed": 8327672,
+        "heapTotal": 17137664,
+        "external": 3101326
+      },
+      {
+        "timestamp": 1761080889998,
+        "heapUsed": 9652056,
+        "heapTotal": 17137664,
+        "external": 5827894
+      },
+      {
+        "timestamp": 1761080890003,
+        "heapUsed": 11028336,
+        "heapTotal": 17137664,
+        "external": 8660030
+      },
+      {
+        "timestamp": 1761080890008,
+        "heapUsed": 8922600,
+        "heapTotal": 17137664,
+        "external": 4315358
+      },
+      {
+        "timestamp": 1761080890013,
+        "heapUsed": 10400344,
+        "heapTotal": 17137664,
+        "external": 7358630
+      },
+      {
+        "timestamp": 1761080890018,
+        "heapUsed": 8589128,
+        "heapTotal": 17137664,
+        "external": 3549990
+      },
+      {
+        "timestamp": 1761080890023,
+        "heapUsed": 9899768,
+        "heapTotal": 17137664,
+        "external": 6250166
+      },
+      {
+        "timestamp": 1761080890028,
+        "heapUsed": 11276312,
+        "heapTotal": 17137664,
+        "external": 9082302
+      },
+      {
+        "timestamp": 1761080890033,
+        "heapUsed": 9416032,
+        "heapTotal": 17137664,
+        "external": 5290054
+      },
+      {
+        "timestamp": 1761080890038,
+        "heapUsed": 10764568,
+        "heapTotal": 17137664,
+        "external": 8069406
+      },
+      {
+        "timestamp": 1761080890043,
+        "heapUsed": 8809192,
+        "heapTotal": 17137664,
+        "external": 4025046
+      },
+      {
+        "timestamp": 1761080890048,
+        "heapUsed": 10068504,
+        "heapTotal": 17137664,
+        "external": 6619654
+      },
+      {
+        "timestamp": 1761080890053,
+        "heapUsed": 8274408,
+        "heapTotal": 17137664,
+        "external": 2916582
+      },
+      {
+        "timestamp": 1761080890058,
+        "heapUsed": 9687984,
+        "heapTotal": 17137664,
+        "external": 5827894
+      },
+      {
+        "timestamp": 1761080890063,
+        "heapUsed": 10935808,
+        "heapTotal": 17137664,
+        "external": 8396110
+      },
+      {
+        "timestamp": 1761080890068,
+        "heapUsed": 9076184,
+        "heapTotal": 17137664,
+        "external": 4561078
+      },
+      {
+        "timestamp": 1761080890073,
+        "heapUsed": 10458568,
+        "heapTotal": 17137664,
+        "external": 7393214
+      },
+      {
+        "timestamp": 1761080890078,
+        "heapUsed": 8488992,
+        "heapTotal": 17137664,
+        "external": 3312462
+      },
+      {
+        "timestamp": 1761080890083,
+        "heapUsed": 9759640,
+        "heapTotal": 17137664,
+        "external": 5880678
+      },
+      {
+        "timestamp": 1761080890088,
+        "heapUsed": 11085448,
+        "heapTotal": 17137664,
+        "external": 8633638
+      },
+      {
+        "timestamp": 1761080890093,
+        "heapUsed": 9309208,
+        "heapTotal": 17137664,
+        "external": 4895982
+      },
+      {
+        "timestamp": 1761080890098,
+        "heapUsed": 10639280,
+        "heapTotal": 17137664,
+        "external": 7648942
+      },
+      {
+        "timestamp": 1761080890103,
+        "heapUsed": 8616384,
+        "heapTotal": 17137664,
+        "external": 3418030
+      },
+      {
+        "timestamp": 1761080890108,
+        "heapUsed": 10030408,
+        "heapTotal": 17137664,
+        "external": 6355734
+      },
+      {
+        "timestamp": 1761080890113,
+        "heapUsed": 8216432,
+        "heapTotal": 17137664,
+        "external": 9319830
+      },
+      {
+        "timestamp": 1761080890118,
+        "heapUsed": 9515768,
+        "heapTotal": 17137664,
+        "external": 5342838
+      },
+      {
+        "timestamp": 1761080890123,
+        "heapUsed": 10827928,
+        "heapTotal": 17137664,
+        "external": 8069406
+      },
+      {
+        "timestamp": 1761080890128,
+        "heapUsed": 8873664,
+        "heapTotal": 17137664,
+        "external": 4006846
+      },
+      {
+        "timestamp": 1761080890133,
+        "heapUsed": 10338456,
+        "heapTotal": 17137664,
+        "external": 7050118
+      },
+      {
+        "timestamp": 1761080890138,
+        "heapUsed": 8402032,
+        "heapTotal": 17137664,
+        "external": 3083126
+      },
+      {
+        "timestamp": 1761080890143,
+        "heapUsed": 9661088,
+        "heapTotal": 17137664,
+        "external": 5704126
+      },
+      {
+        "timestamp": 1761080890148,
+        "heapUsed": 11125104,
+        "heapTotal": 17137664,
+        "external": 8800182
+      },
+      {
+        "timestamp": 1761080890153,
+        "heapUsed": 9230456,
+        "heapTotal": 17137664,
+        "external": 4745822
+      },
+      {
+        "timestamp": 1761080890158,
+        "heapUsed": 10731856,
+        "heapTotal": 17137664,
+        "external": 7921054
+      },
+      {
+        "timestamp": 1761080890163,
+        "heapUsed": 8849808,
+        "heapTotal": 17137664,
+        "external": 4059630
+      },
+      {
+        "timestamp": 1761080890168,
+        "heapUsed": 10113424,
+        "heapTotal": 17137664,
+        "external": 6725222
+      },
+      {
+        "timestamp": 1761080890173,
+        "heapUsed": 11390008,
+        "heapTotal": 17137664,
+        "external": 9425398
+      },
+      {
+        "timestamp": 1761080890178,
+        "heapUsed": 9406832,
+        "heapTotal": 17137664,
+        "external": 5088918
+      },
+      {
+        "timestamp": 1761080890183,
+        "heapUsed": 10645736,
+        "heapTotal": 17137664,
+        "external": 7709918
+      },
+      {
+        "timestamp": 1761080890188,
+        "heapUsed": 8728200,
+        "heapTotal": 17137664,
+        "external": 3629166
+      },
+      {
+        "timestamp": 1761080890193,
+        "heapUsed": 10116896,
+        "heapTotal": 17137664,
+        "external": 6566870
+      },
+      {
+        "timestamp": 1761080890198,
+        "heapUsed": 11483088,
+        "heapTotal": 17137664,
+        "external": 9478182
+      },
+      {
+        "timestamp": 1761080890203,
+        "heapUsed": 9651224,
+        "heapTotal": 17137664,
+        "external": 5537582
+      },
+      {
+        "timestamp": 1761080890208,
+        "heapUsed": 10908040,
+        "heapTotal": 17137664,
+        "external": 8316934
+      },
+      {
+        "timestamp": 1761080890213,
+        "heapUsed": 8917400,
+        "heapTotal": 17137664,
+        "external": 4023238
+      },
+      {
+        "timestamp": 1761080890218,
+        "heapUsed": 10353608,
+        "heapTotal": 17137664,
+        "external": 7198470
+      },
+      {
+        "timestamp": 1761080890223,
+        "heapUsed": 8419520,
+        "heapTotal": 17137664,
+        "external": 2916582
+      },
+      {
+        "timestamp": 1761080890228,
+        "heapUsed": 9663096,
+        "heapTotal": 17137664,
+        "external": 5669542
+      },
+      {
+        "timestamp": 1761080890233,
+        "heapUsed": 10945232,
+        "heapTotal": 17137664,
+        "external": 8501678
+      },
+      {
+        "timestamp": 1761080890238,
+        "heapUsed": 9035408,
+        "heapTotal": 17137664,
+        "external": 4270766
+      },
+      {
+        "timestamp": 1761080890243,
+        "heapUsed": 10495896,
+        "heapTotal": 17137664,
+        "external": 7498782
+      },
+      {
+        "timestamp": 1761080890248,
+        "heapUsed": 8508232,
+        "heapTotal": 17137664,
+        "external": 3074934
+      },
+      {
+        "timestamp": 1761080890253,
+        "heapUsed": 9884712,
+        "heapTotal": 17137664,
+        "external": 6118206
+      },
+      {
+        "timestamp": 1761080890258,
+        "heapUsed": 11141744,
+        "heapTotal": 17137664,
+        "external": 8897558
+      },
+      {
+        "timestamp": 1761080890263,
+        "heapUsed": 9052856,
+        "heapTotal": 17137664,
+        "external": 4270766
+      },
+      {
+        "timestamp": 1761080890268,
+        "heapUsed": 10309792,
+        "heapTotal": 17137664,
+        "external": 7050118
+      },
+      {
+        "timestamp": 1761080890273,
+        "heapUsed": 8281232,
+        "heapTotal": 17137664,
+        "external": 9794886
+      },
+      {
+        "timestamp": 1761080890278,
+        "heapUsed": 9592608,
+        "heapTotal": 17137664,
+        "external": 5511190
+      },
+      {
+        "timestamp": 1761080890283,
+        "heapUsed": 10992936,
+        "heapTotal": 17137664,
+        "external": 8607246
+      },
+      {
+        "timestamp": 1761080890288,
+        "heapUsed": 9023072,
+        "heapTotal": 17137664,
+        "external": 4157006
+      },
+      {
+        "timestamp": 1761080890293,
+        "heapUsed": 10447400,
+        "heapTotal": 17137664,
+        "external": 7305846
+      },
+      {
+        "timestamp": 1761080890298,
+        "heapUsed": 8433784,
+        "heapTotal": 17137664,
+        "external": 2837406
+      }
+    ]
+  }
+}
