@@ -56,7 +56,10 @@
     "build": "tsc",
     "clean-build": "rimraf ./lib && mkdir lib",
     "prepublishOnly": "npm run build",
-    "benchmark": "node --expose-gc test/benchmark/benchmark.mjs"
+    "benchmark": "node --expose-gc test/benchmark/benchmark.mjs",
+    "benchmark:compare": "node scripts/test-benchmark-local.mjs",
+    "benchmark:compare-json": "node scripts/compare-benchmark-json.mjs",
+    "benchmark:pr-comment": "node scripts/generate-pr-comment.mjs"
   },
   "repository": {
     "type": "git",
