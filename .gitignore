@@ -109,3 +109,6 @@ package-lock.json
 
 lib
 .tap
+
+# benchmark artifacts
+benchmark.json
