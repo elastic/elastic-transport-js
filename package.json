@@ -58,7 +58,11 @@
     "build": "tsc",
     "clean-build": "rimraf ./lib && mkdir lib",
     "prepublishOnly": "npm run build",
-    "benchmark:real": "npm run build && node scripts/benchmark/benchmark-transport-real.js"
+    "benchmark:real": "npm run build && node scripts/benchmark/benchmark-transport-real.js",
+    "benchmark:gc": "npm run build && mkdir -p benchmark-results && node --expose-gc scripts/benchmark/benchmark-gc-tracking.js > benchmark-results/gc-tracking-results.json",
+    "benchmark:flamegraph": "npm run build && npx 0x --output-dir=profile-results/flame -- node scripts/benchmark/benchmark-transport-real.js",
+    "benchmark:all": "npm run build && npx tsx scripts/benchmark/run-all-benchmarks.ts",
+    "benchmark:save-baseline": "npx tsx scripts/benchmark/save-baseline.ts"
   },
   "repository": {
     "type": "git",

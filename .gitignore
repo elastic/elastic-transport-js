@@ -113,7 +113,8 @@ lib
 # Benchmark results (generated locally)
 benchmark-results/
 profile-results/
+scripts/benchmark/baselines/*
+!scripts/benchmark/baselines/.gitkeep
 
-# Benchmark compiled output (in scripts/benchmark/)
-scripts/benchmark/**/*.js
-scripts/benchmark/**/*.js.map
+# V8 profiling logs
+isolate-*.log
