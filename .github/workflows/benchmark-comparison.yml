@@ -39,13 +39,16 @@ jobs:
 
       - name: Run benchmark
         id: benchmark
-        run: npm run benchmark
+        run: |
+          npm run benchmark
 
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-${{ matrix.os }}-${{ matrix.branch }}
-          path: benchmark.json
+          path: |
+            benchmark.json
+            benchmark-gc.json
           retention-days: 1
 
   compare-and-comment:

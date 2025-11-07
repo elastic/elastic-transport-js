@@ -6,26 +6,30 @@
 
 /*
  * Benchmark JSON comparison script
- * Usage: node scripts/compare-benchmark-json.mjs <base.json> <pr.json>
+ * Usage: node scripts/compare-benchmark-json.mjs <base-dir> <pr-dir>
  * Output: Markdown comparison of benchmark results
  */
 
-import { readFileSync } from 'fs'
+import { readFileSync, existsSync } from 'fs'
+import { join } from 'path'
 
 if (process.argv.length !== 4) {
-  console.error('Usage: node scripts/compare-benchmark-json.mjs <base.json> <pr.json>')
+  console.error('Usage: node scripts/compare-benchmark-json.mjs <base-dir> <pr-dir>')
   process.exit(1)
 }
 
-const [, , baseFile, prFile] = process.argv
+const [, , baseDir, prDir] = process.argv
 
-function readJSON(filename) {
+function readJSON(filepath) {
   try {
-    const content = readFileSync(filename, 'utf8')
+    if (!existsSync(filepath)) {
+      return null
+    }
+    const content = readFileSync(filepath, 'utf8')
     return JSON.parse(content)
   } catch (error) {
-    console.error(`Error reading ${filename}:`, error.message)
-    process.exit(1)
+    console.error(`Error reading ${filepath}:`, error.message)
+    return null
   }
 }
 
@@ -76,8 +80,20 @@ function compareValues(base, pr, path = '') {
   return results
 }
 
-function formatMarkdownComparison(baseData, prData) {
-  let code = '# Benchmark Comparison\n\n'
+function formatMarkdownComparison(baseData, prData, title) {
+  if (!baseData && !prData) {
+    return `# ${title}\n\nNo benchmark data available.\n\n`
+  }
+
+  if (!baseData) {
+    return `# ${title}\n\nBase benchmark data not available.\n\n`
+  }
+
+  if (!prData) {
+    return `# ${title}\n\nPR benchmark data not available.\n\n`
+  }
+
+  let code = `# ${title}\n\n`
 
   const allGroups = new Set([...Object.keys(baseData), ...Object.keys(prData)])
 
@@ -142,15 +158,145 @@ function formatMarkdownComparison(baseData, prData) {
   return code
 }
 
+function formatGCBenchmarkComparison(baseData, prData) {
+  if (!baseData && !prData) {
+    return `# GC Benchmarks\n\nNo GC benchmark data available.\n\n`
+  }
+
+  if (!baseData) {
+    return `# GC Benchmarks\n\nBase GC benchmark data not available.\n\n`
+  }
+
+  if (!prData) {
+    return `# GC Benchmarks\n\nPR GC benchmark data not available.\n\n`
+  }
+
+  let code = `# GC Benchmarks\n\n`
+
+  // Get all scenarios from both base and PR
+  const baseResults = baseData.results || []
+  const prResults = prData.results || []
+
+  const allScenarios = new Set([
+    ...baseResults.map(r => r.scenario),
+    ...prResults.map(r => r.scenario)
+  ])
+
+  for (const scenarioName of allScenarios) {
+    const baseScenario = baseResults.find(r => r.scenario === scenarioName)
+    const prScenario = prResults.find(r => r.scenario === scenarioName)
+
+    code += `## ${scenarioName}\n\n`
+
+    if (!baseScenario) {
+      code += 'Base scenario data not available.\n\n'
+      continue
+    }
+
+    if (!prScenario) {
+      code += 'PR scenario data not available.\n\n'
+      continue
+    }
+
+    code += '| Metric | Base | PR | Change |\n'
+    code += '|--------|------|----|--------|\n'
+
+    // Performance metrics
+    if (baseScenario.performance && prScenario.performance) {
+      const perfMetrics = ['opsPerSec', 'avgLatencyMs', 'durationMs', 'iterations']
+      for (const metric of perfMetrics) {
+        const baseValue = baseScenario.performance[metric]
+        const prValue = prScenario.performance[metric]
+        if (baseValue !== undefined && prValue !== undefined) {
+          const direction = getDirection(baseValue, prValue)
+          const change = calculateChange(baseValue, prValue)
+          code += `| \`${metric}\` | ${formatNumber(baseValue)} | ${formatNumber(prValue)} | ${direction} ${change} |\n`
+        }
+      }
+    }
+
+    // GC metrics
+    if (baseScenario.gc && prScenario.gc) {
+      code += '| **Garbage collection** | | | |\n'
+      const gcMetrics = ['totalEvents', 'totalDuration', 'avgDuration', 'maxDuration']
+      for (const metric of gcMetrics) {
+        const baseValue = baseScenario.gc[metric]
+        const prValue = prScenario.gc[metric]
+        if (baseValue !== undefined && prValue !== undefined) {
+          const direction = getDirection(baseValue, prValue)
+          const change = calculateChange(baseValue, prValue)
+          code += `| \`${metric}\` | ${formatNumber(baseValue)} | ${formatNumber(prValue)} | ${direction} ${change} |\n`
+        }
+      }
+    }
+
+    // Memory metrics - after measurement
+    if (baseScenario.memory?.after && prScenario.memory?.after) {
+      code += '| **Memory usage (after)** | | | |\n'
+      const memoryMetrics = ['heapUsed', 'heapTotal', 'external', 'arrayBuffers']
+      for (const metric of memoryMetrics) {
+        const baseValue = baseScenario.memory.after[metric]
+        const prValue = prScenario.memory.after[metric]
+        if (baseValue !== undefined && prValue !== undefined) {
+          const direction = getDirection(baseValue, prValue)
+          const change = calculateChange(baseValue, prValue)
+          const unit = metric === 'arrayBuffers' ? '' : ' bytes'
+          code += `| \`${metric}\` | ${formatNumber(baseValue)}${unit} | ${formatNumber(prValue)}${unit} | ${direction} ${change} |\n`
+        }
+      }
+    }
+
+    // Memory delta
+    if (baseScenario.memory?.delta && prScenario.memory?.delta) {
+      code += '| **Memory usage (delta)** | | | |\n'
+      const deltaMetrics = ['heapUsed', 'heapTotal', 'external']
+      for (const metric of deltaMetrics) {
+        const baseValue = baseScenario.memory.delta[metric]
+        const prValue = prScenario.memory.delta[metric]
+        if (baseValue !== undefined && prValue !== undefined) {
+          const direction = getDirection(baseValue, prValue)
+          const change = calculateChange(baseValue, prValue)
+          code += `| \`${metric} delta\` | ${formatNumber(baseValue)} bytes | ${formatNumber(prValue)} bytes | ${direction} ${change} |\n`
+        }
+      }
+    }
+
+    code += '\n'
+  }
+
+  return code
+}
+
 try {
   console.log('Loading benchmark data')
-  const baseData = readJSON(baseFile)
-  const prData = readJSON(prFile)
+
+  // Read performance benchmark data
+  const basePerf = readJSON(join(baseDir, 'benchmark.json'))
+  const prPerf = readJSON(join(prDir, 'benchmark.json'))
+
+  // Read GC benchmark data
+  const baseGC = readJSON(join(baseDir, 'benchmark-gc.json'))
+  const prGC = readJSON(join(prDir, 'benchmark-gc.json'))
 
   console.log('Comparing results')
-  const markdown = formatMarkdownComparison(baseData, prData)
 
-  console.log('\n' + markdown)
+  let output = ''
+
+  // Generate performance comparison
+  if (basePerf || prPerf) {
+    output += formatMarkdownComparison(basePerf, prPerf, 'Performance Benchmarks')
+  }
+
+  // Generate GC comparison
+  if (baseGC || prGC) {
+    output += formatGCBenchmarkComparison(baseGC, prGC)
+  }
+
+  if (!output) {
+    output = '# Benchmark Comparison\n\nNo benchmark data available.\n'
+  }
+
+  console.log('\n' + output)
 } catch (error) {
   console.error('Error:', error.message)
   process.exit(1)

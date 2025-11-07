@@ -112,3 +112,4 @@ lib
 
 # benchmark artifacts
 benchmark.json
+benchmark-gc.json

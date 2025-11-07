@@ -47,11 +47,11 @@ async function githubRequest(endpoint, options = {}) {
   return response.json()
 }
 
-function generateComparison(os, baseFile, prFile) {
+function generateComparison(os, baseDir, prDir) {
   try {
     console.log(`Generating ${os} comparison...`)
     const markdown = execSync(
-      `node scripts/compare-benchmark-json.mjs "${baseFile}" "${prFile}"`,
+      `node scripts/compare-benchmark-json.mjs "${baseDir}" "${prDir}"`,
       { encoding: 'utf8' }
     )
     return markdown.trim()
@@ -66,20 +66,20 @@ async function main() {
 
   const linuxComparison = generateComparison(
     'Linux',
-    'artifacts/benchmark-ubuntu-latest-base/result.json',
-    'artifacts/benchmark-ubuntu-latest-pr/result.json'
+    'artifacts/benchmark-ubuntu-latest-base',
+    'artifacts/benchmark-ubuntu-latest-pr'
   )
 
   const windowsComparison = generateComparison(
     'Windows',
-    'artifacts/benchmark-windows-latest-base/result.json',
-    'artifacts/benchmark-windows-latest-pr/result.json'
+    'artifacts/benchmark-windows-latest-base',
+    'artifacts/benchmark-windows-latest-pr'
   )
 
   const macosComparison = generateComparison(
     'macOS',
-    'artifacts/benchmark-macos-latest-base/result.json',
-    'artifacts/benchmark-macos-latest-pr/result.json'
+    'artifacts/benchmark-macos-latest-base',
+    'artifacts/benchmark-macos-latest-pr'
   )
 
   const commentBody = `# Performance benchmark comparison
@@ -139,6 +139,6 @@ ${macosComparison}
 }
 
 main().catch(err => {
-  console.error('Error:', error.message)
+  console.error('Error:', err.message)
   process.exit(1)
 })
