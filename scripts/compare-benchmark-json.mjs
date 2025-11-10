@@ -10,8 +10,8 @@
  * Output: Markdown comparison of benchmark results
  */
 
-import { readFileSync, existsSync } from 'fs'
-import { join } from 'path'
+import { readFileSync, existsSync } from 'node:fs'
+import { join } from 'node:path'
 
 if (process.argv.length !== 4) {
   console.error('Usage: node scripts/compare-benchmark-json.mjs <base-dir> <pr-dir>')

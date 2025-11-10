@@ -32,10 +32,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
-          cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Run benchmark
         id: benchmark
@@ -56,11 +55,6 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
-      - name: Download all benchmark artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
       - name: Setup Node.js for comparison script
         uses: actions/setup-node@v4
         with:
@@ -68,6 +62,11 @@ jobs:
 
       - name: Checkout repository for comparison script
         uses: actions/checkout@v4
+
+      - name: Download all benchmark artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
 
       - name: Generate comparison and post comment
         env:

@@ -10,8 +10,7 @@
  * Environment variables: GITHUB_TOKEN, GITHUB_REPOSITORY, GITHUB_ISSUE_NUMBER, GITHUB_BASE_REF, GITHUB_HEAD_REF
  */
 
-import { execSync } from 'child_process'
-import { process } from 'process'
+import { execSync } from 'node:child_process'
 
 const {
   GITHUB_TOKEN,
