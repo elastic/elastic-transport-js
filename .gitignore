@@ -110,11 +110,6 @@ package-lock.json
 lib
 .tap
 
-# Benchmark results (generated locally)
-benchmark-results/
-profile-results/
-scripts/benchmark/baselines/*
-!scripts/benchmark/baselines/.gitkeep
-
-# V8 profiling logs
-isolate-*.log
+# benchmark artifacts
+benchmark.json
+benchmark-gc.json

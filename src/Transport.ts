@@ -581,6 +581,9 @@ export default class Transport {
 
     connectionParams.headers = headers
     while (meta.attempts <= maxRetries) {
+      // Capture start time for request duration tracking
+      const startTime = process.hrtime.bigint()
+
       try {
         if (signal?.aborted) { // eslint-disable-line
           throw new RequestAbortedError('Request has been aborted by the user', result, errorOptions)
@@ -653,6 +656,9 @@ export default class Transport {
 
         if (options.asStream === true) {
           result.body = body
+          // Calculate request duration in milliseconds
+          const endTime = process.hrtime.bigint()
+          meta.duration = Number(endTime - startTime) / 1e6
           this[kDiagnostic].emit('response', null, result)
           return returnMeta ? result : body
         }
@@ -710,10 +716,17 @@ export default class Transport {
           if (isHead && statusCode === 404) {
             result.body = false
           }
+          // Calculate request duration in milliseconds
+          const endTime = process.hrtime.bigint()
+          meta.duration = Number(endTime - startTime) / 1e6
           this[kDiagnostic].emit('response', null, result)
           return returnMeta ? result : result.body
         }
       } catch (error: any) {
+        // Calculate request duration in milliseconds
+        const endTime = process.hrtime.bigint()
+        meta.duration = Number(endTime - startTime) / 1e6
+
         switch (error.name) {
           case 'ProductNotSupportedError':
           case 'NoLivingConnectionsError':
