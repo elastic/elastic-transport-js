@@ -59,7 +59,6 @@
     "benchmark": "npm run build && npm run benchmark:mitata && npm run benchmark:gc",
     "benchmark:mitata": "node --expose-gc test/benchmark/benchmark.mjs",
     "benchmark:gc": "node --expose-gc test/benchmark/gc-tracking.mjs",
-    "benchmark:compare-json": "node scripts/compare-benchmark-json.mjs",
     "benchmark:pr-comment": "node scripts/generate-pr-comment.mjs"
   },
   "repository": {

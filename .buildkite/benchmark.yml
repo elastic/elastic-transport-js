@@ -1,0 +1,7 @@
+---
+agents:
+  memory: "2G"
+
+steps:
+  - label: ":elasticsearch: :javascript: ES JavaScript Transport Benchmark (Ubuntu)"
+    command: ./.buildkite/benchmark.sh
