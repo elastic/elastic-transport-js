@@ -10,8 +10,8 @@
  * Output: Markdown comparison of benchmark results
  */
 
-import { readFileSync, existsSync } from 'fs'
-import { join } from 'path'
+import { readFileSync, existsSync } from 'node:fs'
+import { join } from 'node:path'
 
 if (process.argv.length !== 4) {
   console.error('Usage: node scripts/compare-benchmark-json.mjs <base-dir> <pr-dir>')
@@ -34,14 +34,14 @@ function readJSON(filepath) {
 }
 
 function formatNumber(num) {
-  return typeof num === 'number' ? num.toLocaleString() : num
+  return typeof num === 'number' ? num.toFixed(3) : num
 }
 
 function calculateChange(base, pr) {
   if (typeof base !== 'number' || typeof pr !== 'number') return null
   if (base === 0 || pr === 0) return 'n/a'
   const change = ((pr - base) / base) * 100
-  return `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`
+  return `${change >= 0 ? '+' : ''}${change.toFixed(3)}%`
 }
 
 function getDirection(base, pr) {
@@ -82,18 +82,18 @@ function compareValues(base, pr, path = '') {
 
 function formatMarkdownComparison(baseData, prData, title) {
   if (!baseData && !prData) {
-    return `# ${title}\n\nNo benchmark data available.\n\n`
+    return `## ${title}\n\nNo benchmark data available.\n\n`
   }
 
   if (!baseData) {
-    return `# ${title}\n\nBase benchmark data not available.\n\n`
+    return `## ${title}\n\nBase benchmark data not available.\n\n`
   }
 
   if (!prData) {
-    return `# ${title}\n\nPR benchmark data not available.\n\n`
+    return `## ${title}\n\nPR benchmark data not available.\n\n`
   }
 
-  let code = `# ${title}\n\n`
+  let code = `## ${title}\n\n`
 
   const allGroups = new Set([...Object.keys(baseData), ...Object.keys(prData)])
 
@@ -104,7 +104,7 @@ function formatMarkdownComparison(baseData, prData, title) {
 
     if (allItems.size === 0) continue
 
-    code += `## ${groupName}\n\n`
+    code += `### ${groupName}\n\n`
 
     for (const itemName of allItems) {
       const baseItem = baseGroup[itemName] || {}
@@ -113,17 +113,16 @@ function formatMarkdownComparison(baseData, prData, title) {
       const differences = compareValues(baseItem, prItem)
 
       if (differences.length === 0) {
-        code += `### ${itemName}\nNo performance changes detected.\n\n`
+        code += `#### ${itemName}\nNo performance changes detected.\n\n`
         continue
       }
 
-      code += `### ${itemName}\n\n`
+      code += `#### ${itemName}\n\n`
       code += '| Stat | Base | PR | Change |\n'
       code += '|------|------|----|--------|\n'
 
       // group by top-level stats vs nested stats
-      const topLevelStats = ['min', 'max', 'p25', 'p50', 'p75', 'p99', 'p999', 'avg']
-      const nestedGroups = ['heap', 'gc']
+      const topLevelStats = ['p75', 'p99', 'avg']
 
       for (const stat of topLevelStats) {
         const statDifferences = differences.filter(diff => diff.path === stat)
@@ -131,23 +130,6 @@ function formatMarkdownComparison(baseData, prData, title) {
           const baseValue = diff.base !== undefined ? formatNumber(diff.base) : 'N/A'
           const prValue = diff.pr !== undefined ? formatNumber(diff.pr) : 'N/A'
           code += `| \`${diff.path}\` | ${baseValue} | ${prValue} | ${diff.direction} ${diff.change} |\n`
-        }
-      }
-
-      for (const group of nestedGroups) {
-        const groupDifferences = differences.filter(diff => diff.path.startsWith(`${group}.`))
-        if (groupDifferences.length > 0) {
-          const hasTopLevelStats = differences.some(diff => topLevelStats.includes(diff.path))
-          if (hasTopLevelStats) {
-            code += '| **' + group.toUpperCase() + '** | | | |\n'
-          }
-
-          for (const diff of groupDifferences) {
-            const statName = diff.path.replace(`${group}.`, '')
-            const baseValue = diff.base !== undefined ? formatNumber(diff.base) : 'N/A'
-            const prValue = diff.pr !== undefined ? formatNumber(diff.pr) : 'N/A'
-            code += `| \`${statName}\` | ${baseValue} | ${prValue} | ${diff.direction} ${diff.change} |\n`
-          }
         }
       }
 
@@ -160,18 +142,18 @@ function formatMarkdownComparison(baseData, prData, title) {
 
 function formatGCBenchmarkComparison(baseData, prData) {
   if (!baseData && !prData) {
-    return `# GC Benchmarks\n\nNo GC benchmark data available.\n\n`
+    return `## GC Benchmarks\n\nNo GC benchmark data available.\n\n`
   }
 
   if (!baseData) {
-    return `# GC Benchmarks\n\nBase GC benchmark data not available.\n\n`
+    return `## GC Benchmarks\n\nBase GC benchmark data not available.\n\n`
   }
 
   if (!prData) {
-    return `# GC Benchmarks\n\nPR GC benchmark data not available.\n\n`
+    return `## GC Benchmarks\n\nPR GC benchmark data not available.\n\n`
   }
 
-  let code = `# GC Benchmarks\n\n`
+  let code = `## GC Benchmarks\n\n`
 
   // Get all scenarios from both base and PR
   const baseResults = baseData.results || []
@@ -186,7 +168,7 @@ function formatGCBenchmarkComparison(baseData, prData) {
     const baseScenario = baseResults.find(r => r.scenario === scenarioName)
     const prScenario = prResults.find(r => r.scenario === scenarioName)
 
-    code += `## ${scenarioName}\n\n`
+    code += `### ${scenarioName}\n\n`
 
     if (!baseScenario) {
       code += 'Base scenario data not available.\n\n'
@@ -203,13 +185,13 @@ function formatGCBenchmarkComparison(baseData, prData) {
 
     // Performance metrics
     if (baseScenario.performance && prScenario.performance) {
-      const perfMetrics = ['opsPerSec', 'avgLatencyMs', 'durationMs', 'iterations']
+      const perfMetrics = ['opsPerSec', 'avgLatencyMs', 'durationMs']
       for (const metric of perfMetrics) {
         const baseValue = baseScenario.performance[metric]
         const prValue = prScenario.performance[metric]
         if (baseValue !== undefined && prValue !== undefined) {
           const direction = getDirection(baseValue, prValue)
-          const change = calculateChange(baseValue, prValue)
+          const change = direction === '' ? 'n/a' : calculateChange(baseValue, prValue)
           code += `| \`${metric}\` | ${formatNumber(baseValue)} | ${formatNumber(prValue)} | ${direction} ${change} |\n`
         }
       }
@@ -219,13 +201,18 @@ function formatGCBenchmarkComparison(baseData, prData) {
     if (baseScenario.gc && prScenario.gc) {
       code += '| **Garbage collection** | | | |\n'
       const gcMetrics = ['totalEvents', 'totalDuration', 'avgDuration', 'maxDuration']
-      for (const metric of gcMetrics) {
-        const baseValue = baseScenario.gc[metric]
-        const prValue = prScenario.gc[metric]
-        if (baseValue !== undefined && prValue !== undefined) {
-          const direction = getDirection(baseValue, prValue)
-          const change = calculateChange(baseValue, prValue)
-          code += `| \`${metric}\` | ${formatNumber(baseValue)} | ${formatNumber(prValue)} | ${direction} ${change} |\n`
+
+      if (baseScenario.gc.totalEvents === 0 && prScenario.gc.totalEvents === 0) {
+        code += `| \`totalEvents\` | 0 | 0 | n/a |\n`
+      } else {
+        for (const metric of gcMetrics) {
+          const baseValue = baseScenario.gc[metric]
+          const prValue = prScenario.gc[metric]
+          if (baseValue !== undefined && prValue !== undefined) {
+            const direction = getDirection(baseValue, prValue)
+            const change = calculateChange(baseValue, prValue)
+            code += `| \`${metric}\` | ${formatNumber(baseValue)} | ${formatNumber(prValue)} | ${direction} ${change} |\n`
+          }
         }
       }
     }
@@ -268,8 +255,6 @@ function formatGCBenchmarkComparison(baseData, prData) {
 }
 
 try {
-  console.log('Loading benchmark data')
-
   // Read performance benchmark data
   const basePerf = readJSON(join(baseDir, 'benchmark.json'))
   const prPerf = readJSON(join(prDir, 'benchmark.json'))
@@ -277,8 +262,6 @@ try {
   // Read GC benchmark data
   const baseGC = readJSON(join(baseDir, 'benchmark-gc.json'))
   const prGC = readJSON(join(prDir, 'benchmark-gc.json'))
-
-  console.log('Comparing results')
 
   let output = ''
 
