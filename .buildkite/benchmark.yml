@@ -3,5 +3,7 @@ agents:
   memory: "2G"
 
 steps:
-  - label: ":elasticsearch: :javascript: ES JavaScript Transport Benchmark (Ubuntu)"
+  - label: ":elasticsearch: :javascript: ES JavaScript Transport Benchmark (Linux)"
     command: ./.buildkite/benchmark.sh
+    agents:
+      image: node:lts
