@@ -29,6 +29,8 @@ spec:
     spec:
       repository: elastic/elastic-transport-js
       pipeline_file: .buildkite/benchmark.yml
+      env:
+        ELASTIC_PR_COMMENTS_ENABLED: "true"
       teams:
         devtools-team:
           access_level: MANAGE_BUILD_AND_READ

@@ -15,46 +15,46 @@ import {
 
 group('Transport#constructor - UndiciConnection', () => {
   bench('WeightedConnectionPool', () => {
-    const pool = new WeightedConnectionPool({ Connection: UndiciConnection })
-    pool.addConnection('http://localhost:9200')
-    new Transport({ connectionPool: pool })
+    const connectionPool = new WeightedConnectionPool({ Connection: UndiciConnection })
+    connectionPool.addConnection('http://localhost:9200')
+    new Transport({ connectionPool })
   })
   .gc('inner')
 
   bench('ClusterConnectionPool', () => {
-    const pool = new ClusterConnectionPool({ Connection: UndiciConnection })
-    pool.addConnection('http://localhost:9200')
-    new Transport({ connectionPool: pool })
+    const connectionPool = new ClusterConnectionPool({ Connection: UndiciConnection })
+    connectionPool.addConnection('http://localhost:9200')
+    new Transport({ connectionPool })
   })
   .gc('inner')
 
   bench('CloudConnectionPool', () => {
-    const pool = new CloudConnectionPool({ Connection: UndiciConnection })
-    pool.addConnection('http://localhost:9200')
-    new Transport({ connectionPool: pool })
+    const connectionPool = new CloudConnectionPool({ Connection: UndiciConnection })
+    connectionPool.addConnection('http://localhost:9200')
+    new Transport({ connectionPool })
   })
   .gc('inner')
 })
 
 group('Transport#constructor - HttpConnection', () => {
   bench('WeightedConnectionPool', () => {
-    const pool = new WeightedConnectionPool({ Connection: HttpConnection })
-    pool.addConnection('http://localhost:9200')
-    new Transport({ connectionPool: pool })
+    const connectionPool = new WeightedConnectionPool({ Connection: HttpConnection })
+    connectionPool.addConnection('http://localhost:9200')
+    new Transport({ connectionPool })
   })
   .gc('inner')
 
   bench('ClusterConnectionPool', () => {
-    const pool = new ClusterConnectionPool({ Connection: HttpConnection })
-    pool.addConnection('http://localhost:9200')
-    new Transport({ connectionPool: pool })
+    const connectionPool = new ClusterConnectionPool({ Connection: HttpConnection })
+    connectionPool.addConnection('http://localhost:9200')
+    new Transport({ connectionPool })
   })
   .gc('inner')
 
   bench('CloudConnectionPool', () => {
-    const pool = new CloudConnectionPool({ Connection: HttpConnection })
-    pool.addConnection('http://localhost:9200')
-    new Transport({ connectionPool: pool })
+    const connectionPool = new CloudConnectionPool({ Connection: HttpConnection })
+    connectionPool.addConnection('http://localhost:9200')
+    new Transport({ connectionPool })
   })
   .gc('inner')
 })
