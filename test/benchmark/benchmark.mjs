@@ -68,8 +68,8 @@ for (const benchmark of benchmarks) {
   const groupName = layout[group].name
 
   output[groupName] = output[groupName] ?? {}
-  const { min, max, p25, p50, p75, p99, p999, avg, heap, gc } = benchmark.runs[0].stats
-  output[groupName][alias] = { min, max, p25, p50, p75, p99, p999, avg, heap, gc }
+  const { p75, p99, avg } = benchmark.runs[0].stats
+  output[groupName][alias] = { p75, p99, avg }
 }
 
 writeFileSync('benchmark.json', JSON.stringify(output), 'utf8')

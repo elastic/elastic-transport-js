@@ -26,7 +26,7 @@ class MockConnection extends BaseConnection {
         body,
         statusCode: 200,
         headers: {
-          'content-type': 'application/json;utf=8',
+          'content-type': 'application/json',
           'content-length': String(body.length),
           'x-elastic-product': 'Elasticsearch',
           connection: 'keep-alive',
