@@ -13,7 +13,7 @@ import { execSync } from 'node:child_process'
 
 function generateComparison(baseDir, prDir) {
   try {
-    console.log(`Generating comparison...`)
+    console.log(`Generating comparison`)
     const markdown = execSync(
       `node scripts/compare-benchmark-json.mjs "${baseDir}" "${prDir}"`,
       { encoding: 'utf8' }
