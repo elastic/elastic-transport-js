@@ -26,10 +26,4 @@ git diff --name-status $BUILDKITE_PULL_REQUEST_BASE_BRANCH..$BUILDKITE_COMMIT | 
 run_benchmark base
 run_benchmark pr
 
-buildkite-agent meta-data \
-  set pr_comment:benchmark:head \
-  '## Performance benchmark comparison'
-
-buildkite-agent meta-data \
-  set pr_comment:benchmark:body \
-  $(npm run benchmark:pr-comment)
+npm run benchmark:pr-comment
