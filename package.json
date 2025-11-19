@@ -1,5 +1,5 @@
 {
-  "name": "@giorgizanqaidze/transport",
+  "name": "@giorgi_zankaidze/transport",
   "version": "9.2.3",
   "description": "Transport classes and utilities shared among Node.js Elastic client libraries",
   "main": "./index.js",
