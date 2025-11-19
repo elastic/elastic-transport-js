@@ -1,6 +1,6 @@
 {
   "name": "@giorgizanqaidze/transport",
-  "version": "9.2.2",
+  "version": "9.2.3",
   "description": "Transport classes and utilities shared among Node.js Elastic client libraries",
   "main": "./index.js",
   "types": "index.d.ts",
