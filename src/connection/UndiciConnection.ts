@@ -221,22 +221,19 @@ export default class Connection extends BaseConnection {
       } else {
         const payload: Buffer[] = []
         let currentLength = 0
-
+        response.body.setEncoding('utf8')
         for await (const chunk of response.body) {
           currentLength += Buffer.byteLength(chunk)
-
-          if (currentLength > maxCompressedResponseSize) {
+          if (currentLength > maxResponseSize) {
             response.body.destroy()
-            throw new RequestAbortedError(`The content length (${currentLength}) is bigger than the maximum allowed buffer (${maxResponseSize})`)
+            throw new RequestAbortedError(`The content length (${currentLength}) is bigger than the maximum allowed string (${maxResponseSize})`)
           }
-
           payload.push(chunk)
         }
-
         return {
           statusCode: response.statusCode,
           headers: response.headers,
-          body: Buffer.concat(payload).toString('utf8')
+          body: Buffer.concat(payload)
         }
       }
     } catch (err: any) {

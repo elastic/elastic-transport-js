@@ -1,6 +1,6 @@
 {
-  "name": "@giorgi_zankaidze/transport",
-  "version": "9.3.0",
+  "name": "@elastic/transport",
+  "version": "9.2.2",
   "description": "Transport classes and utilities shared among Node.js Elastic client libraries",
   "main": "./index.js",
   "types": "index.d.ts",
@@ -63,17 +63,18 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/GiorgiZanqaidze/elastic-transport-js.git"
+    "url": "git+https://github.com/elastic/elastic-transport-js.git"
   },
   "keywords": [],
   "author": {
-    "name": "Giorgi Zanqaidze"
+    "name": "Elastic Client Library Maintainers",
+    "company": "Elastic BV"
   },
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/GiorgiZanqaidze/elastic-transport-js/issues"
+    "url": "https://github.com/elastic/elastic-transport-js/issues"
   },
-  "homepage": "https://github.com/GiorgiZanqaidze/elastic-transport-js#readme",
+  "homepage": "https://github.com/elastic/elastic-transport-js#readme",
   "engines": {
     "node": ">=20"
   },
