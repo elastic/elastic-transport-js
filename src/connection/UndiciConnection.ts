@@ -233,7 +233,7 @@ export default class Connection extends BaseConnection {
         return {
           statusCode: response.statusCode,
           headers: response.headers,
-          body: Buffer.concat(payload)
+          body: Buffer.concat(payload).toString('utf8')
         }
       }
     } catch (err: any) {
