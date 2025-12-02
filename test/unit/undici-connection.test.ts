@@ -824,6 +824,96 @@ test('Body too big custom option (buffer)', async t => {
   server.stop()
 })
 
+test('UTF-8 multi-byte characters not corrupted in chunked response', async t => {
+  t.plan(3)
+
+  // Test with emoji (🚀 - 4 bytes: F0 9F 9A 80) and Georgian text (გამარჯობა - 3-byte chars)
+  // We'll split the emoji bytes across chunks to test corruption prevention
+  const text = 'Hello 🚀 World'
+  const georgianText = 'გამარჯობა'
+  const fullText = `${text} ${georgianText}`
+  const fullTextBuffer = Buffer.from(fullText, 'utf8')
+
+  // Find the emoji position in the buffer (after "Hello ")
+  // "Hello 🚀" = "Hello " (6 bytes) + 🚀 (4 bytes)
+  const emojiStart = Buffer.from('Hello ', 'utf8').length
+
+  async function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+    res.writeHead(200, {
+      'content-type': 'application/json;charset=utf-8',
+      'transfer-encoding': 'chunked'
+    })
+
+    // Split the emoji across chunks to force byte-boundary split
+    // Send: chunk1 = "Hello " + first 2 bytes of emoji
+    //       chunk2 = last 2 bytes of emoji + " World" + Georgian text
+    res.write(Buffer.from(Uint8Array.prototype.slice.call(fullTextBuffer, 0, emojiStart + 2))) // First chunk: up to middle of emoji
+    await setTimeout(100)
+    res.write(Buffer.from(Uint8Array.prototype.slice.call(fullTextBuffer, emojiStart + 2))) // Second chunk: rest of emoji + rest of text
+    await setTimeout(100)
+    res.end()
+  }
+
+  const [{ port }, server] = await buildServer(handler)
+  const connection = new UndiciConnection({
+    url: new URL(`http://localhost:${port}`)
+  })
+
+  const res = await connection.request({
+    method: 'GET',
+    path: '/'
+  }, options)
+
+  // Verify the response is a string (not Buffer)
+  t.equal(typeof res.body, 'string')
+  t.notOk(res.body instanceof Buffer)
+  // Verify the text is correctly decoded without corruption
+  t.equal(res.body, fullText)
+
+  server.stop()
+})
+
+test('UTF-8 multi-byte characters with Georgian text split across chunks', async t => {
+  t.plan(2)
+
+  // Georgian text "გამარჯობა" contains 3-byte UTF-8 characters
+  // We'll split a Georgian character across chunks
+  const georgianText = 'გამარჯობა'
+  const georgianBuffer = Buffer.from(georgianText, 'utf8')
+
+  // First Georgian char 'გ' is 3 bytes: E1 83 92
+  // Split it: first 2 bytes in chunk1, last byte + rest in chunk2
+  async function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+    res.writeHead(200, {
+      'content-type': 'text/plain;charset=utf-8',
+      'transfer-encoding': 'chunked'
+    })
+
+    // Split first Georgian character across chunks
+    res.write(Buffer.from(Uint8Array.prototype.slice.call(georgianBuffer, 0, 2))) // First 2 bytes of 'გ'
+    await setTimeout(100)
+    res.write(Buffer.from(Uint8Array.prototype.slice.call(georgianBuffer, 2))) // Last byte of 'გ' + rest of text
+    await setTimeout(100)
+    res.end()
+  }
+
+  const [{ port }, server] = await buildServer(handler)
+  const connection = new UndiciConnection({
+    url: new URL(`http://localhost:${port}`)
+  })
+
+  const res = await connection.request({
+    method: 'GET',
+    path: '/'
+  }, options)
+
+  // Verify the Georgian text is correctly decoded without corruption
+  t.equal(typeof res.body, 'string')
+  t.equal(res.body, georgianText)
+
+  server.stop()
+})
+
 test('Compressed responsed should return a buffer as body (gzip)', async t => {
   t.plan(2)
 
