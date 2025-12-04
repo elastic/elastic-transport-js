@@ -5,6 +5,11 @@ set -euo pipefail
 repo_pwd="$PWD"
 mkdir -p benchmark-output/{pr,base}
 
+warmup_cpu() {
+  node -e "let s=0; for(let i=0;i<5e7;i++)s+=Math.sqrt(i); console.log('CPU warm')" > /dev/null
+  sleep 2
+}
+
 run_benchmark() {
   local target="$1"
 
@@ -14,6 +19,7 @@ run_benchmark() {
   fi
 
   npm install --silent
+  warmup_cpu
   npm run benchmark
   mv benchmark*.json "$repo_pwd/benchmark-output/$target"
 

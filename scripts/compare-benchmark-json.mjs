@@ -305,14 +305,14 @@ function generateSummary() {
   let summary = `## Summary\n\n`
 
   if (regressions.failures.length === 0 && regressions.warnings.length === 0) {
-    summary += `**PASSED** - No significant performance regressions detected.\n\n`
+    summary += `No significant changes detected.\n\n`
     return summary
   }
 
   if (regressions.failures.length > 0) {
-    summary += `**FAILED** - ${regressions.failures.length} regression(s) detected\n\n`
-    summary += '| Metric | Regression |\n'
-    summary += '|--------|------------|\n'
+    summary += `**${regressions.failures.length} metric(s) exceeded threshold**\n\n`
+    summary += '| Metric | Change |\n'
+    summary += '|--------|--------|\n'
     for (const { metric, change } of regressions.failures) {
       summary += `| ${metric} | ${change >= 0 ? '+' : ''}${change.toFixed(1)}% |\n`
     }
@@ -328,14 +328,6 @@ function generateSummary() {
     }
     summary += '\n'
   }
-
-  summary += `### Thresholds\n\n`
-  summary += `| Type | Warning | Failure |\n`
-  summary += `|------|---------|---------|\n`
-  summary += `| Latency | >${THRESHOLDS.latency.warning}% slower | >${THRESHOLDS.latency.failure}% slower |\n`
-  summary += `| Throughput | >${Math.abs(THRESHOLDS.throughput.warning)}% slower | >${Math.abs(THRESHOLDS.throughput.failure)}% slower |\n`
-  summary += `| Memory | >${THRESHOLDS.memory.warning}% larger | >${THRESHOLDS.memory.failure}% larger |\n`
-  summary += `| GC | >${THRESHOLDS.gc.warning}% more | >${THRESHOLDS.gc.failure}% more |\n\n`
 
   return summary
 }

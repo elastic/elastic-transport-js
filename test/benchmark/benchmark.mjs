@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { writeFileSync } from 'node:fs'
-import { run, bench, group } from 'mitata'
+import { run, bench, group, configure } from 'mitata'
 import {
   Transport,
   WeightedConnectionPool,
@@ -12,6 +12,11 @@ import {
   HttpConnection,
   UndiciConnection
 } from '../../index.js'
+
+configure({
+  warmup: { iterations: 1000, time: 500_000_000 },
+  run: { iterations: 5000, time: 1_000_000_000 }
+})
 
 group('Transport#constructor - UndiciConnection', () => {
   bench('WeightedConnectionPool', () => {
@@ -59,7 +64,7 @@ group('Transport#constructor - HttpConnection', () => {
   .gc('inner')
 })
 
-const { layout, benchmarks } = await run()
+const { layout, benchmarks } = await run({ format: 'quiet' })
 
 const output = {}
 
