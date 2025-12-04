@@ -24,7 +24,7 @@ run_benchmark() {
 
 changed_files=$(git diff --name-status "$BUILDKITE_PULL_REQUEST_BASE_BRANCH..$BUILDKITE_COMMIT" | awk '{print $2}' || true)
 
-if ! echo "$changed_files" | grep -qiE '^(src/.*\.ts|test/benchmark/.*)$'; then
+if ! echo "$changed_files" | grep -qiE '^(src/.*\.ts|test/benchmark/.*|scripts/.*benchmark.*|\.buildkite/benchmark.*)$'; then
   exit 0
 fi
 
