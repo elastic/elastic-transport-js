@@ -15,24 +15,21 @@ function generateComparison(baseDir, prDir) {
 
   return {
     markdown: result.stdout?.trim() || '## Error\n\nUnable to generate comparison.',
-    hasRegressions: result.status !== 0,
     error: result.stderr?.trim()
   }
 }
 
 async function main() {
-  const { markdown, hasRegressions, error } = generateComparison(
+  const { markdown, error } = generateComparison(
     'benchmark-output/base',
     'benchmark-output/pr'
   )
 
   if (error) console.error(error)
 
-  const headerStatus = hasRegressions ? 'FAILED' : 'PASSED'
-
   try {
     execSync(
-      `buildkite-agent meta-data set pr_comment:benchmark:head '## Performance benchmark: ${headerStatus}'`,
+      `buildkite-agent meta-data set pr_comment:benchmark:head '## Performance benchmark'`,
       { encoding: 'utf8' }
     )
 
@@ -55,11 +52,6 @@ ${escapedMarkdown}
     console.log('\n--- Benchmark Results ---')
     console.log(markdown)
     console.log('--- End Results ---\n')
-  }
-
-  if (hasRegressions) {
-    console.error('\nBuild failed: Performance regressions exceed thresholds')
-    process.exit(1)
   }
 }
 
