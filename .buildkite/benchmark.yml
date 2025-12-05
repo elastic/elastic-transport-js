@@ -1,9 +1,6 @@
 ---
-agents:
-  memory: "4G"
-
 steps:
-  - label: "ES JavaScript Transport Benchmark (Linux)"
+  - label: "ES JavaScript Transport Benchmark"
     command: ./.buildkite/benchmark.sh
     agents:
-      image: node:22
+      image: docker.elastic.co/ci-agent-images/ems/buildkite-agent-node22

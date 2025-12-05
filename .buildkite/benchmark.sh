@@ -2,12 +2,21 @@
 
 set -euo pipefail
 
+BENCHMARK_RUNS=3
+
 repo_pwd="$PWD"
 mkdir -p benchmark-output/{pr,base}
 
 warmup_cpu() {
-  node -e "let s=0; for(let i=0;i<5e7;i++)s+=Math.sqrt(i); console.log('CPU warm')" > /dev/null
-  sleep 2
+  node -e "let s=0; for(let i=0;i<5e7;i++)s+=Math.sqrt(i)" > /dev/null
+  sleep 1
+}
+
+run_single_benchmark() {
+  warmup_cpu
+  npm run build > /dev/null 2>&1
+  npm run benchmark:mitata 2>/dev/null
+  npm run benchmark:gc 2>/dev/null
 }
 
 run_benchmark() {
@@ -19,9 +28,13 @@ run_benchmark() {
   fi
 
   npm install --silent
-  warmup_cpu
-  npm run benchmark
-  mv benchmark*.json "$repo_pwd/benchmark-output/$target"
+
+  for i in $(seq 1 $BENCHMARK_RUNS); do
+    echo "Run $i/$BENCHMARK_RUNS for $target"
+    run_single_benchmark
+    mv benchmark.json "$repo_pwd/benchmark-output/${target}-run${i}.json"
+    mv benchmark-gc.json "$repo_pwd/benchmark-output/${target}-gc-run${i}.json"
+  done
 
   if [ "$target" = 'base' ]; then
     popd
@@ -37,4 +50,5 @@ fi
 run_benchmark base
 run_benchmark pr
 
+node scripts/aggregate-benchmarks.mjs
 npm run benchmark:pr-comment

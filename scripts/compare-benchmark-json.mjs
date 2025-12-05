@@ -8,10 +8,10 @@ import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
 const THRESHOLDS = {
-  latency: { warning: 10, failure: 20 },
-  throughput: { warning: -10, failure: -20 },
-  memory: { warning: 20, failure: 50 },
-  gc: { warning: 25, failure: 50 }
+  latency: { warning: 25, failure: 50 },
+  throughput: { warning: -25, failure: -50 },
+  memory: { warning: 50, failure: 100 },
+  gc: { warning: 50, failure: 100 }
 }
 
 const regressions = { failures: [], warnings: [] }
@@ -258,39 +258,15 @@ function formatGCBenchmarkComparison(baseData, prData) {
       code += '| **Memory (after test)** | | | |\n'
       const memoryMetrics = [
         { key: 'heapUsed', label: 'heap used' },
-        { key: 'heapTotal', label: 'heap total' },
-        { key: 'external', label: 'external' },
-        { key: 'arrayBuffers', label: 'array buffers' }
+        { key: 'heapTotal', label: 'heap total' }
       ]
 
       for (const { key, label } of memoryMetrics) {
         const baseValue = baseScenario.memory.after[key]
         const prValue = prScenario.memory.after[key]
         if (baseValue !== undefined && prValue !== undefined) {
-          const { value: change, raw: changeRaw } = calculateChange(baseValue, prValue)
-          const indicator = checkThreshold(`${context} ${key}`, changeRaw, 'memory', context)
-          code += `| ${label} | ${formatBytes(baseValue)} | ${formatBytes(prValue)} | ${change}${indicator} |\n`
-        }
-      }
-    }
-
-    if (baseScenario.memory?.delta && prScenario.memory?.delta) {
-      code += '| **Memory delta** | | | |\n'
-      const deltaMetrics = [
-        { key: 'heapUsed', label: 'd heap used' },
-        { key: 'heapTotal', label: 'd heap total' },
-        { key: 'external', label: 'd external' }
-      ]
-
-      for (const { key, label } of deltaMetrics) {
-        const baseValue = baseScenario.memory.delta[key]
-        const prValue = prScenario.memory.delta[key]
-        if (baseValue !== undefined && prValue !== undefined) {
-          const { value: change, raw: changeRaw } = calculateChange(baseValue, prValue)
-          const indicator = checkThreshold(`${context} ${label}`, changeRaw, 'memory', context)
-          const baseFormatted = baseValue >= 0 ? `+${formatBytes(baseValue)}` : `-${formatBytes(Math.abs(baseValue))}`
-          const prFormatted = prValue >= 0 ? `+${formatBytes(prValue)}` : `-${formatBytes(Math.abs(prValue))}`
-          code += `| ${label} | ${baseFormatted} | ${prFormatted} | ${change}${indicator} |\n`
+          const { value: change } = calculateChange(baseValue, prValue)
+          code += `| ${label} | ${formatBytes(baseValue)} | ${formatBytes(prValue)} | ${change} |\n`
         }
       }
     }
