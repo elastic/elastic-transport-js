@@ -9,6 +9,7 @@ import * as http from 'http'
 import buffer from 'buffer'
 import { gzipSync, deflateSync } from 'zlib'
 import { Readable } from 'stream'
+import { setTimeout as setTimeoutAsync } from 'node:timers/promises'
 import intoStream from 'into-stream'
 import { buildServer } from '../utils'
 import { UndiciConnection, errors, ConnectionOptions } from '../../'
@@ -848,9 +849,9 @@ test('UTF-8 multi-byte characters not corrupted in chunked response', async t =>
     // Send: chunk1 = "Hello " + first 2 bytes of emoji
     //       chunk2 = last 2 bytes of emoji + " World" + Georgian text
     res.write(Buffer.from(Uint8Array.prototype.slice.call(fullTextBuffer, 0, emojiStart + 2))) // First chunk: up to middle of emoji
-    await setTimeout(100)
+    await setTimeoutAsync(100)
     res.write(Buffer.from(Uint8Array.prototype.slice.call(fullTextBuffer, emojiStart + 2))) // Second chunk: rest of emoji + rest of text
-    await setTimeout(100)
+    await setTimeoutAsync(100)
     res.end()
   }
 
@@ -891,9 +892,9 @@ test('UTF-8 multi-byte characters with Georgian text split across chunks', async
 
     // Split first Georgian character across chunks
     res.write(Buffer.from(Uint8Array.prototype.slice.call(georgianBuffer, 0, 2))) // First 2 bytes of 'გ'
-    await setTimeout(100)
+    await setTimeoutAsync(100)
     res.write(Buffer.from(Uint8Array.prototype.slice.call(georgianBuffer, 2))) // Last byte of 'გ' + rest of text
-    await setTimeout(100)
+    await setTimeoutAsync(100)
     res.end()
   }
 
