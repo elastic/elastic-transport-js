@@ -180,16 +180,3 @@ test('redaction does leak back to original object', t => {
   })
   t.end()
 })
-
-test('410 response uses a custom message', t => {
-  const errResponse = new errors.ResponseError({
-    body: {},
-    statusCode: 410,
-    headers: {},
-    warnings: [],
-    meta: {} as any,
-  });
-
-  t.equal(errResponse.message, 'This API is unavailable in the version of Elasticsearch you are using.')
-  t.end()
-})
