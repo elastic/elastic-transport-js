@@ -3,4 +3,6 @@ steps:
   - label: "ES JavaScript Transport Benchmark"
     command: ./.buildkite/benchmark.sh
     agents:
-      image: docker.elastic.co/ci-agent-images/ems/buildkite-agent-node22
+      provider: gcp
+      image: family/devtools-benchmark-ubuntu-2204
+      imageProject: elastic-images-prod
