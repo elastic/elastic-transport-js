@@ -5,4 +5,4 @@ steps:
     agents:
       provider: gcp
       image: family/devtools-benchmark-ubuntu-2204
-      imageProject: elastic-images-prod
+      imageProject: elastic-images-qa
