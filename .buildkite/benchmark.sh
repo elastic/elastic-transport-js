@@ -4,8 +4,8 @@ set -euo pipefail
 
 source ~/.asdf/asdf.sh
 asdf plugin add nodejs || true
-asdf install nodejs 22
-asdf global nodejs 22
+asdf install nodejs latest:22
+asdf global nodejs latest:22
 
 repo_pwd="$PWD"
 mkdir -p benchmark-output/{pr,base}
