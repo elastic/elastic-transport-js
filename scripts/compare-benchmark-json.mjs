@@ -9,7 +9,7 @@ import { join } from 'node:path'
 
 const THRESHOLDS = {
   latency: { warning: 25, failure: 50 },
-  throughput: { warning: -25, failure: -50 },
+  throughput: { warning: 25, failure: 50 },
   memory: { warning: 50, failure: 100 },
   gc: { warning: 50, failure: 100 }
 }
@@ -81,19 +81,17 @@ function checkThreshold(metricName, changePercent, thresholdType, context) {
   const threshold = THRESHOLDS[thresholdType]
   if (!threshold) return ''
 
-  const isRegressionPositive = thresholdType !== 'throughput'
-  const regressionValue = isRegressionPositive ? changePercent : -changePercent
+  // For throughput: negative = regression (slower ops/sec)
+  // For latency/memory/gc: positive = regression (higher latency, more memory, more GC)
+  const regressionValue = thresholdType === 'throughput' ? -changePercent : changePercent
 
   if (regressionValue >= threshold.failure) {
     regressions.failures.push({ metric: metricName, change: changePercent, context })
-    return ' [FAIL]'
+    return ' [SLOW]'
   }
   if (regressionValue >= threshold.warning) {
     regressions.warnings.push({ metric: metricName, change: changePercent, context })
     return ' [WARN]'
-  }
-  if (regressionValue <= -threshold.warning) {
-    return ' [OK]'
   }
   return ''
 }

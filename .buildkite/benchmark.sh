@@ -7,6 +7,8 @@ asdf plugin add nodejs || true
 asdf install nodejs latest:22
 asdf global nodejs latest:22
 
+BENCHMARK_RUNS=3
+
 repo_pwd="$PWD"
 mkdir -p benchmark-output/{pr,base}
 
@@ -19,9 +21,12 @@ run_benchmark() {
   fi
 
   npm install --silent
-  npm run benchmark
-  mv benchmark.json "$repo_pwd/benchmark-output/$target/"
-  mv benchmark-gc.json "$repo_pwd/benchmark-output/$target/"
+
+  for i in $(seq 1 $BENCHMARK_RUNS); do
+    npm run benchmark
+    mv benchmark.json "$repo_pwd/benchmark-output/${target}-run${i}.json"
+    mv benchmark-gc.json "$repo_pwd/benchmark-output/${target}-gc-run${i}.json"
+  done
 
   if [ "$target" = 'base' ]; then
     popd
@@ -37,4 +42,5 @@ fi
 run_benchmark base
 run_benchmark pr
 
+node scripts/aggregate-benchmarks.mjs
 npm run benchmark:pr-comment
