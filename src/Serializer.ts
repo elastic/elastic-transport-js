@@ -11,6 +11,9 @@ import { kJsonOptions } from './symbols'
 
 const debug = Debug('elasticsearch')
 
+/** Number of bytes per IEEE-754 float32 value */
+const FLOAT32_BYTES = 4
+
 export interface SerializerOptions {
   enablePrototypePoisoningProtection?: boolean | 'proto' | 'constructor'
 }
@@ -89,5 +92,42 @@ export default class Serializer {
       }
     }
     return stringify(object)
+  }
+
+  /**
+   * Encodes an array of float32 values to a base64 string
+   */
+  encodeFloat32Vector (floats: number[]): string {
+    debug('encodeFloat32Vector', floats)
+    if (!Array.isArray(floats)) {
+      throw new SerializationError('The argument provided is not an array', floats)
+    }
+    const buffer = Buffer.allocUnsafe(floats.length * FLOAT32_BYTES)
+    for (let i = 0; i < floats.length; i++) {
+      buffer.writeFloatBE(floats[i], i * FLOAT32_BYTES)
+    }
+    return buffer.toString('base64')
+  }
+
+  /**
+   * Decodes a base64 string back to an array of float32
+   */
+  decodeFloat32Vector (base64: string): number[] {
+    debug('decodeFloat32Vector', base64)
+    if (typeof base64 !== 'string') {
+      throw new DeserializationError('The argument provided is not a string', base64)
+    }
+    const buffer = Buffer.from(base64, 'base64')
+    if (buffer.length % FLOAT32_BYTES !== 0) {
+      throw new DeserializationError(
+        `Invalid base64 vector: byte length ${buffer.length} is not a multiple of ${FLOAT32_BYTES}`,
+        base64
+      )
+    }
+    const floats: number[] = new Array(buffer.length / FLOAT32_BYTES)
+    for (let i = 0; i < floats.length; i++) {
+      floats[i] = buffer.readFloatBE(i * FLOAT32_BYTES)
+    }
+    return floats
   }
 }
