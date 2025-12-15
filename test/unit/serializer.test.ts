@@ -258,9 +258,8 @@ test('encodeFloat32Vector (negative values)', t => {
 test('encodeFloat32Vector (verify big-endian encoding)', t => {
   t.plan(1)
   const s = new Serializer()
-  const floats = [1.0]
-  const encoded = s.encodeFloat32Vector(floats)
-  t.equal(encoded, 'P4AAAA==')
+  const encoded = s.encodeFloat32Vector([1.0, 2.0])
+  t.equal(encoded, 'P4AAAEAAAAA=')
 })
 
 test('encodeFloat32Vector (not an array)', t => {
