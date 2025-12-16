@@ -1,9 +1,8 @@
 ---
-agents:
-  memory: "2G"
-
 steps:
-  - label: ":elasticsearch: :javascript: ES JavaScript Transport Benchmark (Linux)"
+  - label: "ES JavaScript Transport Benchmark"
     command: ./.buildkite/benchmark.sh
     agents:
-      image: node:lts
+      provider: gcp
+      image: family/devtools-benchmark-ubuntu-2204
+      imageProject: elastic-images-qa
