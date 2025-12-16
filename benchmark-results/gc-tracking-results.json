@@ -1,0 +1,224 @@
+{
+  "metadata": {
+    "timestamp": "2025-11-07T16:36:52.097Z",
+    "nodeVersion": "v24.9.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpus": 14,
+    "totalMemory": 51539607552,
+    "freeMemory": 2547728384
+  },
+  "results": [
+    {
+      "scenario": "Legacy (baseline)",
+      "config": {
+        "useMiddleware": false,
+        "compression": false,
+        "maxRetries": 0
+      },
+      "performance": {
+        "iterations": 5000,
+        "durationMs": "13.55",
+        "avgLatencyMs": "0.003",
+        "opsPerSec": 368962
+      },
+      "gc": {
+        "totalEvents": 0,
+        "totalDuration": 0,
+        "avgDuration": 0,
+        "maxDuration": 0,
+        "byType": {}
+      },
+      "memory": {
+        "before": {
+          "heapUsed": 10692224,
+          "heapTotal": 21135360,
+          "external": 3363967,
+          "arrayBuffers": 19315
+        },
+        "afterWarmup": {
+          "heapUsed": 10810528,
+          "heapTotal": 20611072,
+          "external": 3363971,
+          "arrayBuffers": 19315
+        },
+        "after": {
+          "heapUsed": 10967016,
+          "heapTotal": 21135360,
+          "external": 3363971,
+          "arrayBuffers": 19315
+        },
+        "delta": {
+          "heapUsed": 156488,
+          "heapTotal": 524288,
+          "external": 0
+        }
+      }
+    },
+    {
+      "scenario": "Legacy + compression",
+      "config": {
+        "useMiddleware": false,
+        "compression": true,
+        "maxRetries": 0
+      },
+      "performance": {
+        "iterations": 5000,
+        "durationMs": "152.69",
+        "avgLatencyMs": "0.031",
+        "opsPerSec": 32746
+      },
+      "gc": {
+        "totalEvents": 22,
+        "totalDuration": 4.144206762313843,
+        "avgDuration": 0.1883730346506292,
+        "maxDuration": 1.4337079524993896,
+        "byType": {
+          "1": {
+            "count": 21,
+            "totalDuration": 2.710498809814453,
+            "avgDuration": 0.12907137189592635
+          },
+          "4": {
+            "count": 1,
+            "totalDuration": 1.4337079524993896,
+            "avgDuration": 1.4337079524993896
+          }
+        }
+      },
+      "memory": {
+        "before": {
+          "heapUsed": 10970712,
+          "heapTotal": 21135360,
+          "external": 3363971,
+          "arrayBuffers": 19315
+        },
+        "afterWarmup": {
+          "heapUsed": 11184912,
+          "heapTotal": 21135360,
+          "external": 5011363,
+          "arrayBuffers": 748755
+        },
+        "after": {
+          "heapUsed": 11525728,
+          "heapTotal": 21397504,
+          "external": 5478523,
+          "arrayBuffers": 461891
+        },
+        "delta": {
+          "heapUsed": 340816,
+          "heapTotal": 262144,
+          "external": 467160
+        }
+      }
+    },
+    {
+      "scenario": "Middleware (baseline)",
+      "config": {
+        "useMiddleware": true,
+        "compression": false,
+        "maxRetries": 0
+      },
+      "performance": {
+        "iterations": 5000,
+        "durationMs": "11.05",
+        "avgLatencyMs": "0.002",
+        "opsPerSec": 452592
+      },
+      "gc": {
+        "totalEvents": 0,
+        "totalDuration": 0,
+        "avgDuration": 0,
+        "maxDuration": 0,
+        "byType": {}
+      },
+      "memory": {
+        "before": {
+          "heapUsed": 11521480,
+          "heapTotal": 21397504,
+          "external": 3388555,
+          "arrayBuffers": 43899
+        },
+        "afterWarmup": {
+          "heapUsed": 11473648,
+          "heapTotal": 21397504,
+          "external": 3388555,
+          "arrayBuffers": 43899
+        },
+        "after": {
+          "heapUsed": 11538872,
+          "heapTotal": 21397504,
+          "external": 3388555,
+          "arrayBuffers": 43899
+        },
+        "delta": {
+          "heapUsed": 65224,
+          "heapTotal": 0,
+          "external": 0
+        }
+      }
+    },
+    {
+      "scenario": "Middleware + compression",
+      "config": {
+        "useMiddleware": true,
+        "compression": true,
+        "maxRetries": 0
+      },
+      "performance": {
+        "iterations": 5000,
+        "durationMs": "152.45",
+        "avgLatencyMs": "0.030",
+        "opsPerSec": 32798
+      },
+      "gc": {
+        "totalEvents": 22,
+        "totalDuration": 6.202413558959961,
+        "avgDuration": 0.2819278890436346,
+        "maxDuration": 1.3198330402374268,
+        "byType": {
+          "1": {
+            "count": 9,
+            "totalDuration": 1.6986656188964844,
+            "avgDuration": 0.18874062432183158
+          },
+          "4": {
+            "count": 7,
+            "totalDuration": 4.118081092834473,
+            "avgDuration": 0.5882972989763532
+          },
+          "8": {
+            "count": 6,
+            "totalDuration": 0.3856668472290039,
+            "avgDuration": 0.06427780787150066
+          }
+        }
+      },
+      "memory": {
+        "before": {
+          "heapUsed": 11538768,
+          "heapTotal": 21397504,
+          "external": 3388555,
+          "arrayBuffers": 43899
+        },
+        "afterWarmup": {
+          "heapUsed": 11493360,
+          "heapTotal": 21397504,
+          "external": 5035947,
+          "arrayBuffers": 904467
+        },
+        "after": {
+          "heapUsed": 9572616,
+          "heapTotal": 29097984,
+          "external": 10325303,
+          "arrayBuffers": 1994539
+        },
+        "delta": {
+          "heapUsed": -1920744,
+          "heapTotal": 7700480,
+          "external": 5289356
+        }
+      }
+    }
+  ]
+}
