@@ -6,4 +6,4 @@ steps:
   - label: ":elasticsearch: :javascript: ES JavaScript Transport Benchmark (Linux)"
     command: ./.buildkite/benchmark.sh
     agents:
-      image: node:lts
+      image: "node:lts@sha256:b52a8d1206132b36d60e51e413d9a81336e8a0206d3b648cabd6d5a49c4c0f54"
