@@ -5,10 +5,10 @@
 
 import { Middleware, MiddlewareContext } from './types'
 import { TransportResult } from '../types'
-import { ElasticsearchClientError } from '../errors'
+import { ElasticsearchClientError, NativeErrorOptions } from '../errors'
 
 export class MiddlewareException extends Error {
-  constructor (message: string, options?: ErrorOptions) {
+  constructor (message: string, options?: NativeErrorOptions) {
     super(message, options)
     this.name = 'MiddlewareException'
   }
