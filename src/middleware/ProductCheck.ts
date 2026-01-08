@@ -19,7 +19,7 @@ export class ProductCheck implements Middleware {
 
   onResponse = (ctx: MiddlewareContext, result: TransportResult): MiddlewareResult | undefined => {
     if (this.options.productCheck == null) {
-      return undefined
+      return
     }
 
     if (result.headers['x-elastic-product'] !== this.options.productCheck &&
@@ -30,7 +30,5 @@ export class ProductCheck implements Middleware {
       }
       throw new ProductNotSupportedError(this.options.productCheck, result, errorOptions)
     }
-
-    return undefined
   }
 }

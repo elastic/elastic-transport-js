@@ -38,16 +38,11 @@ export class MiddlewareEngine {
           return
         }
       } catch (error) {
-        // Let transport errors bubble up directly without wrapping
         if (error instanceof ElasticsearchClientError) {
           throw error
         }
         throw new MiddlewareException(`Middleware ${middleware.name} failed in ${phase}`, { cause: error })
       }
     }
-  }
-
-  getRegisteredMiddleware (): readonly Middleware[] {
-    return [...this.middleware]
   }
 }
