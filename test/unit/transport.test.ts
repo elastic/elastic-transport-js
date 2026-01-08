@@ -45,7 +45,8 @@ const {
   SerializationError,
   DeserializationError,
   RequestAbortedError,
-  ConfigurationError
+  ConfigurationError,
+  ProductNotSupportedError
 } = errors
 
 test('Basic', async t => {
@@ -2849,4 +2850,162 @@ test('Request duration is tracked on errors', async t => {
   } catch (err: any) {
     t.ok(err instanceof ConnectionError)
   }
+})
+
+// Product Check Middleware Integration
+test('Product check passes when x-elastic-product header matches', async t => {
+  t.plan(2)
+
+  const MockProductConnection = buildMockConnection({
+    onRequest () {
+      return {
+        body: { hello: 'world' },
+        statusCode: 200,
+        headers: { 'x-elastic-product': 'Elasticsearch' }
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: MockProductConnection })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool,
+    productCheck: 'Elasticsearch'
+  })
+
+  const res = await transport.request({
+    method: 'GET',
+    path: '/hello'
+  }, { meta: true })
+
+  t.equal(res.statusCode, 200)
+  t.same(res.body, { hello: 'world' })
+})
+
+test('Product check throws ProductNotSupportedError when header is missing', async t => {
+  t.plan(2)
+
+  const MockNoProductConnection = buildMockConnection({
+    onRequest () {
+      return {
+        body: { hello: 'world' },
+        statusCode: 200,
+        headers: { 'x-elastic-product': undefined }
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: MockNoProductConnection })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool,
+    productCheck: 'Elasticsearch'
+  })
+
+  try {
+    await transport.request({
+      method: 'GET',
+      path: '/hello'
+    })
+    t.fail('should have thrown')
+  } catch (err: any) {
+    t.ok(err instanceof ProductNotSupportedError, 'should be ProductNotSupportedError')
+    t.ok(err.message.includes('Elasticsearch'), 'error message should include product name')
+  }
+})
+
+test('Product check throws ProductNotSupportedError when header does not match', async t => {
+  t.plan(1)
+
+  const MockWrongProductConnection = buildMockConnection({
+    onRequest () {
+      return {
+        body: { hello: 'world' },
+        statusCode: 200,
+        headers: { 'x-elastic-product': 'SomeOtherProduct' }
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: MockWrongProductConnection })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool,
+    productCheck: 'Elasticsearch'
+  })
+
+  try {
+    await transport.request({
+      method: 'GET',
+      path: '/hello'
+    })
+    t.fail('should have thrown')
+  } catch (err: any) {
+    t.ok(err instanceof ProductNotSupportedError, 'should be ProductNotSupportedError')
+  }
+})
+
+test('Product check does not throw for error status codes', async t => {
+  t.plan(2)
+
+  const MockErrorConnection = buildMockConnection({
+    onRequest () {
+      return {
+        body: { error: 'not found' },
+        statusCode: 404,
+        headers: { 'x-elastic-product': undefined }
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: MockErrorConnection })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool,
+    productCheck: 'Elasticsearch'
+  })
+
+  try {
+    await transport.request({
+      method: 'GET',
+      path: '/hello'
+    })
+    t.fail('should have thrown')
+  } catch (err: any) {
+    t.ok(err instanceof ResponseError, 'should be ResponseError not ProductNotSupportedError')
+    t.equal(err.statusCode, 404)
+  }
+})
+
+test('Product check is disabled when productCheck option is not set', async t => {
+  t.plan(2)
+
+  const MockNoProductConnection = buildMockConnection({
+    onRequest () {
+      return {
+        body: { hello: 'world' },
+        statusCode: 200,
+        headers: { 'x-elastic-product': undefined }
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: MockNoProductConnection })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool
+  })
+
+  const res = await transport.request({
+    method: 'GET',
+    path: '/hello'
+  }, { meta: true })
+
+  t.equal(res.statusCode, 200)
+  t.same(res.body, { hello: 'world' })
 })
