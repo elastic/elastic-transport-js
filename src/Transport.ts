@@ -17,7 +17,6 @@ import {
   NoLivingConnectionsError,
   ResponseError,
   ConfigurationError,
-  ProductNotSupportedError,
   TimeoutError,
   ErrorOptions
 } from './errors'
@@ -66,11 +65,13 @@ import {
   kRedaction,
   kRetryBackoff,
   kOtelTracer,
-  kOtelOptions
+  kOtelOptions,
+  kMiddlewareEngine
 } from './symbols'
 import { setTimeout } from 'node:timers/promises'
 import opentelemetry, { Attributes, Exception, SpanKind, SpanStatusCode, Span, Tracer } from '@opentelemetry/api'
 import { suppressTracing } from '@opentelemetry/core'
+import { MiddlewareEngine, ProductCheck, MiddlewareContext } from './middleware'
 
 const nodeVersion = process.versions.node
 const { version: clientVersion } = require('../package.json') // eslint-disable-line
@@ -230,6 +231,7 @@ export default class Transport {
   [kRetryBackoff]: (min: number, max: number, attempt: number) => number
   [kOtelTracer]: Tracer
   [kOtelOptions]: OpenTelemetryOptions
+  [kMiddlewareEngine]: MiddlewareEngine
 
   static sniffReasons = {
     SNIFF_ON_START: 'sniff-on-start',
@@ -300,6 +302,12 @@ export default class Transport {
       enabled: otelEnabledDefault,
       suppressInternalInstrumentation: false
     }, opts.openTelemetry ?? {})
+
+    // Initialize middleware engine with ProductCheck
+    this[kMiddlewareEngine] = new MiddlewareEngine()
+    this[kMiddlewareEngine].register(new ProductCheck({
+      productCheck: this[kProductCheck]
+    }))
 
     if (opts.sniffOnStart === true) {
       this.sniff({
@@ -562,12 +570,26 @@ export default class Transport {
           otelSpan?.setAttribute('elasticsearch.node.name', headers['x-found-handling-instance'])
         }
 
-        if (this[kProductCheck] != null && headers['x-elastic-product'] !== this[kProductCheck] && statusCode >= 200 && statusCode < 300) {
-          /* eslint-disable @typescript-eslint/prefer-ts-expect-error */
-          // @ts-ignore
-          throw new ProductNotSupportedError(this[kProductCheck], result, errorOptions)
-          /* eslint-enable @typescript-eslint/prefer-ts-expect-error */
+        // Execute middleware onResponse phase (handles product check)
+        const middlewareContext: MiddlewareContext = {
+          request: {
+            method: connectionParams.method,
+            path: connectionParams.path,
+            body: connectionParams.body,
+            querystring: connectionParams.querystring,
+            headers
+          },
+          params,
+          options,
+          meta: {
+            requestId: meta.request.id,
+            name: this[kName],
+            context: meta.context as Context | null,
+            connection: meta.connection,
+            attempts: meta.attempts
+          }
         }
+        this[kMiddlewareEngine].executePhase('onResponse', middlewareContext, result)
 
         if (options.asStream === true) {
           result.body = body

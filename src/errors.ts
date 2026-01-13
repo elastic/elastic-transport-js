@@ -12,6 +12,10 @@ export interface ErrorOptions {
   redaction: RedactionOptions
 }
 
+export interface NativeErrorOptions {
+  cause?: unknown
+}
+
 export class ElasticsearchClientError extends Error {
   options: ErrorOptions
   constructor (message: string, options?: ErrorOptions) {
