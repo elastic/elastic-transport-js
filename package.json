@@ -42,9 +42,9 @@
   },
   "scripts": {
     "test": "npm run build && npm run lint && tap",
-    "test:unit": "npm run build && tap test/unit/**/*.test.ts --disable-coverage",
-    "test:unit-bun": "bun run build && bunx tap test/unit/**/*.test.ts --disable-coverage",
-    "test:acceptance": "npm run build && tap test/acceptance/**/*.test.ts --disable-coverage",
+    "test:unit": "npm run build && tap test/unit/ --disable-coverage",
+    "test:unit-bun": "bun run build && bunx tap test/unit/ --disable-coverage",
+    "test:acceptance": "npm run build && tap test/acceptance/ --disable-coverage",
     "test:coverage-100": "npm run build && tap --show-full-coverage",
     "test:coverage-report": "npm test && tap report --coverage-report=lcov",
     "test:coverage-ui": "npm run build && tap --coverage-report=html",
@@ -111,8 +111,8 @@
   },
   "tap": {
     "files": [
-      "test/unit/**/*.test.ts",
-      "test/acceptance/**/*.test.ts"
+      "test/unit/",
+      "test/acceptance/"
     ],
     "allow-incomplete-coverage": true,
     "plugin": [
