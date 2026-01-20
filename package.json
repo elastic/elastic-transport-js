@@ -39,7 +39,7 @@
     "build": "npm run build:cjs && npm run build:esm && npm run build:esm-fix && npm run build:esm-package",
     "build:cjs": "tsc",
     "build:esm": "tsc -p tsconfig.esm.json",
-    "build:esm-fix": "node scripts/fix-esm-imports.js",
+    "build:esm-fix": "tsc-esm-fix --target=lib/esm && node scripts/fix-esm-require.js",
     "build:esm-package": "echo '{\"type\":\"module\"}' > lib/esm/package.json",
     "clean-build": "rimraf ./lib && mkdir lib",
     "prepublishOnly": "npm run build",
@@ -83,6 +83,7 @@
     "tap": "21.1.1",
     "ts-node": "10.9.2",
     "ts-standard": "12.0.2",
+    "tsc-esm-fix": "^3.1.2",
     "typescript": "5.9.3",
     "workq": "3.0.0"
   },
