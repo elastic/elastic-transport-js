@@ -21,7 +21,7 @@ interface ProxyServer extends http.Server {
 }
 
 export function createProxy (): Promise<ProxyServer> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const server = proxy(http.createServer())
     server.listen(0, '127.0.0.1', () => {
       resolve(server)
@@ -30,7 +30,7 @@ export function createProxy (): Promise<ProxyServer> {
 }
 
 export function createSecureProxy (): Promise<ProxyServer> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const server = proxy(https.createServer(ssl))
     server.listen(0, '127.0.0.1', () => {
       resolve(server)
@@ -39,7 +39,7 @@ export function createSecureProxy (): Promise<ProxyServer> {
 }
 
 export function createServer (): Promise<http.Server> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const server = http.createServer()
     server.listen(0, '127.0.0.1', () => {
       resolve(server)
@@ -48,7 +48,7 @@ export function createServer (): Promise<http.Server> {
 }
 
 export function createSecureServer (): Promise<http.Server> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const server = https.createServer(ssl)
     server.listen(0, '127.0.0.1', () => {
       resolve(server)
