@@ -4,9 +4,9 @@
  */
 
 import * as http from 'node:http'
-import { DiagnosticResult } from './types.js'
-import { RedactionOptions } from './Transport.js'
-import { redactDiagnostic } from './security.js'
+import { DiagnosticResult } from './types'
+import { RedactionOptions } from './Transport'
+import { redactDiagnostic } from './security'
 
 export interface ErrorOptions {
   redaction: RedactionOptions

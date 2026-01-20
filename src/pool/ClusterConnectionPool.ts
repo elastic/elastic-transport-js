@@ -7,11 +7,11 @@ import BaseConnectionPool, {
   ConnectionPoolOptions,
   GetConnectionOptions,
   defaultNodeFilter
-} from './BaseConnectionPool.js'
+} from './BaseConnectionPool'
 import assert from 'node:assert'
 import Debug from 'debug'
-import { Connection, BaseConnection, ConnectionOptions } from '../connection/index.js'
-import { nodeFilterFn } from '../types.js'
+import { Connection, BaseConnection, ConnectionOptions } from '../connection'
+import { nodeFilterFn } from '../types'
 
 const debug = Debug('elasticsearch')
 

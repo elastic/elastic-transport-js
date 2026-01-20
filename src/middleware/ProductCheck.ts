@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Middleware, MiddlewareContext, MiddlewareResult, MiddlewareName, MiddlewarePriority } from './types.js'
-import { TransportResult } from '../types.js'
-import { ProductNotSupportedError, ErrorOptions } from '../errors.js'
+import { Middleware, MiddlewareContext, MiddlewareResult, MiddlewareName, MiddlewarePriority } from './types'
+import { TransportResult } from '../types'
+import { ProductNotSupportedError, ErrorOptions } from '../errors'
 
 export interface ProductCheckOptions {
   productCheck: string | null

@@ -19,13 +19,13 @@ import {
   ConfigurationError,
   TimeoutError,
   ErrorOptions
-} from './errors.js'
-import { Connection, ConnectionRequestParams } from './connection/index.js'
-import { isBinary } from './connection/BaseConnection.js'
-import Diagnostic from './Diagnostic.js'
-import Serializer from './Serializer.js'
+} from './errors'
+import { Connection, ConnectionRequestParams } from './connection'
+import { isBinary } from './connection/BaseConnection'
+import Diagnostic from './Diagnostic'
+import Serializer from './Serializer'
 import { Readable as ReadableStream } from 'node:stream'
-import { BaseConnectionPool } from './pool/index.js'
+import { BaseConnectionPool } from './pool'
 import {
   nodeFilterFn,
   nodeSelectorFn,
@@ -34,7 +34,7 @@ import {
   RequestNDBody,
   TransportResult,
   Context
-} from './types.js'
+} from './types'
 import {
   kSniffEnabled,
   kNextSniff,
@@ -67,11 +67,11 @@ import {
   kOtelTracer,
   kOtelOptions,
   kMiddlewareEngine
-} from './symbols.js'
+} from './symbols'
 import { setTimeout } from 'node:timers/promises'
 import opentelemetry, { Attributes, Exception, SpanKind, SpanStatusCode, Span, Tracer } from '@opentelemetry/api'
 import { suppressTracing } from '@opentelemetry/core'
-import { MiddlewareEngine, ProductCheck, MiddlewareContext } from './middleware/index.js'
+import { MiddlewareEngine, ProductCheck, MiddlewareContext } from './middleware'
 
 const nodeVersion = process.versions.node
 const { version: clientVersion } = require('../package.json') // eslint-disable-line

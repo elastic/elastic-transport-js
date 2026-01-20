@@ -6,13 +6,13 @@
 import { URL } from 'node:url'
 import { ConnectionOptions as TlsConnectionOptions } from 'node:tls'
 import Debug from 'debug'
-import Diagnostic from '../Diagnostic.js'
-import { kCaFingerprint } from '../symbols.js'
+import Diagnostic from '../Diagnostic'
+import { kCaFingerprint } from '../symbols'
 import {
   Connection,
   ConnectionOptions,
   BaseConnection
-} from '../connection/index.js'
+} from '../connection'
 import {
   HttpAgentOptions,
   UndiciAgentOptions,
@@ -22,8 +22,8 @@ import {
   BearerAuth,
   nodeFilterFn,
   nodeSelectorFn
-} from '../types.js'
-import { ConfigurationError } from '../errors.js'
+} from '../types'
+import { ConfigurationError } from '../errors'
 
 const debug = Debug('elasticsearch')
 

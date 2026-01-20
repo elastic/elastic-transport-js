@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import BaseConnection from './BaseConnection.js'
-import HttpConnection from './HttpConnection.js'
-import UndiciConnection from './UndiciConnection.js'
+import BaseConnection from './BaseConnection'
+import HttpConnection from './HttpConnection'
+import UndiciConnection from './UndiciConnection'
 
 export type Connection = BaseConnection | HttpConnection | UndiciConnection
 export type {
@@ -15,7 +15,7 @@ export type {
   ConnectionRequestOptionsAsStream,
   ConnectionRequestResponse,
   ConnectionRequestResponseAsStream
-} from './BaseConnection.js'
+} from './BaseConnection'
 
 export {
   BaseConnection,

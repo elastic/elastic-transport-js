@@ -8,7 +8,7 @@ import * as http from 'node:http'
 import { URL } from 'node:url'
 import { ConnectionOptions as TlsConnectionOptions, TLSSocket, DetailedPeerCertificate } from 'node:tls'
 import { Readable as ReadableStream } from 'node:stream'
-import Diagnostic from '../Diagnostic.js'
+import Diagnostic from '../Diagnostic'
 import {
   ApiKeyAuth,
   BasicAuth,
@@ -16,9 +16,9 @@ import {
   HttpAgentOptions,
   UndiciAgentOptions,
   agentFn
-} from '../types.js'
-import { ConfigurationError } from '../errors.js'
-import { kStatus, kDiagnostic, kCaFingerprint } from '../symbols.js'
+} from '../types'
+import { ConfigurationError } from '../errors'
+import { kStatus, kDiagnostic, kCaFingerprint } from '../symbols'
 
 export interface ConnectionRoles {
   master: boolean

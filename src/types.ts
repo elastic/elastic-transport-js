@@ -6,8 +6,8 @@
 import { Readable as ReadableStream } from 'node:stream'
 import { URL } from 'node:url'
 import * as http from 'node:http'
-import { Connection, ConnectionOptions, ConnectionRequestParams } from './connection/index.js'
-import { TransportRequestParams, TransportRequestOptions } from './Transport.js'
+import { Connection, ConnectionOptions, ConnectionRequestParams } from './connection'
+import { TransportRequestParams, TransportRequestOptions } from './Transport'
 
 export type Context = Record<string, unknown> | null
 
