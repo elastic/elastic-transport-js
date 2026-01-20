@@ -21,7 +21,12 @@ function processDirectory(dir) {
     if (entry.isDirectory()) {
       processDirectory(fullPath)
     } else if (entry.isFile() && entry.name.endsWith('.js')) {
-      processFile(fullPath)
+      try {
+        processFile(fullPath)
+      } catch (err) {
+        console.error(`Error processing ${fullPath}:`, err.message)
+        // Continue processing other files
+      }
     }
   }
 }
@@ -45,11 +50,14 @@ function processFile(filePath) {
       const resolvedPath = path.resolve(dir, importPath)
       
       // Check if it's a directory (with index.js)
-      if (fs.existsSync(resolvedPath) && fs.statSync(resolvedPath).isDirectory()) {
-        if (fs.existsSync(path.join(resolvedPath, 'index.js'))) {
+      try {
+        const stat = fs.statSync(resolvedPath)
+        if (stat.isDirectory() && fs.existsSync(path.join(resolvedPath, 'index.js'))) {
           modified = true
           return `${prefix}${importPath}/index.js${suffix}`
         }
+      } catch (err) {
+        // Path doesn't exist or error accessing it, just add .js
       }
       
       // Otherwise just add .js
@@ -65,14 +73,26 @@ function processFile(filePath) {
     if (!content.includes('createRequire')) {
       // Find the last import statement
       const lastImportIndex = content.lastIndexOf('import ')
-      const newlineAfterImport = content.indexOf('\n', lastImportIndex)
       
-      if (newlineAfterImport !== -1) {
-        const beforeImport = content.substring(0, newlineAfterImport + 1)
-        const afterImport = content.substring(newlineAfterImport + 1)
+      if (lastImportIndex !== -1) {
+        const newlineAfterImport = content.indexOf('\n', lastImportIndex)
         
-        content = beforeImport + "import { createRequire } from 'node:module';\nconst require = createRequire(import.meta.url);\n" + afterImport
-        modified = true
+        if (newlineAfterImport !== -1) {
+          const beforeImport = content.substring(0, newlineAfterImport + 1)
+          const afterImport = content.substring(newlineAfterImport + 1)
+          
+          content = beforeImport + "import { createRequire } from 'node:module';\nconst require = createRequire(import.meta.url);\n" + afterImport
+          modified = true
+        }
+      } else {
+        // No imports found, add at the top after the header comment
+        const commentEnd = content.indexOf('*/')
+        if (commentEnd !== -1) {
+          const beforeComment = content.substring(0, commentEnd + 2)
+          const afterComment = content.substring(commentEnd + 2)
+          content = beforeComment + "\nimport { createRequire } from 'node:module';\nconst require = createRequire(import.meta.url);\n" + afterComment
+          modified = true
+        }
       }
     }
     
