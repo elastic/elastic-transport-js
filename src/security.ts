@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DiagnosticResult } from './types'
-import { RedactionOptions } from './Transport'
+import { DiagnosticResult } from './types.js'
+import { RedactionOptions } from './Transport.js'
 
 const secretKeys = [
   'authorization',

@@ -6,8 +6,8 @@
 import { stringify } from 'node:querystring'
 import Debug from 'debug'
 import sjson from 'secure-json-parse'
-import { SerializationError, DeserializationError } from './errors'
-import { kJsonOptions } from './symbols'
+import { SerializationError, DeserializationError } from './errors.js'
+import { kJsonOptions } from './symbols.js'
 
 const debug = Debug('elasticsearch')
 

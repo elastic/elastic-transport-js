@@ -4,10 +4,10 @@
  */
 
 import { EventEmitter } from 'node:events'
-import { ElasticsearchClientError, ConfigurationError } from './errors'
-import { ConnectionRequestOptions } from './connection'
-import { ResurrectEvent } from './pool'
-import { DiagnosticResult, DiagnosticResultResponse } from './types'
+import { ElasticsearchClientError, ConfigurationError } from './errors.js'
+import { ConnectionRequestOptions } from './connection/index.js'
+import { ResurrectEvent } from './pool/index.js'
+import { DiagnosticResult, DiagnosticResultResponse } from './types.js'
 
 export type DiagnosticListener = (err: ElasticsearchClientError | null, meta: any | null) => void
 export type DiagnosticListenerFull = (err: ElasticsearchClientError | null, meta: DiagnosticResult | null) => void

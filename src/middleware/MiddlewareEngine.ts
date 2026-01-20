@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Middleware, MiddlewareContext } from './types'
-import { TransportResult } from '../types'
-import { ElasticsearchClientError, NativeErrorOptions } from '../errors'
+import { Middleware, MiddlewareContext } from './types.js'
+import { TransportResult } from '../types.js'
+import { ElasticsearchClientError, NativeErrorOptions } from '../errors.js'
 
 export class MiddlewareException extends Error {
   constructor (message: string, options?: NativeErrorOptions) {

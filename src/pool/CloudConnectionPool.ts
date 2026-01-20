@@ -6,8 +6,8 @@
 import BaseConnectionPool, {
   ConnectionPoolOptions,
   GetConnectionOptions
-} from './BaseConnectionPool'
-import { Connection, ConnectionOptions } from '../connection'
+} from './BaseConnectionPool.js'
+import { Connection, ConnectionOptions } from '../connection/index.js'
 
 export default class CloudConnectionPool extends BaseConnectionPool {
   cloudConnection: Connection | null

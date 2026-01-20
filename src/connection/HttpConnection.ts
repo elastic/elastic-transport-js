@@ -21,17 +21,17 @@ import BaseConnection, {
   getIssuerCertificate,
   isCaFingerprintMatch,
   isBinary
-} from './BaseConnection'
-import { kCaFingerprint } from '../symbols'
+} from './BaseConnection.js'
+import { kCaFingerprint } from '../symbols.js'
 import { Readable as ReadableStream, pipeline } from 'node:stream'
 import {
   ConfigurationError,
   ConnectionError,
   RequestAbortedError,
   TimeoutError
-} from '../errors'
+} from '../errors.js'
 import { setTimeout } from 'node:timers/promises'
-import { HttpAgentOptions } from '../types'
+import { HttpAgentOptions } from '../types.js'
 
 const debug = Debug('elasticsearch')
 const INVALID_PATH_REGEX = /[^\u0021-\u00ff]/

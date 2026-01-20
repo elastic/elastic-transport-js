@@ -3,13 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Connection, BaseConnection, ConnectionOptions } from '../connection'
-import { nodeFilterFn } from '../types'
+import { Connection, BaseConnection, ConnectionOptions } from '../connection/index.js'
+import { nodeFilterFn } from '../types.js'
 import BaseConnectionPool, {
   ConnectionPoolOptions,
   GetConnectionOptions,
   defaultNodeFilter
-} from './BaseConnectionPool'
+} from './BaseConnectionPool.js'
 
 export default class WeightedConnectionPool extends BaseConnectionPool {
   index: number

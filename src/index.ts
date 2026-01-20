@@ -3,21 +3,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import Diagnostic, { events } from './Diagnostic'
-import Transport from './Transport'
+import Diagnostic, { events } from './Diagnostic.js'
+import Transport from './Transport.js'
 import {
   BaseConnection,
   HttpConnection,
   UndiciConnection
-} from './connection'
+} from './connection/index.js'
 import {
   WeightedConnectionPool,
   ClusterConnectionPool,
   CloudConnectionPool,
   BaseConnectionPool
-} from './pool'
-import Serializer from './Serializer'
-import * as errors from './errors'
+} from './pool/index.js'
+import Serializer from './Serializer.js'
+import * as errors from './errors.js'
 
 export type {
   Connection,
@@ -27,12 +27,12 @@ export type {
   ConnectionRequestOptionsAsStream,
   ConnectionRequestResponse,
   ConnectionRequestResponseAsStream
-} from './connection'
+} from './connection/index.js'
 
 export type {
   ConnectionPoolOptions,
   GetConnectionOptions
-} from './pool'
+} from './pool/index.js'
 
 export type {
   TransportOptions,
@@ -42,7 +42,7 @@ export type {
   TransportRequestOptionsWithMeta,
   TransportRequestOptionsWithOutMeta,
   SniffOptions
-} from './Transport'
+} from './Transport.js'
 
 export type {
   RequestBody,
@@ -53,7 +53,7 @@ export type {
   UndiciAgentOptions,
   ApiKeyAuth,
   BearerAuth
-} from './types'
+} from './types.js'
 
 export {
   Diagnostic,

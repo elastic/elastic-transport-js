@@ -12,165 +12,15 @@
       "types": "./index.d.ts"
     },
     "./package.json": "./package.json",
-    "./connection/BaseConnection": {
-      "import": "./lib/esm/connection/BaseConnection.js",
-      "require": "./lib/connection/BaseConnection.js",
-      "types": "./lib/connection/BaseConnection.d.ts"
+    "./lib/*": {
+      "import": "./lib/esm/*.js",
+      "require": "./lib/*.js",
+      "types": "./lib/*.d.ts"
     },
-    "./lib/connection/BaseConnection": {
-      "import": "./lib/esm/connection/BaseConnection.js",
-      "require": "./lib/connection/BaseConnection.js",
-      "types": "./lib/connection/BaseConnection.d.ts"
-    },
-    "./pool/BaseConnectionPool": {
-      "import": "./lib/esm/pool/BaseConnectionPool.js",
-      "require": "./lib/pool/BaseConnectionPool.js",
-      "types": "./lib/pool/BaseConnectionPool.d.ts"
-    },
-    "./lib/pool/BaseConnectionPool": {
-      "import": "./lib/esm/pool/BaseConnectionPool.js",
-      "require": "./lib/pool/BaseConnectionPool.js",
-      "types": "./lib/pool/BaseConnectionPool.d.ts"
-    },
-    "./pool/CloudConnectionPool": {
-      "import": "./lib/esm/pool/CloudConnectionPool.js",
-      "require": "./lib/pool/CloudConnectionPool.js",
-      "types": "./lib/pool/CloudConnectionPool.d.ts"
-    },
-    "./lib/pool/CloudConnectionPool": {
-      "import": "./lib/esm/pool/CloudConnectionPool.js",
-      "require": "./lib/pool/CloudConnectionPool.js",
-      "types": "./lib/pool/CloudConnectionPool.d.ts"
-    },
-    "./pool/ClusterConnectionPool": {
-      "import": "./lib/esm/pool/ClusterConnectionPool.js",
-      "require": "./lib/pool/ClusterConnectionPool.js",
-      "types": "./lib/pool/ClusterConnectionPool.d.ts"
-    },
-    "./lib/pool/ClusterConnectionPool": {
-      "import": "./lib/esm/pool/ClusterConnectionPool.js",
-      "require": "./lib/pool/ClusterConnectionPool.js",
-      "types": "./lib/pool/ClusterConnectionPool.d.ts"
-    },
-    "./Diagnostic": {
-      "import": "./lib/esm/Diagnostic.js",
-      "require": "./lib/Diagnostic.js",
-      "types": "./lib/Diagnostic.d.ts"
-    },
-    "./lib/Diagnostic": {
-      "import": "./lib/esm/Diagnostic.js",
-      "require": "./lib/Diagnostic.js",
-      "types": "./lib/Diagnostic.d.ts"
-    },
-    "./errors": {
-      "import": "./lib/esm/errors.js",
-      "require": "./lib/errors.js",
-      "types": "./lib/errors.d.ts"
-    },
-    "./lib/errors": {
-      "import": "./lib/esm/errors.js",
-      "require": "./lib/errors.js",
-      "types": "./lib/errors.d.ts"
-    },
-    "./connection/HttpConnection": {
-      "import": "./lib/esm/connection/HttpConnection.js",
-      "require": "./lib/connection/HttpConnection.js",
-      "types": "./lib/connection/HttpConnection.d.ts"
-    },
-    "./lib/connection/HttpConnection": {
-      "import": "./lib/esm/connection/HttpConnection.js",
-      "require": "./lib/connection/HttpConnection.js",
-      "types": "./lib/connection/HttpConnection.d.ts"
-    },
-    "./connection": {
-      "import": "./lib/esm/connection/index.js",
-      "require": "./lib/connection/index.js",
-      "types": "./lib/connection/index.d.ts"
-    },
-    "./lib/connection": {
-      "import": "./lib/esm/connection/index.js",
-      "require": "./lib/connection/index.js",
-      "types": "./lib/connection/index.d.ts"
-    },
-    "./pool": {
-      "import": "./lib/esm/pool/index.js",
-      "require": "./lib/pool/index.js",
-      "types": "./lib/pool/index.d.ts"
-    },
-    "./lib/pool": {
-      "import": "./lib/esm/pool/index.js",
-      "require": "./lib/pool/index.js",
-      "types": "./lib/pool/index.d.ts"
-    },
-    "./security": {
-      "import": "./lib/esm/security.js",
-      "require": "./lib/security.js",
-      "types": "./lib/security.d.ts"
-    },
-    "./lib/security": {
-      "import": "./lib/esm/security.js",
-      "require": "./lib/security.js",
-      "types": "./lib/security.d.ts"
-    },
-    "./Serializer": {
-      "import": "./lib/esm/Serializer.js",
-      "require": "./lib/Serializer.js",
-      "types": "./lib/Serializer.d.ts"
-    },
-    "./lib/Serializer": {
-      "import": "./lib/esm/Serializer.js",
-      "require": "./lib/Serializer.js",
-      "types": "./lib/Serializer.d.ts"
-    },
-    "./symbols": {
-      "import": "./lib/esm/symbols.js",
-      "require": "./lib/symbols.js",
-      "types": "./lib/symbols.d.ts"
-    },
-    "./lib/symbols": {
-      "import": "./lib/esm/symbols.js",
-      "require": "./lib/symbols.js",
-      "types": "./lib/symbols.d.ts"
-    },
-    "./Transport": {
-      "import": "./lib/esm/Transport.js",
-      "require": "./lib/Transport.js",
-      "types": "./lib/Transport.d.ts"
-    },
-    "./lib/Transport": {
-      "import": "./lib/esm/Transport.js",
-      "require": "./lib/Transport.js",
-      "types": "./lib/Transport.d.ts"
-    },
-    "./types": {
-      "import": "./lib/esm/types.js",
-      "require": "./lib/types.js",
-      "types": "./lib/types.d.ts"
-    },
-    "./lib/types": {
-      "import": "./lib/esm/types.js",
-      "require": "./lib/types.js",
-      "types": "./lib/types.d.ts"
-    },
-    "./connection/UndiciConnection": {
-      "import": "./lib/esm/connection/UndiciConnection.js",
-      "require": "./lib/connection/UndiciConnection.js",
-      "types": "./lib/connection/UndiciConnection.d.ts"
-    },
-    "./lib/connection/UndiciConnection": {
-      "import": "./lib/esm/connection/UndiciConnection.js",
-      "require": "./lib/connection/UndiciConnection.js",
-      "types": "./lib/connection/UndiciConnection.d.ts"
-    },
-    "./pool/WeightedConnectionPool": {
-      "import": "./lib/esm/pool/WeightedConnectionPool.js",
-      "require": "./lib/pool/WeightedConnectionPool.js",
-      "types": "./lib/pool/WeightedConnectionPool.d.ts"
-    },
-    "./lib/pool/WeightedConnectionPool": {
-      "import": "./lib/esm/pool/WeightedConnectionPool.js",
-      "require": "./lib/pool/WeightedConnectionPool.js",
-      "types": "./lib/pool/WeightedConnectionPool.d.ts"
+    "./*": {
+      "import": "./lib/esm/*.js",
+      "require": "./lib/*.js",
+      "types": "./lib/*.d.ts"
     }
   },
   "scripts": {
@@ -189,7 +39,7 @@
     "build": "npm run build:cjs && npm run build:esm && npm run build:esm-fix && npm run build:esm-package",
     "build:cjs": "tsc",
     "build:esm": "tsc -p tsconfig.esm.json",
-    "build:esm-fix": "node scripts/fix-esm-imports.js",
+    "build:esm-fix": "node scripts/fix-esm-require.js",
     "build:esm-package": "echo '{\"type\":\"module\"}' > lib/esm/package.json",
     "clean-build": "rimraf ./lib && mkdir lib",
     "prepublishOnly": "npm run build",

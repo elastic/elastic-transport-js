@@ -4,9 +4,9 @@
  */
 
 import * as http from 'node:http'
-import { TransportRequestOptions, TransportRequestParams } from '../Transport'
-import { RequestBody, TransportResult, Context } from '../types'
-import { Connection } from '../connection'
+import { TransportRequestOptions, TransportRequestParams } from '../Transport.js'
+import { RequestBody, TransportResult, Context } from '../types.js'
+import { Connection } from '../connection/index.js'
 
 /**
  * Enum of all registered middleware names.

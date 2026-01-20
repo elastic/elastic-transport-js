@@ -3,20 +3,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import BaseConnectionPool from './BaseConnectionPool'
-import WeightedConnectionPool from './WeightedConnectionPool'
-import ClusterConnectionPool from './ClusterConnectionPool'
-import CloudConnectionPool from './CloudConnectionPool'
+import BaseConnectionPool from './BaseConnectionPool.js'
+import WeightedConnectionPool from './WeightedConnectionPool.js'
+import ClusterConnectionPool from './ClusterConnectionPool.js'
+import CloudConnectionPool from './CloudConnectionPool.js'
 
 export type {
   ConnectionPoolOptions,
   GetConnectionOptions
-} from './BaseConnectionPool'
+} from './BaseConnectionPool.js'
 
 export type {
   ResurrectEvent,
   ResurrectOptions
-} from './ClusterConnectionPool'
+} from './ClusterConnectionPool.js'
 
 export {
   BaseConnectionPool,

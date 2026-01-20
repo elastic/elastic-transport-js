@@ -19,16 +19,16 @@ import BaseConnection, {
   getIssuerCertificate,
   isCaFingerprintMatch,
   isBinary
-} from './BaseConnection'
+} from './BaseConnection.js'
 import { Pool, buildConnector } from 'undici'
 import {
   ConfigurationError,
   RequestAbortedError,
   ConnectionError,
   TimeoutError
-} from '../errors'
-import { UndiciAgentOptions } from '../types'
-import { kCaFingerprint } from '../symbols'
+} from '../errors.js'
+import { UndiciAgentOptions } from '../types.js'
+import { kCaFingerprint } from '../symbols.js'
 
 const debug = Debug('elasticsearch')
 const INVALID_PATH_REGEX = /[^\u0021-\u00ff]/
