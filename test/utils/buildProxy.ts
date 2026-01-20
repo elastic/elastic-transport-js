@@ -12,7 +12,8 @@ import * as https from 'https'
 
 export const ssl = {
   key: readFileSync(join(__dirname, '..', 'fixtures', 'https.key')),
-  cert: readFileSync(join(__dirname, '..', 'fixtures', 'https.cert'))
+  cert: readFileSync(join(__dirname, '..', 'fixtures', 'https.pem')),
+  servername: 'localhost',
 }
 
 type AuthenticateFn = (err: Error | null, valid: boolean) => void

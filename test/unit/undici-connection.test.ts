@@ -273,16 +273,12 @@ test('Timeout support', t => {
       url: new URL(`http://localhost:${port}`)
     })
 
-    try {
-      const res = await connection.request({
-        path: '/hello',
-        method: 'GET'
-      }, options)
-      t.equal(res.body, 'ok')
-      t.ok('Request did not time out')
-    } catch (err: any) {
-      t.fail('No error should be thrown', err.message)
-    }
+    const res = await connection.request({
+      path: '/hello',
+      method: 'GET'
+    }, options)
+    t.equal(res.body, 'ok')
+    t.ok('Request did not time out')
     server.stop()
   })
 
@@ -1211,15 +1207,11 @@ test('CA fingerprint check', t => {
     })
 
     for (let i = 0; i < runs; i++) {
-      try {
-        const res = await connection.request({
-          path: `/hello-${i}`,
-          method: 'GET'
-        }, options)
-        t.equal(res.body, 'ok')
-      } catch {
-        t.fail('This should never be reached')
-      }
+      const res = await connection.request({
+        path: `/hello-${i}`,
+        method: 'GET'
+      }, options)
+      t.equal(res.body, 'ok')
     }
 
     server.stop()

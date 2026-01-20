@@ -335,16 +335,12 @@ test('Timeout support', t => {
       url: new URL(`http://localhost:${port}`)
     })
 
-    try {
-      const res = await connection.request({
-        path: '/hello',
-        method: 'GET'
-      }, options)
-      t.equal(res.body, 'ok')
-      t.ok('Request did not time out')
-    } catch (err: any) {
-      t.fail('No error should be thrown', err.message)
-    }
+    const res = await connection.request({
+      path: '/hello',
+      method: 'GET'
+    }, options)
+    t.equal(res.body, 'ok')
+    t.ok('Request did not time out')
     server.stop()
   })
 
