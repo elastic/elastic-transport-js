@@ -7,7 +7,7 @@ import { test } from 'tap'
 
 test('CommonJS import works', async (t) => {
   // Use dynamic import to load CommonJS module
-  const cjsModule = require('../../index.js')
+  const cjsModule = require('../../')
   
   t.ok(cjsModule, 'Module loaded successfully')
   t.ok(cjsModule.Transport, 'Transport exported')
@@ -31,7 +31,7 @@ test('CommonJS import works', async (t) => {
 })
 
 test('CommonJS exports are usable', async (t) => {
-  const { Serializer, errors } = require('../../index.js')
+  const { Serializer, errors } = require('../../')
   
   // Test that we can instantiate Serializer
   const serializer = new Serializer()
