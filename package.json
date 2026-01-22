@@ -99,9 +99,8 @@
   },
   "tap": {
     "files": [
-      "test/unit/**/*.test.ts",
-      "test/unit/**/*.test.mjs",
-      "test/acceptance/**/*.test.ts"
+      "test/unit/",
+      "test/acceptance/"
     ],
     "allow-incomplete-coverage": true,
     "plugin": [
