@@ -90,7 +90,7 @@ jobs:
       - name: Unit test
         run: |
           cd "$GITHUB_WORKSPACE/client"
-          npm run test:unit
+          npm test
 
   license:
     name: License check
