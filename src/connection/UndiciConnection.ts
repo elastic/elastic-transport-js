@@ -63,6 +63,11 @@ export default class Connection extends BaseConnection {
       throw new ConfigurationError('Undici connection agent options can\'t be a boolean')
     }
 
+    // Validate agent configuration before async initialization
+    if (opts.agent != null && typeof opts.agent !== 'function' && !isUndiciAgentOptions(opts.agent)) {
+      throw new ConfigurationError('Bad agent configuration for Undici agent')
+    }
+
     // Initialize the pool asynchronously to avoid Windows module initialization issues
     this.poolPromise = this.initializePool(opts)
   }
@@ -77,10 +82,14 @@ export default class Connection extends BaseConnection {
       return this.pool
     }
 
-    if (opts.agent != null && typeof opts.agent !== 'boolean' && !isUndiciAgentOptions(opts.agent)) {
-      throw new ConfigurationError('Bad agent configuration for Undici agent')
+    // Allow tests to override the pool - if it's already set (e.g., by a subclass), don't overwrite it
+    // This is needed for test mocking
+    if (this.pool !== undefined) {
+      return this.pool
     }
 
+    // At this point, we know opts.agent is either undefined, a function (handled above),
+    // or a valid UndiciAgentOptions (validated in constructor)
     const undiciOptions: import('undici').Pool.Options = {
       keepAliveTimeout: 600e3,
       keepAliveMaxTimeout: 600e3,
@@ -92,7 +101,7 @@ export default class Connection extends BaseConnection {
       // see https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-network.html#_http_client_configuration
       headersTimeout: this.timeout ?? 0,
       bodyTimeout: this.timeout ?? 0,
-      ...(typeof opts.agent === 'object' ? opts.agent : {})
+      ...(typeof opts.agent === 'object' ? opts.agent as UndiciAgentOptions : {})
     }
 
     if (this[kCaFingerprint] !== null) {
