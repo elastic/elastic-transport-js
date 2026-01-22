@@ -100,6 +100,7 @@
   "tap": {
     "files": [
       "test/unit/**/*.test.ts",
+      "test/unit/**/*.test.mjs",
       "test/acceptance/**/*.test.ts"
     ],
     "allow-incomplete-coverage": true,

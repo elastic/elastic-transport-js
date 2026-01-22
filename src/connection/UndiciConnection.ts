@@ -20,7 +20,8 @@ import BaseConnection, {
   isCaFingerprintMatch,
   isBinary
 } from './BaseConnection'
-import { Pool, buildConnector } from 'undici'
+// Dynamic import of undici to avoid Windows module initialization issues
+import type { Pool, buildConnector } from 'undici'
 import {
   ConfigurationError,
   RequestAbortedError,
@@ -35,11 +36,21 @@ const INVALID_PATH_REGEX = /[^\u0021-\u00ff]/
 const MAX_BUFFER_LENGTH = buffer.constants.MAX_LENGTH
 const MAX_STRING_LENGTH = buffer.constants.MAX_STRING_LENGTH
 
+// Lazy-loaded undici module to avoid initialization issues on Windows
+let undiciModule: typeof import('undici') | null = null
+async function getUndici (): Promise<typeof import('undici')> {
+  if (undiciModule === null) {
+    undiciModule = await import('undici')
+  }
+  return undiciModule
+}
+
 /**
  * A connection to an Elasticsearch node, managed by the Undici HTTP client library
  */
 export default class Connection extends BaseConnection {
-  pool: Pool
+  pool!: Pool
+  private readonly poolPromise: Promise<Pool>
 
   constructor (opts: ConnectionOptions) {
     super(opts)
@@ -52,75 +63,87 @@ export default class Connection extends BaseConnection {
       throw new ConfigurationError('Undici connection agent options can\'t be a boolean')
     }
 
+    // Initialize the pool asynchronously to avoid Windows module initialization issues
+    this.poolPromise = this.initializePool(opts)
+  }
+
+  private async initializePool (opts: ConnectionOptions): Promise<Pool> {
+    const { Pool, buildConnector } = await getUndici()
+
     // if agent is a function, its returned value must be an Undici object with a `request()` function that works the same as Pool.request()
     // NOTE: providing an agent function will ignore built-in handling of `caFingerprint` and `tls` options, so they must be handled by the implementer
     if (typeof opts.agent === 'function') {
       this.pool = opts.agent(opts)
-    } else {
-      if (opts.agent != null && !isUndiciAgentOptions(opts.agent)) {
-        throw new ConfigurationError('Bad agent configuration for Undici agent')
-      }
-
-      const undiciOptions: Pool.Options = {
-        keepAliveTimeout: 600e3,
-        keepAliveMaxTimeout: 600e3,
-        keepAliveTimeoutThreshold: 1000,
-        pipelining: 1,
-        maxHeaderSize: 16384,
-        connections: 256,
-        // only set a timeout if it has a value; default to no timeout
-        // see https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-network.html#_http_client_configuration
-        headersTimeout: this.timeout ?? 0,
-        bodyTimeout: this.timeout ?? 0,
-        ...opts.agent
-      }
-
-      if (this[kCaFingerprint] !== null) {
-        const caFingerprint = this[kCaFingerprint]
-        const connector = buildConnector((this.tls ?? {}) as buildConnector.BuildOptions)
-        undiciOptions.connect = function (opts: buildConnector.Options, cb: buildConnector.Callback) {
-          connector(opts, (err, socket) => {
-            if (err != null) {
-              return cb(err, null)
-            }
-            if (caFingerprint !== null && isTlsSocket(opts, socket)) {
-              const issuerCertificate = getIssuerCertificate(socket)
-              /* istanbul ignore next */
-              if (issuerCertificate == null) {
-                socket.destroy()
-                return cb(new Error('Invalid or malformed certificate'), null)
-              }
-
-              // Certificate will be empty if a session is reused. In this case, getPeerCertificate
-              // will return an empty object, causing a fingeprint check to fail. But, if the session
-              // is being reused, it means this socket's peer certificate fingerprint has already been
-              // checked, so we can skip it and assume the connection is secure.
-              // See https://github.com/nodejs/node/issues/3940#issuecomment-166696776
-              if (Object.keys(issuerCertificate).length === 0 && socket.isSessionReused()) {
-                return cb(null, socket)
-              }
-
-              // Check if fingerprint matches
-              /* istanbul ignore else */
-              if (!isCaFingerprintMatch(caFingerprint, issuerCertificate.fingerprint256)) {
-                socket.destroy()
-                return cb(new Error('Server certificate CA fingerprint does not match the value configured in caFingerprint'), null)
-              }
-            }
-            return cb(null, socket)
-          })
-        }
-      } else if (this.tls !== null) {
-        undiciOptions.connect = this.tls as buildConnector.BuildOptions
-      }
-
-      this.pool = new Pool(this.url.toString(), undiciOptions)
+      return this.pool
     }
+
+    if (opts.agent != null && typeof opts.agent !== 'boolean' && !isUndiciAgentOptions(opts.agent)) {
+      throw new ConfigurationError('Bad agent configuration for Undici agent')
+    }
+
+    const undiciOptions: import('undici').Pool.Options = {
+      keepAliveTimeout: 600e3,
+      keepAliveMaxTimeout: 600e3,
+      keepAliveTimeoutThreshold: 1000,
+      pipelining: 1,
+      maxHeaderSize: 16384,
+      connections: 256,
+      // only set a timeout if it has a value; default to no timeout
+      // see https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-network.html#_http_client_configuration
+      headersTimeout: this.timeout ?? 0,
+      bodyTimeout: this.timeout ?? 0,
+      ...(typeof opts.agent === 'object' ? opts.agent : {})
+    }
+
+    if (this[kCaFingerprint] !== null) {
+      const caFingerprint = this[kCaFingerprint]
+      const connector = buildConnector((this.tls ?? {}) as buildConnector.BuildOptions)
+      undiciOptions.connect = function (opts: buildConnector.Options, cb: buildConnector.Callback) {
+        connector(opts, (err, socket) => {
+          if (err != null) {
+            return cb(err, null)
+          }
+          if (caFingerprint !== null && isTlsSocket(opts, socket)) {
+            const issuerCertificate = getIssuerCertificate(socket)
+            /* istanbul ignore next */
+            if (issuerCertificate == null) {
+              socket.destroy()
+              return cb(new Error('Invalid or malformed certificate'), null)
+            }
+
+            // Certificate will be empty if a session is reused. In this case, getPeerCertificate
+            // will return an empty object, causing a fingeprint check to fail. But, if the session
+            // is being reused, it means this socket's peer certificate fingerprint has already been
+            // checked, so we can skip it and assume the connection is secure.
+            // See https://github.com/nodejs/node/issues/3940#issuecomment-166696776
+            if (Object.keys(issuerCertificate).length === 0 && socket.isSessionReused()) {
+              return cb(null, socket)
+            }
+
+            // Check if fingerprint matches
+            /* istanbul ignore else */
+            if (!isCaFingerprintMatch(caFingerprint, issuerCertificate.fingerprint256)) {
+              socket.destroy()
+              return cb(new Error('Server certificate CA fingerprint does not match the value configured in caFingerprint'), null)
+            }
+          }
+          return cb(null, socket)
+        })
+      }
+    } else if (this.tls !== null) {
+      undiciOptions.connect = this.tls as buildConnector.BuildOptions
+    }
+
+    this.pool = new Pool(this.url.toString(), undiciOptions)
+    return this.pool
   }
 
   async request (params: ConnectionRequestParams, options: ConnectionRequestOptions): Promise<ConnectionRequestResponse>
   async request (params: ConnectionRequestParams, options: ConnectionRequestOptionsAsStream): Promise<ConnectionRequestResponseAsStream>
   async request (params: ConnectionRequestParams, options: any): Promise<any> {
+    // Ensure the pool is initialized before making requests
+    await this.poolPromise
+
     const maxResponseSize = options.maxResponseSize ?? MAX_STRING_LENGTH
     const maxCompressedResponseSize = options.maxCompressedResponseSize ?? MAX_BUFFER_LENGTH
     const requestParams = {
@@ -246,6 +269,8 @@ export default class Connection extends BaseConnection {
 
   async close (): Promise<void> {
     debug('Closing connection', this.id)
+    // Ensure the pool is initialized before closing
+    await this.poolPromise
     await this.pool.close()
   }
 }
