@@ -83,7 +83,8 @@ export default class Connection extends BaseConnection {
     }
 
     // Allow tests to override the pool - if it's already set (e.g., by a subclass), don't overwrite it
-    // This is needed for test mocking
+    // This is needed for test mocking. The definite assignment assertion (!) on pool means TypeScript
+    // won't track initialization, but at runtime this.pool will be undefined until set, so this check works.
     if (this.pool !== undefined) {
       return this.pool
     }
