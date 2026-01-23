@@ -5,7 +5,6 @@
 
 import { URL } from 'node:url'
 import { ConnectionOptions as TlsConnectionOptions } from 'node:tls'
-import Debug from 'debug'
 import Diagnostic from '../Diagnostic'
 import { kCaFingerprint } from '../symbols'
 import {
@@ -24,15 +23,7 @@ import {
   nodeSelectorFn
 } from '../types'
 import { ConfigurationError } from '../errors'
-
-// Lazy initialization of debug to avoid potential Windows initialization issues
-let debug: debug.Debugger
-function getDebug (): debug.Debugger {
-  if (debug === undefined) {
-    debug = Debug('elasticsearch')
-  }
-  return debug
-}
+import { debug } from '../debug'
 
 type AddConnectionOptions = string | ConnectionOptions
 export interface ConnectionPoolOptions {
@@ -178,7 +169,7 @@ export default class BaseConnectionPool {
    * @returns This ConnectionPool instance
    */
   removeConnection (connection: Connection): this {
-    getDebug()('Removing connection', connection)
+    debug('Removing connection', connection)
     return this.update(this.connections.filter(c => c.id !== connection.id))
   }
 
@@ -188,7 +179,7 @@ export default class BaseConnectionPool {
    * @returns {ConnectionPool}
    */
   async empty (): Promise<void> {
-    getDebug()('Emptying the connection pool')
+    debug('Emptying the connection pool')
     const connections = this.connections
     this.connections = []
     this.size = 0
@@ -204,7 +195,7 @@ export default class BaseConnectionPool {
    * @returns {ConnectionPool}
    */
   update (nodes: Array<Connection | ConnectionOptions>): this {
-    getDebug()('Updating the connection pool')
+    debug('Updating the connection pool')
     const newConnections = []
     const oldConnections = []
 
@@ -215,7 +206,7 @@ export default class BaseConnectionPool {
       const connectionById = this.connections.find(c => c.id === node.id)
       const connectionByUrl = this.connections.find(c => c.id === node.url.href)
       if (connectionById != null) {
-        getDebug()(`The connection with id '${node.id as string}' is already present`)
+        debug(`The connection with id '${node.id as string}' is already present`)
         this.markAlive(connectionById)
         newConnections.push(connectionById)
       // in case the user has passed a single url (or an array of urls),

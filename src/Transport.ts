@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import Debug from 'debug'
 import os from 'node:os'
 import * as http from 'node:http'
 import zlib from 'node:zlib'
@@ -72,21 +71,13 @@ import { setTimeout } from 'node:timers/promises'
 import opentelemetry, { Attributes, Exception, SpanKind, SpanStatusCode, Span, Tracer } from '@opentelemetry/api'
 import { suppressTracing } from '@opentelemetry/core'
 import { MiddlewareEngine, ProductCheck, MiddlewareContext } from './middleware'
+import { debug } from './debug'
 
 const nodeVersion = process.versions.node
 const { version: clientVersion } = require('../package.json') // eslint-disable-line
 const gzip = promisify(zlib.gzip)
 const unzip = promisify(zlib.unzip)
 const { createGzip } = zlib
-
-// Lazy initialization of debug to avoid potential Windows initialization issues
-let debug: debug.Debugger
-function getDebug (): debug.Debugger {
-  if (debug === undefined) {
-    debug = Debug('elasticsearch')
-  }
-  return debug
-}
 
 const userAgent = `elastic-transport-js/${clientVersion} (${os.platform()} ${os.release()}-${os.arch()}; Node.js ${process.version})` // eslint-disable-line
 
@@ -644,7 +635,7 @@ export default class Transport {
           // retry logic
           if (meta.attempts < maxRetries) {
             meta.attempts++
-            getDebug()(`Retrying request, there are still ${maxRetries - meta.attempts} attempts`, params)
+            debug(`Retrying request, there are still ${maxRetries - meta.attempts} attempts`, params)
             continue
           }
         } else {
@@ -712,7 +703,7 @@ export default class Transport {
             // retry logic
             if (meta.attempts < maxRetries) {
               meta.attempts++
-              getDebug()(`Retrying request, there are still ${maxRetries - meta.attempts} attempts`, params)
+              debug(`Retrying request, there are still ${maxRetries - meta.attempts} attempts`, params)
 
               // don't use exponential backoff until retrying on each node
               if (meta.attempts >= this[kConnectionPool].size) {

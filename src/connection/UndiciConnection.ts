@@ -5,7 +5,6 @@
 
 /* eslint-disable @typescript-eslint/restrict-template-expressions */
 
-import Debug from 'debug'
 import buffer from 'node:buffer'
 import { TLSSocket } from 'node:tls'
 import { Socket } from 'node:net'
@@ -30,19 +29,11 @@ import {
 } from '../errors'
 import { UndiciAgentOptions } from '../types'
 import { kCaFingerprint } from '../symbols'
+import { debug } from '../debug'
 
 const INVALID_PATH_REGEX = /[^\u0021-\u00ff]/
 const MAX_BUFFER_LENGTH = buffer.constants.MAX_LENGTH
 const MAX_STRING_LENGTH = buffer.constants.MAX_STRING_LENGTH
-
-// Lazy initialization of debug to avoid potential Windows initialization issues
-let debug: debug.Debugger
-function getDebug (): debug.Debugger {
-  if (debug === undefined) {
-    debug = Debug('elasticsearch')
-  }
-  return debug
-}
 
 // Lazy-loaded undici module to avoid initialization issues on Windows
 let undiciModule: typeof import('undici') | null = null
@@ -196,7 +187,7 @@ export default class Connection extends BaseConnection {
       throw new TypeError(`ERR_UNESCAPED_CHARACTERS: ${requestParams.path}`)
     }
 
-    getDebug()('Starting a new request', params)
+    debug('Starting a new request', params)
     let response
     try {
       response = await this.pool.request(requestParams)
@@ -286,7 +277,7 @@ export default class Connection extends BaseConnection {
   }
 
   async close (): Promise<void> {
-    getDebug()('Closing connection', this.id)
+    debug('Closing connection', this.id)
     // Ensure the pool is initialized before closing
     await this.poolPromise
     await this.pool.close()
