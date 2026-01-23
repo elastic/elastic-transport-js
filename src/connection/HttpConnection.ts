@@ -33,11 +33,19 @@ import {
 import { setTimeout } from 'node:timers/promises'
 import { HttpAgentOptions } from '../types'
 
-const debug = Debug('elasticsearch')
 const INVALID_PATH_REGEX = /[^\u0021-\u00ff]/
 const MAX_BUFFER_LENGTH = buffer.constants.MAX_LENGTH
 const MAX_STRING_LENGTH = buffer.constants.MAX_STRING_LENGTH
 const noop = (): void => {}
+
+// Lazy initialization of debug to avoid potential Windows initialization issues
+let debug: debug.Debugger
+function getDebug (): debug.Debugger {
+  if (debug === undefined) {
+    debug = Debug('elasticsearch')
+  }
+  return debug
+}
 
 /**
  * A connection to an Elasticsearch node, managed by the `http` client in the standard library
@@ -98,7 +106,7 @@ export default class HttpConnection extends BaseConnection {
         return reject(new TypeError(`ERR_UNESCAPED_CHARACTERS: ${requestParams.path as string}`))
       }
 
-      debug('Starting a new request', params)
+      getDebug()('Starting a new request', params)
 
       // tracking response.end, request.finish and the value of the returnable response object here is necessary:
       // we only know a request is truly finished when one of the following is true:
@@ -331,7 +339,7 @@ export default class HttpConnection extends BaseConnection {
   }
 
   async close (): Promise<void> {
-    debug('Closing connection', this.id)
+    getDebug()('Closing connection', this.id)
     while (this._openRequests > 0) {
       await setTimeout(1000)
     }

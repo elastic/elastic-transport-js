@@ -25,7 +25,14 @@ import {
 } from '../types'
 import { ConfigurationError } from '../errors'
 
-const debug = Debug('elasticsearch')
+// Lazy initialization of debug to avoid potential Windows initialization issues
+let debug: debug.Debugger
+function getDebug (): debug.Debugger {
+  if (debug === undefined) {
+    debug = Debug('elasticsearch')
+  }
+  return debug
+}
 
 type AddConnectionOptions = string | ConnectionOptions
 export interface ConnectionPoolOptions {
@@ -171,7 +178,7 @@ export default class BaseConnectionPool {
    * @returns This ConnectionPool instance
    */
   removeConnection (connection: Connection): this {
-    debug('Removing connection', connection)
+    getDebug()('Removing connection', connection)
     return this.update(this.connections.filter(c => c.id !== connection.id))
   }
 
@@ -181,7 +188,7 @@ export default class BaseConnectionPool {
    * @returns {ConnectionPool}
    */
   async empty (): Promise<void> {
-    debug('Emptying the connection pool')
+    getDebug()('Emptying the connection pool')
     const connections = this.connections
     this.connections = []
     this.size = 0
@@ -197,7 +204,7 @@ export default class BaseConnectionPool {
    * @returns {ConnectionPool}
    */
   update (nodes: Array<Connection | ConnectionOptions>): this {
-    debug('Updating the connection pool')
+    getDebug()('Updating the connection pool')
     const newConnections = []
     const oldConnections = []
 
@@ -208,7 +215,7 @@ export default class BaseConnectionPool {
       const connectionById = this.connections.find(c => c.id === node.id)
       const connectionByUrl = this.connections.find(c => c.id === node.url.href)
       if (connectionById != null) {
-        debug(`The connection with id '${node.id as string}' is already present`)
+        getDebug()(`The connection with id '${node.id as string}' is already present`)
         this.markAlive(connectionById)
         newConnections.push(connectionById)
       // in case the user has passed a single url (or an array of urls),

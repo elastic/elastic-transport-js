@@ -9,7 +9,14 @@ import sjson from 'secure-json-parse'
 import { SerializationError, DeserializationError } from './errors'
 import { kJsonOptions } from './symbols'
 
-const debug = Debug('elasticsearch')
+// Lazy initialization of debug to avoid potential Windows initialization issues
+let debug: debug.Debugger
+function getDebug (): debug.Debugger {
+  if (debug === undefined) {
+    debug = Debug('elasticsearch')
+  }
+  return debug
+}
 
 /** Number of bytes per IEEE-754 float32 value */
 const FLOAT32_BYTES = 4
@@ -36,7 +43,7 @@ export default class Serializer {
    * Serializes a record into a JSON string
    */
   serialize (object: Record<string, any>): string {
-    debug('Serializing', object)
+    getDebug()('Serializing', object)
     try {
       return JSON.stringify(object)
     } catch (err: any) {
@@ -48,7 +55,7 @@ export default class Serializer {
    * Given a string, attempts to parse it from raw JSON into an object
    */
   deserialize<T = unknown> (json: string): T {
-    debug('Deserializing', json)
+    getDebug()('Deserializing', json)
     try {
       return sjson.parse(json, this[kJsonOptions])
     } catch (err: any) {
@@ -60,7 +67,7 @@ export default class Serializer {
    * Serializes an array of records into a ndjson string
    */
   ndserialize (array: Array<Record<string, any> | string>): string {
-    debug('ndserialize', array)
+    getDebug()('ndserialize', array)
     if (!Array.isArray(array)) {
       throw new SerializationError('The argument provided is not an array', array)
     }
@@ -77,7 +84,7 @@ export default class Serializer {
   }
 
   qserialize (object?: Record<string, any> | string): string {
-    debug('qserialize', object)
+    getDebug()('qserialize', object)
     if (object == null) return ''
     if (typeof object === 'string') return object
     // arrays should be serialized as comma separated list
@@ -98,7 +105,7 @@ export default class Serializer {
    * Encodes an array of float32 values to a base64 string
    */
   encodeFloat32Vector (floats: number[]): string {
-    debug('encodeFloat32Vector', floats)
+    getDebug()('encodeFloat32Vector', floats)
     if (!Array.isArray(floats)) {
       throw new SerializationError('The argument provided is not an array', floats)
     }
@@ -113,7 +120,7 @@ export default class Serializer {
    * Decodes a base64 string back to an array of float32
    */
   decodeFloat32Vector (base64: string): number[] {
-    debug('decodeFloat32Vector', base64)
+    getDebug()('decodeFloat32Vector', base64)
     if (typeof base64 !== 'string') {
       throw new DeserializationError('The argument provided is not a string', base64)
     }

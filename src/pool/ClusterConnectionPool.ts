@@ -13,7 +13,14 @@ import Debug from 'debug'
 import { Connection, BaseConnection, ConnectionOptions } from '../connection'
 import { nodeFilterFn } from '../types'
 
-const debug = Debug('elasticsearch')
+// Lazy initialization of debug to avoid potential Windows initialization issues
+let debug: debug.Debugger
+function getDebug (): debug.Debugger {
+  if (debug === undefined) {
+    debug = Debug('elasticsearch')
+  }
+  return debug
+}
 
 export interface ResurrectOptions {
   now: number
@@ -75,7 +82,7 @@ export default class ClusterConnectionPool extends BaseConnectionPool {
    */
   markAlive (connection: Connection): this {
     const { id } = connection
-    debug(`Marking as 'alive' connection '${id}'`)
+    getDebug()(`Marking as 'alive' connection '${id}'`)
     const index = this.dead.indexOf(id)
     if (index > -1) this.dead.splice(index, 1)
     connection.status = BaseConnection.statuses.ALIVE
@@ -93,7 +100,7 @@ export default class ClusterConnectionPool extends BaseConnectionPool {
    */
   markDead (connection: Connection): this {
     const { id } = connection
-    debug(`Marking as 'dead' connection '${id}'`)
+    getDebug()(`Marking as 'dead' connection '${id}'`)
     if (!this.dead.includes(id)) {
       // It might happen that `markDead` is called jsut after
       // a pool update, and in such case we will add to the dead
@@ -134,7 +141,7 @@ export default class ClusterConnectionPool extends BaseConnectionPool {
    */
   resurrect (opts: ResurrectOptions): void {
     if (this.resurrectStrategy === 0 || this.dead.length === 0) {
-      debug('Nothing to resurrect')
+      getDebug()('Nothing to resurrect')
       return
     }
 
@@ -142,7 +149,7 @@ export default class ClusterConnectionPool extends BaseConnectionPool {
     // so the first element will always be the one with the smaller timeout
     const connection = this.connections.find(c => c.id === this.dead[0]) as Connection
     if (opts.now < connection.resurrectTimeout) {
-      debug('Nothing to resurrect')
+      getDebug()('Nothing to resurrect')
       return
     }
 
@@ -157,11 +164,11 @@ export default class ClusterConnectionPool extends BaseConnectionPool {
         .then(({ statusCode }) => {
           let isAlive = true
           if (statusCode === 502 || statusCode === 503 || statusCode === 504) {
-            debug(`Resurrect: connection '${id}' is still dead`)
+            getDebug()(`Resurrect: connection '${id}' is still dead`)
             this.markDead(connection)
             isAlive = false
           } else {
-            debug(`Resurrect: connection '${id}' is now alive`)
+            getDebug()(`Resurrect: connection '${id}' is now alive`)
             this.markAlive(connection)
           }
           this.diagnostic.emit('resurrect', null, {
@@ -184,7 +191,7 @@ export default class ClusterConnectionPool extends BaseConnectionPool {
         })
     // optimistic strategy
     } else {
-      debug(`Resurrect: optimistic resurrection for connection '${id}'`)
+      getDebug()(`Resurrect: optimistic resurrection for connection '${id}'`)
       this.dead.splice(this.dead.indexOf(id), 1)
       connection.status = BaseConnection.statuses.ALIVE
       this.diagnostic.emit('resurrect', null, {
