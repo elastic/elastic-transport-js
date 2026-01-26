@@ -90,7 +90,7 @@ function getUserAgent (): string {
   if (userAgent === undefined) {
     const version = getClientVersion()
     const nodeVersion = process.versions.node
-    userAgent = `elastic-transport-js/${version} (${os.platform()} ${os.release()}-${os.arch()}; Node.js ${nodeVersion})` // eslint-disable-line
+    userAgent = `elastic-transport-js/${version} (${os.platform()} ${os.release()}-${os.arch()}; Node.js v${nodeVersion})` // eslint-disable-line
   }
   return userAgent
 }
