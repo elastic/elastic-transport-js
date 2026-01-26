@@ -7,18 +7,18 @@
   "types": "index.d.ts",
   "exports": {
     ".": {
-      "import": "./lib/esm/index.js",
+      "import": "./esm/index.js",
       "require": "./index.js",
       "types": "./index.d.ts"
     },
     "./package.json": "./package.json",
     "./lib/*": {
-      "import": "./lib/esm/*.js",
+      "import": "./esm/*.js",
       "require": "./lib/*.js",
       "types": "./lib/*.d.ts"
     },
     "./*": {
-      "import": "./lib/esm/*.js",
+      "import": "./esm/*.js",
       "require": "./lib/*.js",
       "types": "./lib/*.d.ts"
     }
@@ -39,9 +39,9 @@
     "build": "npm run build:cjs && npm run build:esm && npm run build:esm-fix && npm run build:esm-package",
     "build:cjs": "tsc",
     "build:esm": "tsc -p tsconfig.esm.json",
-    "build:esm-fix": "tsc-esm-fix --target=lib/esm && node scripts/fix-esm-require.js",
-    "build:esm-package": "echo '{\"type\":\"module\"}' > lib/esm/package.json",
-    "clean-build": "rimraf ./lib && mkdir lib",
+    "build:esm-fix": "tsc-esm-fix --target=esm && node scripts/fix-esm-require.js",
+    "build:esm-package": "echo '{\"type\":\"module\"}' > esm/package.json",
+    "clean-build": "rimraf ./lib && mkdir lib && rimraf ./esm && mkdir esm",
     "prepublishOnly": "npm run build",
     "benchmark": "npm run build && npm run benchmark:mitata && npm run benchmark:gc",
     "benchmark:mitata": "node --expose-gc test/benchmark/benchmark.mjs",

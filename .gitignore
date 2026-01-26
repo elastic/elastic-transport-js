@@ -108,6 +108,7 @@ dist
 package-lock.json
 
 lib
+esm
 .tap
 
 # benchmark artifacts

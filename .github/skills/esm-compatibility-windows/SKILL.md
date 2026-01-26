@@ -46,7 +46,7 @@ These patterns are generally safe and don't cause Windows ESM issues:
 4. **Class/function definitions** - No execution, just definitions
 5. **Simple object/array literals** - `const obj = { key: 'value' }`
 
-**Important**: Always check `lib/esm/*.js` files after changes to see what actually executes at module load time.
+**Important**: Always check `esm/*.js` files after changes to see what actually executes at module load time.
 
 ## Resources
 

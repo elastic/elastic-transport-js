@@ -8,7 +8,7 @@ const fs = require('fs')
 const path = require('path')
 
 // Fix the package.json require in Transport.js for ESM
-const transportPath = path.join(__dirname, '..', 'lib', 'esm', 'Transport.js')
+const transportPath = path.join(__dirname, '..', 'esm', 'Transport.js')
 
 if (!fs.existsSync(transportPath)) {
   console.log('Transport.js not found, skipping fix')
@@ -29,12 +29,6 @@ if (!content.includes('createRequire') && content.includes("require('../package.
 
     content = beforeImport + "import { createRequire } from 'node:module';\nconst require = createRequire(import.meta.url);\n" + afterImport
   }
-
-  // Fix the path to package.json - from lib/esm, it's ../../package.json
-  content = content.replace(
-    /require\(['"]\.\.\/package\.json['"]\)/g,
-    "require('../../package.json')"
-  )
 
   fs.writeFileSync(transportPath, content, 'utf8')
   console.log(`Fixed package.json loading in ${transportPath}`)
