@@ -40,7 +40,7 @@
     "build:cjs": "tsc",
     "build:esm": "tsc -p tsconfig.esm.json",
     "build:esm-fix": "tsc-esm-fix --target=esm && node scripts/fix-esm-require.js",
-    "build:esm-package": "echo '{\"type\":\"module\"}' > esm/package.json",
+    "build:esm-package": "node -e \"require('fs').writeFileSync('esm/package.json', JSON.stringify({type:'module'}, null, 2))\"",
     "clean-build": "rimraf ./lib && mkdir lib && rimraf ./esm && mkdir esm",
     "prepublishOnly": "npm run build",
     "benchmark": "npm run build && npm run benchmark:mitata && npm run benchmark:gc",
