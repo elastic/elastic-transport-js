@@ -17,7 +17,7 @@ import {
   WeightedConnectionPool,
   errors,
   events
-} from '../../lib/esm/index.js'
+} from '../../esm/index.js'
 
 test('ESM import works', (t) => {
   t.ok(Transport, 'Transport exported')

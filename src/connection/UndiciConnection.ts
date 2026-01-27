@@ -72,7 +72,7 @@ export default class Connection extends BaseConnection {
         // see https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-network.html#_http_client_configuration
         headersTimeout: this.timeout ?? 0,
         bodyTimeout: this.timeout ?? 0,
-        ...opts.agent
+        ...(typeof opts.agent === 'object' ? opts.agent : {})
       }
 
       if (this[kCaFingerprint] !== null) {
