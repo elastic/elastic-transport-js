@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import Debug from 'debug'
 import os from 'node:os'
 import * as http from 'node:http'
 import zlib from 'node:zlib'
@@ -71,45 +72,15 @@ import { setTimeout } from 'node:timers/promises'
 import opentelemetry, { Attributes, Exception, SpanKind, SpanStatusCode, Span, Tracer } from '@opentelemetry/api'
 import { suppressTracing } from '@opentelemetry/core'
 import { MiddlewareEngine, ProductCheck, MiddlewareContext } from './middleware'
-import { debug } from './debug'
 
-// Lazy-loaded constants to avoid module-level code execution for ESM compatibility on Windows
-let clientVersion: string | undefined
-let userAgent: string | undefined
-let gzipFn: ((buf: Buffer | string) => Promise<Buffer>) | undefined
-let unzipFn: ((buf: Buffer) => Promise<Buffer>) | undefined
-
-function getClientVersion (): string {
-  if (clientVersion === undefined) {
-    clientVersion = require('../package.json').version // eslint-disable-line
-  }
-  return clientVersion as string
-}
-
-function getUserAgent (): string {
-  if (userAgent === undefined) {
-    const version = getClientVersion()
-    const nodeVersion = process.versions.node
-    userAgent = `elastic-transport-js/${version} (${os.platform()} ${os.release()}-${os.arch()}; Node.js v${nodeVersion})` // eslint-disable-line
-  }
-  return userAgent
-}
-
-function getGzip (): (buf: Buffer | string) => Promise<Buffer> {
-  if (gzipFn === undefined) {
-    gzipFn = promisify(zlib.gzip)
-  }
-  return gzipFn
-}
-
-function getUnzip (): (buf: Buffer) => Promise<Buffer> {
-  if (unzipFn === undefined) {
-    unzipFn = promisify(zlib.unzip)
-  }
-  return unzipFn
-}
-
+const nodeVersion = process.versions.node
+const { version: clientVersion } = require('../package.json') // eslint-disable-line
+const debug = Debug('elasticsearch')
+const gzip = promisify(zlib.gzip)
+const unzip = promisify(zlib.unzip)
 const { createGzip } = zlib
+
+const userAgent = `elastic-transport-js/${clientVersion} (${os.platform()} ${os.release()}-${os.arch()}; Node.js ${process.version})` // eslint-disable-line
 
 export interface OpenTelemetryOptions {
   enabled?: boolean
@@ -294,8 +265,8 @@ export default class Transport {
     this[kNodeFilter] = opts.nodeFilter ?? defaultNodeFilter
     this[kNodeSelector] = opts.nodeSelector ?? roundRobinSelector()
     this[kHeaders] = Object.assign({},
-      { 'user-agent': getUserAgent() },
-      (opts.enableMetaHeader == null ? true : opts.enableMetaHeader) ? { 'x-elastic-client-meta': `et=${getClientVersion()},js=${process.versions.node}` } : null,
+      { 'user-agent': userAgent },
+      (opts.enableMetaHeader == null ? true : opts.enableMetaHeader) ? { 'x-elastic-client-meta': `et=${clientVersion as string},js=${nodeVersion}` } : null,
       opts.compression === true ? { 'accept-encoding': 'gzip,deflate' } : null,
       lowerCaseHeaders(opts.headers)
     )
@@ -324,7 +295,7 @@ export default class Transport {
     this[kAcceptHeader] = opts.vendoredHeaders?.accept ?? 'application/json, text/plain'
     this[kRedaction] = opts.redaction ?? { type: 'replace', additionalKeys: [] }
     this[kRetryBackoff] = opts.retryBackoff ?? retryBackoff
-    this[kOtelTracer] = opentelemetry.trace.getTracer('@elastic/transport', getClientVersion())
+    this[kOtelTracer] = opentelemetry.trace.getTracer('@elastic/transport', clientVersion)
 
     const otelEnabledDefault = process.env.OTEL_ELASTICSEARCH_ENABLED != null ? (process.env.OTEL_ELASTICSEARCH_ENABLED.toLowerCase() !== 'false') : true
     this[kOtelOptions] = Object.assign({}, {
@@ -512,7 +483,7 @@ export default class Transport {
         }
       } else if (compression) {
         try {
-          connectionParams.body = await getGzip()(connectionParams.body)
+          connectionParams.body = await gzip(connectionParams.body)
         } catch (err: any) {
           /* istanbul ignore next */
           this[kDiagnostic].emit('request', err, result)
@@ -631,7 +602,7 @@ export default class Transport {
 
         const contentEncoding = (headers['content-encoding'] ?? '').toLowerCase()
         if (contentEncoding.includes('gzip') || contentEncoding.includes('deflate')) {
-          body = await getUnzip()(body as Buffer)
+          body = await unzip(body)
         }
 
         if (Buffer.isBuffer(body) && !isBinary(headers['content-type'] ?? '')) {

@@ -8,6 +8,7 @@
 import hpagent from 'hpagent'
 import http from 'node:http'
 import https from 'node:https'
+import Debug from 'debug'
 import buffer from 'node:buffer'
 import { TLSSocket } from 'node:tls'
 import BaseConnection, {
@@ -31,8 +32,8 @@ import {
 } from '../errors'
 import { setTimeout } from 'node:timers/promises'
 import { HttpAgentOptions } from '../types'
-import { debug } from '../debug'
 
+const debug = Debug('elasticsearch')
 const INVALID_PATH_REGEX = /[^\u0021-\u00ff]/
 const MAX_BUFFER_LENGTH = buffer.constants.MAX_LENGTH
 const MAX_STRING_LENGTH = buffer.constants.MAX_STRING_LENGTH

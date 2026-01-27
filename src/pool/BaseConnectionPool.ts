@@ -5,6 +5,7 @@
 
 import { URL } from 'node:url'
 import { ConnectionOptions as TlsConnectionOptions } from 'node:tls'
+import Debug from 'debug'
 import Diagnostic from '../Diagnostic'
 import { kCaFingerprint } from '../symbols'
 import {
@@ -23,7 +24,8 @@ import {
   nodeSelectorFn
 } from '../types'
 import { ConfigurationError } from '../errors'
-import { debug } from '../debug'
+
+const debug = Debug('elasticsearch')
 
 type AddConnectionOptions = string | ConnectionOptions
 export interface ConnectionPoolOptions {

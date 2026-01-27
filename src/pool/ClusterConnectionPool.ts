@@ -9,9 +9,11 @@ import BaseConnectionPool, {
   defaultNodeFilter
 } from './BaseConnectionPool'
 import assert from 'node:assert'
+import Debug from 'debug'
 import { Connection, BaseConnection, ConnectionOptions } from '../connection'
 import { nodeFilterFn } from '../types'
-import { debug } from '../debug'
+
+const debug = Debug('elasticsearch')
 
 export interface ResurrectOptions {
   now: number

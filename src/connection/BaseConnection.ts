@@ -126,10 +126,6 @@ export default class BaseConnection {
   }
 
   set status (status: string) {
-    // Lazy initialization to avoid module-level code execution for ESM compatibility
-    const validStatuses = Object.keys(BaseConnection.statuses)
-      // @ts-expect-error
-      .map(k => BaseConnection.statuses[k])
     if (!validStatuses.includes(status)) {
       throw new ConfigurationError(`Unsupported status: '${status}'`)
     }
@@ -184,6 +180,10 @@ export default class BaseConnection {
     }
   }
 }
+
+const validStatuses = Object.keys(BaseConnection.statuses)
+  // @ts-expect-error
+  .map(k => BaseConnection.statuses[k])
 
 function stripAuth (url: string): string {
   if (!url.includes('@')) return url

@@ -57,9 +57,10 @@ export default class Diagnostic extends EventEmitter {
 }
 
 function assertSupportedEvent (event: string): void {
-  // Lazy initialization to avoid module-level code execution for ESM compatibility
-  const supportedEvents: string[] = Object.keys(events).map(key => events[key as keyof typeof events])
   if (!supportedEvents.includes(event)) {
     throw new ConfigurationError(`The event '${event}' is not supported.`)
   }
 }
+
+// @ts-expect-error
+const supportedEvents: string[] = Object.keys(events).map(key => events[key])

@@ -4,10 +4,12 @@
  */
 
 import { stringify } from 'node:querystring'
+import Debug from 'debug'
 import sjson from 'secure-json-parse'
 import { SerializationError, DeserializationError } from './errors'
 import { kJsonOptions } from './symbols'
-import { debug } from './debug'
+
+const debug = Debug('elasticsearch')
 
 /** Number of bytes per IEEE-754 float32 value */
 const FLOAT32_BYTES = 4
