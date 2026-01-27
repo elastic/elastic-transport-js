@@ -53,7 +53,7 @@ test('http-https proxy support', async t => {
   })
 
   const client = new TestClient({
-    node: `https://${(server.address() as AddressInfo).address}:${(server.address() as AddressInfo).port}`,
+    node: `https://localhost:${(server.address() as AddressInfo).port}`,
     proxy: `http://${(proxy.address() as AddressInfo).address}:${(proxy.address() as AddressInfo).port}`
   })
 
@@ -76,7 +76,7 @@ test('https-http proxy support', async t => {
 
   const client = new TestClient({
     node: `http://${(server.address() as AddressInfo).address}:${(server.address() as AddressInfo).port}`,
-    proxy: `https://${(proxy.address() as AddressInfo).address}:${(proxy.address() as AddressInfo).port}`
+    proxy: `https://localhost:${(proxy.address() as AddressInfo).port}`
   })
 
   const response = await client.request({ path: '/_cluster/health', method: 'GET' })
@@ -97,8 +97,8 @@ test('https-https proxy support', async t => {
   })
 
   const client = new TestClient({
-    node: `https://${(server.address() as AddressInfo).address}:${(server.address() as AddressInfo).port}`,
-    proxy: `https://${(proxy.address() as AddressInfo).address}:${(proxy.address() as AddressInfo).port}`
+    node: `https://localhost:${(server.address() as AddressInfo).port}`,
+    proxy: `https://localhost:${(proxy.address() as AddressInfo).port}`
   })
 
   const response = await client.request({ path: '/_cluster/health', method: 'GET' })
@@ -145,7 +145,7 @@ test('https basic authentication', async t => {
   proxy.authenticate = (req) => req.headers['proxy-authorization'] === `Basic ${Buffer.from('hello:world').toString('base64')}`
 
   const client = new TestClient({
-    node: `https://${(server.address() as AddressInfo).address}:${(server.address() as AddressInfo).port}`,
+    node: `https://localhost:${(server.address() as AddressInfo).port}`,
     proxy: `http://hello:world@${(proxy.address() as AddressInfo).address}:${(proxy.address() as AddressInfo).port}`
   })
 

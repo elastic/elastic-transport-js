@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+
+# generates new TLS self-signed certificates used by several unit and acceptance tests
+
+# create a test CA
+openssl req -x509 -new -nodes -sha256 -days 3650 \
+  -newkey rsa:2048 \
+  -keyout test-ca.key \
+  -out test-ca.crt \
+  -subj "/CN=Test Dev CA" \
+  -extensions v3_ca \
+  -config <(cat <<'EOF'
+[ req ]
+distinguished_name = dn
+
+[ dn ]
+CN = Test Dev CA
+
+[ v3_ca ]
+basicConstraints = critical,CA:TRUE
+keyUsage = critical,keyCertSign,cRLSign
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always
+EOF
+)
+
+# create localhost server cert
+openssl req -new -nodes -sha256 \
+  -newkey rsa:2048 \
+  -keyout localhost.key \
+  -out localhost.csr \
+  -subj "/CN=localhost" \
+  -config <(cat <<'EOF'
+[ req ]
+distinguished_name = dn
+req_extensions = req_ext
+
+[ dn ]
+CN = localhost
+
+[ req_ext ]
+subjectAltName = DNS:localhost
+EOF
+)
+
+# sign the server cert with the test CA cert
+openssl x509 -req -sha256 -days 3650 \
+  -in localhost.csr \
+  -CA test-ca.crt \
+  -CAkey test-ca.key \
+  -CAcreateserial \
+  -out localhost.crt \
+  -extensions EXT \
+  -extfile <(cat <<'EOF'
+[ EXT ]
+subjectAltName = DNS:localhost
+keyUsage = digitalSignature
+extendedKeyUsage = serverAuth
+authorityKeyIdentifier = keyid,issuer
+EOF
+)
+
+# store the fingerprint
+openssl x509 -in test-ca.crt -noout -fingerprint -sha256 | cut -d '=' -f2 > ./test/fixtures/ca-fingerprint
+
+cat localhost.crt test-ca.crt > ./test/fixtures/https.pem
+mv localhost.key test/fixtures/https.key
+rm test-ca.* localhost.*
