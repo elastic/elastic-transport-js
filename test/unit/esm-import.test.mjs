@@ -17,7 +17,7 @@ import {
   WeightedConnectionPool,
   errors,
   events
-} from '../../lib/esm/index.js'
+} from '../../esm/index.js'
 
 test('ESM import works', async (t) => {
   t.ok(Transport, 'Transport exported')
@@ -32,7 +32,7 @@ test('ESM import works', async (t) => {
   t.ok(WeightedConnectionPool, 'WeightedConnectionPool exported')
   t.ok(errors, 'errors exported')
   t.ok(events, 'events exported')
-  
+
   // Verify exports are constructors/objects
   t.equal(typeof Transport, 'function', 'Transport is a function')
   t.equal(typeof Diagnostic, 'function', 'Diagnostic is a function')
@@ -46,7 +46,7 @@ test('ESM exports are usable', async (t) => {
   t.ok(serializer, 'Serializer instance created')
   t.equal(typeof serializer.serialize, 'function', 'Serializer has serialize method')
   t.equal(typeof serializer.deserialize, 'function', 'Serializer has deserialize method')
-  
+
   // Test that errors object has expected error classes
   t.ok(errors.ResponseError, 'ResponseError exists in errors')
   t.ok(errors.ConnectionError, 'ConnectionError exists in errors')
