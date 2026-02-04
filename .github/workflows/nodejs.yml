@@ -88,6 +88,8 @@ jobs:
           npm install ../transport --install-links
 
       - name: Unit test
+        env:
+          _TAPJS_PROCESSINFO_EXCLUDE_: ".*"
         run: |
           cd "$GITHUB_WORKSPACE/client"
           npm test
