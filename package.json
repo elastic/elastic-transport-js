@@ -12,7 +12,17 @@
       "types": "./index.d.ts"
     },
     "./package.json": "./package.json",
+    "./lib/*.js": {
+      "import": "./esm/*.js",
+      "require": "./lib/*.js",
+      "types": "./lib/*.d.ts"
+    },
     "./lib/*": {
+      "import": "./esm/*.js",
+      "require": "./lib/*.js",
+      "types": "./lib/*.d.ts"
+    },
+    "./*.js": {
       "import": "./esm/*.js",
       "require": "./lib/*.js",
       "types": "./lib/*.d.ts"
