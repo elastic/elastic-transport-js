@@ -1,6 +1,6 @@
 {
   "name": "@elastic/transport",
-  "version": "9.3.1",
+  "version": "9.3.2",
   "description": "Transport classes and utilities shared among Node.js Elastic client libraries",
   "type": "commonjs",
   "main": "./index.js",
@@ -12,25 +12,15 @@
       "types": "./index.d.ts"
     },
     "./package.json": "./package.json",
-    "./lib/*.js": {
-      "import": "./esm/*.js",
-      "require": "./lib/*.js",
-      "types": "./lib/*.d.ts"
-    },
     "./lib/*": {
-      "import": "./esm/*.js",
-      "require": "./lib/*.js",
-      "types": "./lib/*.d.ts"
-    },
-    "./*.js": {
-      "import": "./esm/*.js",
+      "import": "./esm/*",
       "require": "./lib/*.js",
       "types": "./lib/*.d.ts"
     },
     "./*": {
-      "import": "./esm/*.js",
-      "require": "./lib/*.js",
-      "types": "./lib/*.d.ts"
+      "import": "./esm/*",
+      "require": "./*",
+      "types": "./*.d.ts"
     }
   },
   "scripts": {
