@@ -35,9 +35,9 @@
   },
   "scripts": {
     "test": "npm run build && npm run lint && tap",
-    "test:unit": "npm run build && tap test/unit/ --disable-coverage",
-    "test:unit-bun": "bun run build && bunx tap test/unit/ --disable-coverage",
-    "test:acceptance": "npm run build && tap test/acceptance/ --disable-coverage",
+    "test:unit": "npm run build && tap test/unit/",
+    "test:unit-bun": "bun run build && bunx tap test/unit/",
+    "test:acceptance": "npm run build && tap test/acceptance/",
     "test:coverage-100": "npm run build && tap --show-full-coverage",
     "test:coverage-report": "npm test && tap report --coverage-report=lcov",
     "test:coverage-ui": "npm run build && tap --coverage-report=html",
@@ -108,6 +108,7 @@
     "undici": "^7.19.1"
   },
   "tap": {
+    "disable-coverage": true,
     "files": [
       "test/unit/",
       "test/acceptance/"
