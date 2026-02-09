@@ -34,6 +34,7 @@ jobs:
 
       - name: Lint
         run: |
+          npm run generate-version
           npm run lint
 
       - name: Unit test
@@ -143,6 +144,7 @@ jobs:
 
       - name: Lint
         run: |
+          bun run generate-version
           bun run lint
 
       - name: Unit test
