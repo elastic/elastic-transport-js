@@ -72,15 +72,15 @@ import { setTimeout } from 'node:timers/promises'
 import opentelemetry, { Attributes, Exception, SpanKind, SpanStatusCode, Span, Tracer } from '@opentelemetry/api'
 import { suppressTracing } from '@opentelemetry/core'
 import { MiddlewareEngine, ProductCheck, MiddlewareContext } from './middleware'
+import { transportVersion } from './version.generated'
 
 const nodeVersion = process.versions.node
-const { version: clientVersion } = require('../package.json') // eslint-disable-line
 const debug = Debug('elasticsearch')
 const gzip = promisify(zlib.gzip)
 const unzip = promisify(zlib.unzip)
 const { createGzip } = zlib
 
-const userAgent = `elastic-transport-js/${clientVersion} (${os.platform()} ${os.release()}-${os.arch()}; Node.js ${process.version})` // eslint-disable-line
+const userAgent = `elastic-transport-js/${transportVersion} (${os.platform()} ${os.release()}-${os.arch()}; Node.js ${process.version})` // eslint-disable-line
 
 export interface OpenTelemetryOptions {
   enabled?: boolean
@@ -266,7 +266,7 @@ export default class Transport {
     this[kNodeSelector] = opts.nodeSelector ?? roundRobinSelector()
     this[kHeaders] = Object.assign({},
       { 'user-agent': userAgent },
-      (opts.enableMetaHeader == null ? true : opts.enableMetaHeader) ? { 'x-elastic-client-meta': `et=${clientVersion as string},js=${nodeVersion}` } : null,
+      (opts.enableMetaHeader == null ? true : opts.enableMetaHeader) ? { 'x-elastic-client-meta': `et=${transportVersion},js=${nodeVersion}` } : null,
       opts.compression === true ? { 'accept-encoding': 'gzip,deflate' } : null,
       lowerCaseHeaders(opts.headers)
     )
@@ -295,7 +295,7 @@ export default class Transport {
     this[kAcceptHeader] = opts.vendoredHeaders?.accept ?? 'application/json, text/plain'
     this[kRedaction] = opts.redaction ?? { type: 'replace', additionalKeys: [] }
     this[kRetryBackoff] = opts.retryBackoff ?? retryBackoff
-    this[kOtelTracer] = opentelemetry.trace.getTracer('@elastic/transport', clientVersion)
+    this[kOtelTracer] = opentelemetry.trace.getTracer('@elastic/transport', transportVersion)
 
     const otelEnabledDefault = process.env.OTEL_ELASTICSEARCH_ENABLED != null ? (process.env.OTEL_ELASTICSEARCH_ENABLED.toLowerCase() !== 'false') : true
     this[kOtelOptions] = Object.assign({}, {

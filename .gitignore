@@ -109,6 +109,7 @@ package-lock.json
 
 lib
 esm
+src/version.generated.ts
 .tap
 
 # benchmark artifacts
