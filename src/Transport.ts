@@ -124,6 +124,7 @@ export interface TransportRequestMetadata {
   name: string
   pathParts?: Record<string, any>
   acceptedParams?: string[]
+  acceptedQueryParams?: string[]
 }
 
 export interface TransportRequestParams {
