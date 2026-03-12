@@ -73,6 +73,7 @@ import opentelemetry, { Attributes, Exception, SpanKind, SpanStatusCode, Span, T
 import { suppressTracing } from '@opentelemetry/core'
 import { MiddlewareEngine, ProductCheck, MiddlewareContext } from './middleware'
 import { transportVersion } from './version.generated'
+import { sanitizeJsonBody, sanitizeNdjsonBody, sanitizeStringQuery } from './security'
 
 const nodeVersion = process.versions.node
 const debug = Debug('elasticsearch')
@@ -82,9 +83,47 @@ const { createGzip } = zlib
 
 const userAgent = `elastic-transport-js/${transportVersion} (${os.platform()} ${os.release()}-${os.arch()}; Node.js ${process.version})` // eslint-disable-line
 
+/** Endpoints that support `db.query.text` capture. */
+export const SEARCH_LIKE_ENDPOINTS: ReadonlySet<string> = new Set([
+  'async_search.submit',
+  'esql.async_query',
+  'esql.query',
+  'fleet.msearch',
+  'fleet.search',
+  'knn_search',
+  'msearch',
+  'rollup.rollup_search',
+  'search',
+  'search_mvt',
+  'sql.query'
+])
+
+/** Endpoints whose request body is an ES|QL or SQL string query (parameterized only). */
+export const STRING_QUERY_ENDPOINTS: ReadonlySet<string> = new Set([
+  'esql.async_query',
+  'esql.query',
+  'sql.query'
+])
+
+/** Endpoints whose request body is NDJSON (header + query line pairs). */
+export const NDJSON_ENDPOINTS: ReadonlySet<string> = new Set([
+  'fleet.msearch',
+  'msearch'
+])
+
+/** Maximum length (in characters) for the `db.query.text` span attribute. */
+export const SEARCH_QUERY_MAX_LENGTH = 2048
+
 export interface OpenTelemetryOptions {
   enabled?: boolean
   suppressInternalInstrumentation?: boolean
+  /**
+   * When true, sanitized request bodies are recorded as `db.query.text` on OTel spans.
+   * WARNING: even after sanitization, query structure may reveal sensitive data about
+   * your schema or search patterns. Enable only in environments where tracing data
+   * is appropriately access-controlled.
+   */
+  captureSearchQuery?: boolean
 }
 
 export interface TransportOptions {
@@ -302,6 +341,10 @@ export default class Transport {
       enabled: otelEnabledDefault,
       suppressInternalInstrumentation: false
     }, opts.openTelemetry ?? {})
+    // env var 'false' (case-insensitive) overrides code-level captureSearchQuery
+    if (process.env.OTEL_ELASTICSEARCH_CAPTURE_SEARCH_QUERY?.toLowerCase() === 'false') {
+      this[kOtelOptions].captureSearchQuery = false
+    }
 
     // Initialize middleware engine with ProductCheck
     this[kMiddlewareEngine] = new MiddlewareEngine()
@@ -780,6 +823,25 @@ export default class Transport {
               }
             }
             if (indices.length > 0) attributes['db.collection.name'] = indices.join(', ')
+          }
+        }
+      }
+
+      // capture db.query.text for search-like endpoints when opt-in is enabled
+      if ((otelOptions.captureSearchQuery ?? false) && SEARCH_LIKE_ENDPOINTS.has(params.meta.name)) {
+        const rawBody = NDJSON_ENDPOINTS.has(params.meta.name) ? params.bulkBody : params.body
+        if (rawBody != null && rawBody !== '' && !isStream(rawBody)) {
+          const bodyStr = typeof rawBody === 'string' ? rawBody : JSON.stringify(rawBody)
+          let sanitized: string | null
+          if (NDJSON_ENDPOINTS.has(params.meta.name)) {
+            sanitized = sanitizeNdjsonBody(bodyStr)
+          } else if (STRING_QUERY_ENDPOINTS.has(params.meta.name)) {
+            sanitized = sanitizeStringQuery(bodyStr)
+          } else {
+            sanitized = sanitizeJsonBody(bodyStr)
+          }
+          if (sanitized !== null) {
+            attributes['db.query.text'] = sanitized.slice(0, SEARCH_QUERY_MAX_LENGTH)
           }
         }
       }
