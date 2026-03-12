@@ -13,7 +13,8 @@ import { Connection } from '../connection'
  * Each middleware should have a unique name for identification and debugging.
  */
 export enum MiddlewareName {
-  PRODUCT_CHECK = 'product-check'
+  PRODUCT_CHECK = 'product-check',
+  OPEN_TELEMETRY = 'opentelemetry'
   // Add new middleware names here
 }
 
@@ -22,6 +23,7 @@ export enum MiddlewareName {
  * Lower values execute first. Middleware is sorted by priority before execution.
  */
 export const MiddlewarePriority: Record<MiddlewareName, number> = {
+  [MiddlewareName.OPEN_TELEMETRY]: 10,
   [MiddlewareName.PRODUCT_CHECK]: 50
   // Add new middleware priorities here
 } as const
@@ -52,5 +54,11 @@ export interface MiddlewareResult {
 export interface Middleware {
   readonly name: MiddlewareName
   readonly priority?: number
+  /**
+   * Wraps the entire request execution. Called once per `transport.request()` call.
+   * Middleware with lower priority numbers wrap outer (execute first, last to return).
+   * Must call `next()` to continue the chain, or skip it to short-circuit.
+   */
+  wrap?: (params: TransportRequestParams, options: TransportRequestOptions, next: () => Promise<any>) => Promise<any>
   onResponse?: (ctx: MiddlewareContext, result: TransportResult) => MiddlewareResult | undefined
 }

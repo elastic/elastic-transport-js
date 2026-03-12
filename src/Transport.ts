@@ -64,16 +64,12 @@ import {
   kAcceptHeader,
   kRedaction,
   kRetryBackoff,
-  kOtelTracer,
-  kOtelOptions,
   kMiddlewareEngine
 } from './symbols'
 import { setTimeout } from 'node:timers/promises'
-import opentelemetry, { Attributes, Exception, SpanKind, SpanStatusCode, Span, Tracer } from '@opentelemetry/api'
-import { suppressTracing } from '@opentelemetry/core'
-import { MiddlewareEngine, ProductCheck, MiddlewareContext } from './middleware'
 import { transportVersion } from './version.generated'
-import { sanitizeJsonBody, sanitizeNdjsonBody, sanitizeStringQuery } from './security'
+import opentelemetry from '@opentelemetry/api'
+import { MiddlewareEngine, ProductCheck, OpenTelemetryMiddleware, type OpenTelemetryOptions, MiddlewareContext } from './middleware'
 
 const nodeVersion = process.versions.node
 const debug = Debug('elasticsearch')
@@ -83,48 +79,7 @@ const { createGzip } = zlib
 
 const userAgent = `elastic-transport-js/${transportVersion} (${os.platform()} ${os.release()}-${os.arch()}; Node.js ${process.version})` // eslint-disable-line
 
-/** Endpoints that support `db.query.text` capture. */
-export const SEARCH_LIKE_ENDPOINTS: ReadonlySet<string> = new Set([
-  'async_search.submit',
-  'esql.async_query',
-  'esql.query',
-  'fleet.msearch',
-  'fleet.search',
-  'knn_search',
-  'msearch',
-  'rollup.rollup_search',
-  'search',
-  'search_mvt',
-  'sql.query'
-])
-
-/** Endpoints whose request body is an ES|QL or SQL string query (parameterized only). */
-export const STRING_QUERY_ENDPOINTS: ReadonlySet<string> = new Set([
-  'esql.async_query',
-  'esql.query',
-  'sql.query'
-])
-
-/** Endpoints whose request body is NDJSON (header + query line pairs). */
-export const NDJSON_ENDPOINTS: ReadonlySet<string> = new Set([
-  'fleet.msearch',
-  'msearch'
-])
-
-/** Maximum length (in characters) for the `db.query.text` span attribute. */
-export const SEARCH_QUERY_MAX_LENGTH = 2048
-
-export interface OpenTelemetryOptions {
-  enabled?: boolean
-  suppressInternalInstrumentation?: boolean
-  /**
-   * When true, sanitized request bodies are recorded as `db.query.text` on OTel spans.
-   * WARNING: even after sanitization, query structure may reveal sensitive data about
-   * your schema or search patterns. Enable only in environments where tracing data
-   * is appropriately access-controlled.
-   */
-  captureSearchQuery?: boolean
-}
+export type { OpenTelemetryOptions } from './middleware'
 
 export interface TransportOptions {
   diagnostic?: Diagnostic
@@ -268,8 +223,6 @@ export default class Transport {
   [kAcceptHeader]: string
   [kRedaction]: RedactionOptions
   [kRetryBackoff]: (min: number, max: number, attempt: number) => number
-  [kOtelTracer]: Tracer
-  [kOtelOptions]: OpenTelemetryOptions
   [kMiddlewareEngine]: MiddlewareEngine
 
   static sniffReasons = {
@@ -334,20 +287,21 @@ export default class Transport {
     this[kAcceptHeader] = opts.vendoredHeaders?.accept ?? 'application/json, text/plain'
     this[kRedaction] = opts.redaction ?? { type: 'replace', additionalKeys: [] }
     this[kRetryBackoff] = opts.retryBackoff ?? retryBackoff
-    this[kOtelTracer] = opentelemetry.trace.getTracer('@elastic/transport', transportVersion)
+    const otelTracer = opentelemetry.trace.getTracer('@elastic/transport', transportVersion)
 
     const otelEnabledDefault = process.env.OTEL_ELASTICSEARCH_ENABLED != null ? (process.env.OTEL_ELASTICSEARCH_ENABLED.toLowerCase() !== 'false') : true
-    this[kOtelOptions] = Object.assign({}, {
+    const otelOptions: OpenTelemetryOptions = Object.assign({}, {
       enabled: otelEnabledDefault,
       suppressInternalInstrumentation: false
     }, opts.openTelemetry ?? {})
     // env var 'false' (case-insensitive) overrides code-level captureSearchQuery
     if (process.env.OTEL_ELASTICSEARCH_CAPTURE_SEARCH_QUERY?.toLowerCase() === 'false') {
-      this[kOtelOptions].captureSearchQuery = false
+      otelOptions.captureSearchQuery = false
     }
 
-    // Initialize middleware engine with ProductCheck
+    // Initialize middleware engine with OpenTelemetry and ProductCheck
     this[kMiddlewareEngine] = new MiddlewareEngine()
+    this[kMiddlewareEngine].register(new OpenTelemetryMiddleware(otelTracer, otelOptions))
     this[kMiddlewareEngine].register(new ProductCheck({
       productCheck: this[kProductCheck]
     }))
@@ -395,10 +349,10 @@ export default class Transport {
     return this[kDiagnostic]
   }
 
-  private async _request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptionsWithOutMeta, otelSpan?: Span): Promise<TResponse>
-  private async _request<TResponse = unknown, TContext = any> (params: TransportRequestParams, options?: TransportRequestOptionsWithMeta, otelSpan?: Span): Promise<TransportResult<TResponse, TContext>>
-  private async _request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptions, otelSpan?: Span): Promise<TResponse>
-  private async _request (params: TransportRequestParams, options: TransportRequestOptions = {}, otelSpan?: Span): Promise<any> {
+  private async _request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptionsWithOutMeta): Promise<TResponse>
+  private async _request<TResponse = unknown, TContext = any> (params: TransportRequestParams, options?: TransportRequestOptionsWithMeta): Promise<TransportResult<TResponse, TContext>>
+  private async _request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptions): Promise<TResponse>
+  private async _request (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<any> {
     const connectionParams: ConnectionRequestParams = {
       method: params.method,
       path: params.path
@@ -566,23 +520,6 @@ export default class Transport {
           throw new NoLivingConnectionsError('There are no living connections', result, errorOptions)
         }
 
-        // generate required OpenTelemetry attributes from the request URL
-        const requestUrl = meta.connection.url
-        otelSpan?.setAttributes({
-          'url.full': requestUrl.toString(),
-          'server.address': requestUrl.hostname
-        })
-        if (requestUrl.port === '') {
-          if (requestUrl.protocol === 'https:') {
-            otelSpan?.setAttribute('server.port', 443)
-          } else if (requestUrl.protocol === 'http:') {
-            otelSpan?.setAttribute('server.port', 80)
-          }
-        } else {
-          const port = parseInt(requestUrl.port, 10)
-          if (!Number.isNaN(port)) otelSpan?.setAttribute('server.port', port)
-        }
-
         this[kDiagnostic].emit('request', null, result)
 
         // set timeout defaults
@@ -602,16 +539,6 @@ export default class Transport {
         })
         result.statusCode = statusCode
         result.headers = headers
-
-        otelSpan?.setAttribute('db.response.status_code', statusCode.toString())
-
-        if (headers['x-found-handling-cluster'] != null) {
-          otelSpan?.setAttribute('db.namespace', headers['x-found-handling-cluster'])
-        }
-
-        if (headers['x-found-handling-instance'] != null) {
-          otelSpan?.setAttribute('elasticsearch.node.name', headers['x-found-handling-instance'])
-        }
 
         // Execute middleware onResponse phase (handles product check)
         const middlewareContext: MiddlewareContext = {
@@ -785,86 +712,11 @@ export default class Transport {
   async request<TResponse = unknown, TContext = any> (params: TransportRequestParams, options?: TransportRequestOptionsWithMeta): Promise<TransportResult<TResponse, TContext>>
   async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptions): Promise<TResponse>
   async request (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<any> {
-    const otelOptions = Object.assign({}, this[kOtelOptions], options.openTelemetry ?? {})
-
-    // wrap in OpenTelemetry span
-    if ((otelOptions?.enabled ?? true) && params.meta?.name != null) {
-      let context = opentelemetry.context.active()
-      if (otelOptions.suppressInternalInstrumentation ?? false) {
-        context = suppressTracing(context)
-      }
-
-      // gather OpenTelemetry attributes
-      const attributes: Attributes = {
-        'db.system': 'elasticsearch',
-        'http.request.method': params.method,
-        'db.operation.name': params.meta?.name
-      }
-
-      // add path params as otel attributes
-      if (params.meta?.pathParts != null) {
-        for (const [key, value] of Object.entries(params.meta.pathParts)) {
-          if (value == null) continue
-
-          attributes[`db.operation.parameter.${key}`] = value.toString()
-
-          if (['index', '_index', 'indices'].includes(key)) {
-            let indices: string[] = []
-            if (typeof value === 'string') {
-              indices.push(value)
-            } else if (Array.isArray(value)) {
-              indices = indices.concat(value.map(v => v.toString()))
-            } else if (typeof value === 'object') {
-              try {
-                const keys = Object.keys(value)
-                indices = indices.concat(keys.map(v => v.toString()))
-              } catch {
-                // ignore
-              }
-            }
-            if (indices.length > 0) attributes['db.collection.name'] = indices.join(', ')
-          }
-        }
-      }
-
-      // capture db.query.text for search-like endpoints when opt-in is enabled
-      if ((otelOptions.captureSearchQuery ?? false) && SEARCH_LIKE_ENDPOINTS.has(params.meta.name)) {
-        const rawBody = NDJSON_ENDPOINTS.has(params.meta.name) ? params.bulkBody : params.body
-        if (rawBody != null && rawBody !== '' && !isStream(rawBody)) {
-          const bodyStr = typeof rawBody === 'string' ? rawBody : JSON.stringify(rawBody)
-          let sanitized: string | null
-          if (NDJSON_ENDPOINTS.has(params.meta.name)) {
-            sanitized = sanitizeNdjsonBody(bodyStr)
-          } else if (STRING_QUERY_ENDPOINTS.has(params.meta.name)) {
-            sanitized = sanitizeStringQuery(bodyStr)
-          } else {
-            sanitized = sanitizeJsonBody(bodyStr)
-          }
-          if (sanitized !== null) {
-            attributes['db.query.text'] = sanitized.slice(0, SEARCH_QUERY_MAX_LENGTH)
-          }
-        }
-      }
-
-      return await this[kOtelTracer].startActiveSpan(params.meta.name, { attributes, kind: SpanKind.CLIENT }, context, async (otelSpan: Span) => {
-        let response
-        try {
-          response = await this._request(params, options, otelSpan)
-        } catch (err: any) {
-          otelSpan.recordException(err as Exception)
-          otelSpan.setStatus({ code: SpanStatusCode.ERROR })
-          otelSpan.setAttribute('error.type', err.name ?? 'Error')
-
-          throw err
-        } finally {
-          otelSpan.end()
-        }
-
-        return response
-      })
-    } else {
-      return await this._request(params, options)
-    }
+    // force meta:true internally so middleware wrap handlers receive the full TransportResult
+    const result = await this[kMiddlewareEngine].executeWrap(
+      params, options, async () => await this._request(params, { ...options, meta: true })
+    ) as TransportResult
+    return (options as TransportRequestOptionsWithMeta).meta ? result : result.body
   }
 
   getConnection (opts: GetConnectionOptions): Connection | null {
