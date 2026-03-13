@@ -340,6 +340,62 @@ test('OpenTelemetry', t => {
     }
   })
 
+  t.test('sets db.query.text for NDJSON endpoints via array bulkBody when captureSearchQuery: true', async t => {
+    const ndjsonEndpoints = ['msearch', 'fleet.msearch']
+    t.plan(ndjsonEndpoints.length)
+
+    for (const name of ndjsonEndpoints) {
+      const pool = new WeightedConnectionPool({ Connection: MockConnection })
+      pool.addConnection('http://localhost:9200')
+      const transport = new Transport({
+        connectionPool: pool,
+        openTelemetry: { captureSearchQuery: true }
+      })
+      await transport.request({
+        method: 'POST',
+        path: '/_msearch',
+        bulkBody: [
+          { index: 'test' },
+          { query: { match: { title: 'secret' } } }
+        ],
+        meta: { name }
+      })
+
+      const spans = exporter.getFinishedSpans()
+      t.equal(
+        spans[0].attributes['db.query.text'],
+        '{"index":"test"}\n{"?":{"?":{"?":"?"}}}\n',
+        `${name} sets db.query.text from array bulkBody as NDJSON`
+      )
+      exporter.reset()
+    }
+  })
+
+  t.test('sanitizes query literals in array bulkBody with mixed string/object elements when captureSearchQuery: true', async t => {
+    const pool = new WeightedConnectionPool({ Connection: MockConnection })
+    pool.addConnection('http://localhost:9200')
+    const transport = new Transport({
+      connectionPool: pool,
+      openTelemetry: { captureSearchQuery: true }
+    })
+    await transport.request({
+      method: 'POST',
+      path: '/_msearch',
+      bulkBody: [
+        '{"index":"test"}',
+        { query: { term: { status: 'published' } } }
+      ],
+      meta: { name: 'msearch' }
+    })
+
+    const spans = exporter.getFinishedSpans()
+    t.equal(
+      spans[0].attributes['db.query.text'],
+      '{"index":"test"}\n{"?":{"?":{"?":"?"}}}\n',
+      'mixed string/object array bulkBody is converted to NDJSON and sanitized'
+    )
+  })
+
   t.test('sets db.query.text for string-query endpoints with parameterized queries when captureSearchQuery: true', async t => {
     const stringQueryEndpoints = ['esql.async_query', 'esql.query', 'sql.query']
     t.plan(stringQueryEndpoints.length)

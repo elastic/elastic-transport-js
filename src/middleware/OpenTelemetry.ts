@@ -9,6 +9,7 @@ import { Middleware, MiddlewareName, MiddlewarePriority } from './types'
 import { TransportRequestParams, TransportRequestOptions } from '../Transport'
 import { TransportResult } from '../types'
 import { sanitizeJsonBody, sanitizeNdjsonBody, sanitizeStringQuery } from '../security'
+import Serializer from '../Serializer'
 
 /** Endpoints that support `db.query.text` capture. */
 export const SEARCH_LIKE_ENDPOINTS: ReadonlySet<string> = new Set([
@@ -63,10 +64,12 @@ export class OpenTelemetryMiddleware implements Middleware {
 
   private readonly tracer: Tracer
   private readonly transportOptions: OpenTelemetryOptions
+  private readonly serializer: Serializer
 
   constructor (tracer: Tracer, transportOptions: OpenTelemetryOptions) {
     this.tracer = tracer
     this.transportOptions = transportOptions
+    this.serializer = new Serializer()
   }
 
   wrap = async (params: TransportRequestParams, options: TransportRequestOptions, next: () => Promise<any>): Promise<any> => {
@@ -159,7 +162,14 @@ export class OpenTelemetryMiddleware implements Middleware {
     if ((otelOptions.captureSearchQuery ?? false) && params.meta?.name != null && SEARCH_LIKE_ENDPOINTS.has(params.meta.name)) {
       const rawBody = NDJSON_ENDPOINTS.has(params.meta.name) ? params.bulkBody : params.body
       if (rawBody != null && rawBody !== '' && !isStream(rawBody)) {
-        const bodyStr = typeof rawBody === 'string' ? rawBody : JSON.stringify(rawBody)
+        let bodyStr: string
+        if (typeof rawBody === 'string') {
+          bodyStr = rawBody
+        } else if (Array.isArray(rawBody)) {
+          bodyStr = this.serializer.ndserialize(rawBody)
+        } else {
+          bodyStr = this.serializer.serialize(rawBody)
+        }
         let sanitized: string | null
         if (NDJSON_ENDPOINTS.has(params.meta.name)) {
           sanitized = sanitizeNdjsonBody(bodyStr)
