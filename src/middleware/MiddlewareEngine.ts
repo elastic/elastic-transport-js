@@ -4,7 +4,6 @@
  */
 
 import { Middleware, MiddlewareContext } from './types'
-import { TransportRequestOptions, TransportRequestParams } from '../Transport'
 import { TransportResult } from '../types'
 import { ElasticsearchClientError, NativeErrorOptions } from '../errors'
 
@@ -23,57 +22,55 @@ export class MiddlewareEngine {
     this.middleware.sort((a, b) => (a.priority ?? 100) - (b.priority ?? 100))
   }
 
-  /**
-   * Composes all `wrap` handlers around `innermost` and executes the chain.
-   * Middleware with lower priority numbers are outermost (wrap first, return last).
-   */
-  async executeWrap (
-    params: TransportRequestParams,
-    options: TransportRequestOptions,
-    innermost: () => Promise<any>
-  ): Promise<any> {
-    const wrappers = this.middleware.filter(m => m.wrap != null)
-
-    // Build chain from innermost outward: iterate sorted array in reverse so
-    // lowest-priority middleware wraps outermost.
-    let chain = innermost
-    for (let i = wrappers.length - 1; i >= 0; i--) {
-      const mw = wrappers[i]
-      const next = chain
-      chain = async () => {
-        try {
-          if (mw.wrap == null) return await next()
-          return await mw.wrap(params, options, next)
-        } catch (error) {
-          if (error instanceof ElasticsearchClientError) throw error
-          throw new MiddlewareException(`Middleware ${mw.name} failed in wrap`, { cause: error })
-        }
+  async executeBeforeRequest (ctx: MiddlewareContext): Promise<void> {
+    for (const mw of this.middleware) {
+      if (mw.onBeforeRequest == null) continue
+      try {
+        await mw.onBeforeRequest(ctx)
+      } catch (error) {
+        if (error instanceof ElasticsearchClientError) throw error
+        throw new MiddlewareException(`Middleware ${mw.name} failed in onBeforeRequest`, { cause: error })
       }
     }
-
-    return await chain()
   }
 
-  executePhase (
-    phase: 'onResponse',
-    context: MiddlewareContext,
-    result: TransportResult
-  ): void {
-    for (const middleware of this.middleware) {
-      const handler = middleware[phase]
-      if (handler == null) continue
-
+  /**
+   * Executes all `onResponse` handlers synchronously in priority order.
+   * Called on each HTTP response within the retry loop.
+   */
+  executeOnResponse (ctx: MiddlewareContext, result: TransportResult): void {
+    for (const mw of this.middleware) {
+      if (mw.onResponse == null) continue
       try {
-        const handlerResult = handler(context, result)
-
-        if (handlerResult?.continue === false) {
-          return
-        }
+        const handlerResult = mw.onResponse(ctx, result)
+        if (handlerResult?.continue === false) return
       } catch (error) {
-        if (error instanceof ElasticsearchClientError) {
-          throw error
-        }
-        throw new MiddlewareException(`Middleware ${middleware.name} failed in ${phase}`, { cause: error })
+        if (error instanceof ElasticsearchClientError) throw error
+        throw new MiddlewareException(`Middleware ${mw.name} failed in onResponse`, { cause: error })
+      }
+    }
+  }
+
+  async executeOnError (ctx: MiddlewareContext, error: Error): Promise<void> {
+    for (const mw of this.middleware) {
+      if (mw.onError == null) continue
+      try {
+        await mw.onError(ctx, error)
+      } catch (err) {
+        if (err instanceof ElasticsearchClientError) throw err
+        throw new MiddlewareException(`Middleware ${mw.name} failed in onError`, { cause: err })
+      }
+    }
+  }
+
+  async executeOnComplete (ctx: MiddlewareContext, result: TransportResult): Promise<void> {
+    for (const mw of this.middleware) {
+      if (mw.onComplete == null) continue
+      try {
+        await mw.onComplete(ctx, result)
+      } catch (error) {
+        if (error instanceof ElasticsearchClientError) throw error
+        throw new MiddlewareException(`Middleware ${mw.name} failed in onComplete`, { cause: error })
       }
     }
   }

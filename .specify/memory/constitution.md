@@ -1,20 +1,16 @@
 <!--
 ## Sync Impact Report
 
-**Version change**: none (all placeholders) → 1.0.0 (initial ratification)
+**Version change**: 1.0.0 → 1.1.0 (MINOR: new principle added)
 
 ### Principles Added
-- I. No Breaking Changes (NON-NEGOTIABLE)
-- II. Minimal Runtime Dependencies
-- III. Test-Driven Quality (NON-NEGOTIABLE)
-- IV. API Documentation
-- V. Elasticsearch-Aligned Versioning
+- VI. Transparent Middleware Architecture
+
+### Principles Modified
+- None
 
 ### Sections Added
-- Core Principles (all five)
-- Technology Standards
-- Development Workflow
-- Governance
+- None
 
 ### Sections Removed
 - None
@@ -24,7 +20,7 @@
 |------|--------|
 | `.specify/templates/plan-template.md` | ✅ No changes needed — Constitution Check gates remain dynamic |
 | `.specify/templates/spec-template.md` | ✅ No changes needed |
-| `.specify/templates/tasks-template.md` | ✅ Updated — test tasks changed from OPTIONAL to MANDATORY |
+| `.specify/templates/tasks-template.md` | ✅ No changes needed |
 | `.specify/templates/agent-file-template.md` | ✅ No changes needed |
 | `.specify/templates/checklist-template.md` | ✅ No changes needed |
 
@@ -108,6 +104,30 @@ and MUST NOT be changed by contributors.
 consumers. Unilateral major version bumps break that signal and create confusion
 about which Elasticsearch version is supported.
 
+### VI. Transparent Middleware Architecture
+
+`MiddlewareEngine` provides lifecycle hooks across every phase of the
+request/response cycle. A context object is created at the start of each request,
+persists for its entire duration, and is passed to every hook so that middlewares
+can read and write shared state without wrapping functions around functions.
+
+- `MiddlewareEngine` and all middlewares provided by this library MUST be
+  transparent implementation details; they MUST NOT be visible to callers as
+  wrapper layers or alter the call stack observable by consuming code.
+- Middlewares MUST NOT catch, wrap, or re-throw exceptions that originate outside
+  their own hook body. Exceptions from transport infrastructure, other lifecycle
+  hooks, or application code MUST propagate unmodified.
+- New cross-cutting capabilities (e.g., observability, authentication context,
+  retry state) MUST be implemented as lifecycle hooks that read/write the shared
+  request context. Function-wrapping as a substitute for proper middleware
+  registration is forbidden.
+
+**Rationale**: The middleware architecture was introduced specifically to replace
+function-wrapping patterns such as the original OpenTelemetry integration.
+Wrapping exceptions would mask their origin, making root-cause analysis harder.
+Reintroducing function-wrapping would defeat the architectural intent and recreate
+the coupling the refactor was designed to eliminate.
+
 ## Technology Standards
 
 - **Language**: TypeScript (source in `src/`); compiled to CommonJS (`lib/`) and
@@ -147,4 +167,4 @@ Amendments require:
 **Compliance**: All PRs and reviews MUST verify compliance with this constitution.
 Non-compliance blocks merge. Refer to `AGENTS.md` for runtime development guidance.
 
-**Version**: 1.0.0 | **Ratified**: 2026-03-10 | **Last Amended**: 2026-03-10
+**Version**: 1.1.0 | **Ratified**: 2026-03-10 | **Last Amended**: 2026-03-13

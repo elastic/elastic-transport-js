@@ -68,7 +68,6 @@ import {
 } from './symbols'
 import { setTimeout } from 'node:timers/promises'
 import { transportVersion } from './version.generated'
-import opentelemetry from '@opentelemetry/api'
 import { MiddlewareEngine, ProductCheck, OpenTelemetryMiddleware, type OpenTelemetryOptions, MiddlewareContext } from './middleware'
 
 const nodeVersion = process.versions.node
@@ -287,8 +286,6 @@ export default class Transport {
     this[kAcceptHeader] = opts.vendoredHeaders?.accept ?? 'application/json, text/plain'
     this[kRedaction] = opts.redaction ?? { type: 'replace', additionalKeys: [] }
     this[kRetryBackoff] = opts.retryBackoff ?? retryBackoff
-    const otelTracer = opentelemetry.trace.getTracer('@elastic/transport', transportVersion)
-
     const otelEnabledDefault = process.env.OTEL_ELASTICSEARCH_ENABLED != null ? (process.env.OTEL_ELASTICSEARCH_ENABLED.toLowerCase() !== 'false') : true
     const otelOptions: OpenTelemetryOptions = Object.assign({}, {
       enabled: otelEnabledDefault,
@@ -301,7 +298,7 @@ export default class Transport {
 
     // Initialize middleware engine with OpenTelemetry and ProductCheck
     this[kMiddlewareEngine] = new MiddlewareEngine()
-    this[kMiddlewareEngine].register(new OpenTelemetryMiddleware(otelTracer, otelOptions))
+    this[kMiddlewareEngine].register(new OpenTelemetryMiddleware(otelOptions))
     this[kMiddlewareEngine].register(new ProductCheck({
       productCheck: this[kProductCheck]
     }))
@@ -349,10 +346,10 @@ export default class Transport {
     return this[kDiagnostic]
   }
 
-  private async _request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptionsWithOutMeta): Promise<TResponse>
-  private async _request<TResponse = unknown, TContext = any> (params: TransportRequestParams, options?: TransportRequestOptionsWithMeta): Promise<TransportResult<TResponse, TContext>>
-  private async _request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptions): Promise<TResponse>
-  private async _request (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<any> {
+  async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptionsWithOutMeta): Promise<TResponse>
+  async request<TResponse = unknown, TContext = any> (params: TransportRequestParams, options?: TransportRequestOptionsWithMeta): Promise<TransportResult<TResponse, TContext>>
+  async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptions): Promise<TResponse>
+  async request (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<any> {
     const connectionParams: ConnectionRequestParams = {
       method: params.method,
       path: params.path
@@ -503,12 +500,34 @@ export default class Transport {
     }
 
     connectionParams.headers = headers
+
+    const middlewareCtx: MiddlewareContext = {
+      request: {
+        method: connectionParams.method,
+        path: connectionParams.path,
+        body: connectionParams.body,
+        querystring: connectionParams.querystring,
+        headers: connectionParams.headers ?? {}
+      },
+      params,
+      options,
+      meta: {
+        requestId: meta.request.id,
+        name: this[kName],
+        context: meta.context as Context | null,
+        connection: null,
+        attempts: 0
+      }
+    }
+
+    await this[kMiddlewareEngine].executeBeforeRequest(middlewareCtx)
+
     while (meta.attempts <= maxRetries) {
       // Capture start time for request duration tracking
       const startTime = process.hrtime.bigint()
 
       try {
-        if (signal?.aborted) { // eslint-disable-line
+          if (signal?.aborted) { // eslint-disable-line
           throw new RequestAbortedError('Request has been aborted by the user', result, errorOptions)
         }
 
@@ -540,26 +559,9 @@ export default class Transport {
         result.statusCode = statusCode
         result.headers = headers
 
-        // Execute middleware onResponse phase (handles product check)
-        const middlewareContext: MiddlewareContext = {
-          request: {
-            method: connectionParams.method,
-            path: connectionParams.path,
-            body: connectionParams.body,
-            querystring: connectionParams.querystring,
-            headers
-          },
-          params,
-          options,
-          meta: {
-            requestId: meta.request.id,
-            name: this[kName],
-            context: meta.context as Context | null,
-            connection: meta.connection,
-            attempts: meta.attempts
-          }
-        }
-        this[kMiddlewareEngine].executePhase('onResponse', middlewareContext, result)
+        middlewareCtx.meta.connection = meta.connection
+        middlewareCtx.meta.attempts = meta.attempts
+        this[kMiddlewareEngine].executeOnResponse(middlewareCtx, result)
 
         if (options.asStream === true) {
           result.body = body
@@ -567,6 +569,7 @@ export default class Transport {
           const endTime = process.hrtime.bigint()
           meta.duration = Number(endTime - startTime) / 1e6
           this[kDiagnostic].emit('response', null, result)
+          await this[kMiddlewareEngine].executeOnComplete(middlewareCtx, result)
           return returnMeta ? result : body
         }
 
@@ -585,9 +588,9 @@ export default class Transport {
         //    - the request is not a HEAD request
         //    - the payload is not an empty string
         if (headers['content-type'] !== undefined &&
-            (headers['content-type']?.includes('application/json') ||
-             headers['content-type']?.includes('application/vnd.elasticsearch+json')) &&
-             !isHead && body !== '') { // eslint-disable-line
+              (headers['content-type']?.includes('application/json') ||
+               headers['content-type']?.includes('application/vnd.elasticsearch+json')) &&
+               !isHead && body !== '') { // eslint-disable-line
           result.body = this[kSerializer].deserialize(body as string)
         } else {
           // cast to boolean if the request method was HEAD and there was no error
@@ -597,7 +600,7 @@ export default class Transport {
         // we should ignore the statusCode if the user has configured the `ignore` field with
         // the statusCode we just got or if the request method is HEAD and the statusCode is 404
         const ignoreStatusCode = (Array.isArray(options.ignore) && options.ignore.includes(statusCode)) ||
-          (isHead && statusCode === 404)
+            (isHead && statusCode === 404)
 
         if (!ignoreStatusCode && (statusCode === 502 || statusCode === 503 || statusCode === 504)) {
           // if the statusCode is 502/3/4 we should run our retry strategy
@@ -626,6 +629,7 @@ export default class Transport {
           const endTime = process.hrtime.bigint()
           meta.duration = Number(endTime - startTime) / 1e6
           this[kDiagnostic].emit('response', null, result)
+          await this[kMiddlewareEngine].executeOnComplete(middlewareCtx, result)
           return returnMeta ? result : result.body
         }
       } catch (error: any) {
@@ -640,12 +644,14 @@ export default class Transport {
           case 'DeserializationError':
           case 'ResponseError':
             this[kDiagnostic].emit('response', error, result)
+            await this[kMiddlewareEngine].executeOnError(middlewareCtx, error)
             throw error
           case 'RequestAbortedError': {
             meta.aborted = true
             // Wrap the error to get a clean stack trace
             const wrappedError = new RequestAbortedError(error.message, result, errorOptions)
             this[kDiagnostic].emit('response', wrappedError, result)
+            await this[kMiddlewareEngine].executeOnError(middlewareCtx, wrappedError)
             throw wrappedError
           }
           // should maybe retry
@@ -654,10 +660,11 @@ export default class Transport {
             if (!this[kRetryOnTimeout]) {
               const wrappedError = new TimeoutError(error.message, result, errorOptions)
               this[kDiagnostic].emit('response', wrappedError, result)
+              await this[kMiddlewareEngine].executeOnError(middlewareCtx, wrappedError)
               throw wrappedError
             }
-          // should retry
-          // eslint-disable-next-line no-fallthrough
+            // should retry
+            // eslint-disable-next-line no-fallthrough
           case 'ConnectionError': {
             // if there is an error in the connection
             // let's mark the connection as dead
@@ -694,29 +701,20 @@ export default class Transport {
               ? new TimeoutError(error.message, result, errorOptions)
               : new ConnectionError(error.message, result, errorOptions)
             this[kDiagnostic].emit('response', wrappedError, result)
+            await this[kMiddlewareEngine].executeOnError(middlewareCtx, wrappedError)
             throw wrappedError
           }
 
           // edge cases, such as bad compression
           default:
             this[kDiagnostic].emit('response', error, result)
+            await this[kMiddlewareEngine].executeOnError(middlewareCtx, error)
             throw error
         }
       }
     }
 
     return returnMeta ? result : result.body
-  }
-
-  async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptionsWithOutMeta): Promise<TResponse>
-  async request<TResponse = unknown, TContext = any> (params: TransportRequestParams, options?: TransportRequestOptionsWithMeta): Promise<TransportResult<TResponse, TContext>>
-  async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptions): Promise<TResponse>
-  async request (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<any> {
-    // force meta:true internally so middleware wrap handlers receive the full TransportResult
-    const result = await this[kMiddlewareEngine].executeWrap(
-      params, options, async () => await this._request(params, { ...options, meta: true })
-    ) as TransportResult
-    return (options as TransportRequestOptionsWithMeta).meta ? result : result.body
   }
 
   getConnection (opts: GetConnectionOptions): Connection | null {

@@ -5,11 +5,11 @@
 
 import opentelemetry, { Attributes, Exception, Span, SpanKind, SpanStatusCode, Tracer } from '@opentelemetry/api'
 import { suppressTracing } from '@opentelemetry/core'
-import { Middleware, MiddlewareName, MiddlewarePriority } from './types'
-import { TransportRequestParams, TransportRequestOptions } from '../Transport'
+import { Middleware, MiddlewareContext, MiddlewareName, MiddlewarePriority } from './types'
 import { TransportResult } from '../types'
 import { sanitizeJsonBody, sanitizeNdjsonBody, sanitizeStringQuery } from '../security'
 import Serializer from '../Serializer'
+import { transportVersion } from '../version.generated'
 
 /** Endpoints that support `db.query.text` capture. */
 export const SEARCH_LIKE_ENDPOINTS: ReadonlySet<string> = new Set([
@@ -65,41 +65,57 @@ export class OpenTelemetryMiddleware implements Middleware {
   private readonly tracer: Tracer
   private readonly transportOptions: OpenTelemetryOptions
   private readonly serializer: Serializer
+  /**
+   * Spans indexed by request context, cleaned up in onComplete/onError.
+   *
+   * A WeakMap is used instead of attaching the span directly to `ctx` to keep
+   * `MiddlewareContext` free of OTel-specific fields (which would force an
+   * `@opentelemetry/api` import into shared types for all consumers) and to
+   * preserve encapsulation — no other code can access or mutate these spans.
+   * The weak reference also acts as a safety net: if a context is ever abandoned
+   * without onComplete/onError firing, the entry is reclaimed automatically.
+   */
+  private readonly activeSpans = new WeakMap<MiddlewareContext, Span>()
 
-  constructor (tracer: Tracer, transportOptions: OpenTelemetryOptions) {
-    this.tracer = tracer
+  constructor (transportOptions: OpenTelemetryOptions) {
+    this.tracer = opentelemetry.trace.getTracer('@elastic/transport', transportVersion)
     this.transportOptions = transportOptions
     this.serializer = new Serializer()
   }
 
-  wrap = async (params: TransportRequestParams, options: TransportRequestOptions, next: () => Promise<any>): Promise<any> => {
-    const otelOptions: OpenTelemetryOptions = Object.assign({}, this.transportOptions, options.openTelemetry ?? {})
+  onBeforeRequest = (ctx: MiddlewareContext): void => {
+    const otelOptions = Object.assign({}, this.transportOptions, ctx.options.openTelemetry ?? {})
 
-    if (!(otelOptions.enabled ?? true) || params.meta?.name == null) {
-      return await next()
-    }
+    if (!(otelOptions.enabled ?? true) || ctx.params.meta?.name == null) return
 
-    let context = opentelemetry.context.active()
+    let otelContext = opentelemetry.context.active()
     if (otelOptions.suppressInternalInstrumentation ?? false) {
-      context = suppressTracing(context)
+      otelContext = suppressTracing(otelContext)
     }
 
-    const attributes = this.buildAttributes(params, otelOptions)
+    const attributes = this.buildAttributes(ctx, otelOptions)
+    const span = this.tracer.startSpan(ctx.params.meta.name, { attributes, kind: SpanKind.CLIENT }, otelContext)
+    this.activeSpans.set(ctx, span)
+  }
 
-    return await this.tracer.startActiveSpan(params.meta.name, { attributes, kind: SpanKind.CLIENT }, context, async (span) => {
-      try {
-        const result = await next()
-        this.setResponseAttributes(span, result)
-        return result
-      } catch (err: any) {
-        span.recordException(err as Exception)
-        span.setStatus({ code: SpanStatusCode.ERROR })
-        span.setAttribute('error.type', err.name ?? 'Error')
-        throw err
-      } finally {
-        span.end()
-      }
-    })
+  onError = (ctx: MiddlewareContext, error: Error): void => {
+    const span = this.activeSpans.get(ctx)
+    if (span == null) return
+    this.activeSpans.delete(ctx)
+
+    span.recordException(error as Exception)
+    span.setStatus({ code: SpanStatusCode.ERROR })
+    span.setAttribute('error.type', (error as any).name ?? 'Error')
+    span.end()
+  }
+
+  onComplete = (ctx: MiddlewareContext, result: TransportResult): void => {
+    const span = this.activeSpans.get(ctx)
+    if (span == null) return
+    this.activeSpans.delete(ctx)
+
+    this.setResponseAttributes(span, result)
+    span.end()
   }
 
   private setResponseAttributes (span: Span, result: TransportResult): void {
@@ -128,7 +144,8 @@ export class OpenTelemetryMiddleware implements Middleware {
     }
   }
 
-  private buildAttributes (params: TransportRequestParams, otelOptions: OpenTelemetryOptions): Attributes {
+  private buildAttributes (ctx: MiddlewareContext, otelOptions: OpenTelemetryOptions): Attributes {
+    const { params } = ctx
     const attributes: Attributes = {
       'db.system': 'elasticsearch',
       'http.request.method': params.method,

@@ -42,8 +42,10 @@ export interface MiddlewareContext {
     readonly requestId: any
     readonly name: string | symbol
     readonly context: Context | null
-    readonly connection: Connection | null
-    readonly attempts: number
+    /** Updated to the active connection before each `onResponse` call. */
+    connection: Connection | null
+    /** Updated to the current retry count before each `onResponse` call. */
+    attempts: number
   }
 }
 
@@ -55,10 +57,23 @@ export interface Middleware {
   readonly name: MiddlewareName
   readonly priority?: number
   /**
-   * Wraps the entire request execution. Called once per `transport.request()` call.
-   * Middleware with lower priority numbers wrap outer (execute first, last to return).
-   * Must call `next()` to continue the chain, or skip it to short-circuit.
+   * Called once per `transport.request()` call, after serialization and before
+   * the first connection attempt. Use this to set up per-request state.
    */
-  wrap?: (params: TransportRequestParams, options: TransportRequestOptions, next: () => Promise<any>) => Promise<any>
+  onBeforeRequest?: (ctx: MiddlewareContext) => void | Promise<void>
+  /**
+   * Called on each successful HTTP response within the retry loop.
+   * Returning `{ continue: false }` stops subsequent middleware from running.
+   */
   onResponse?: (ctx: MiddlewareContext, result: TransportResult) => MiddlewareResult | undefined
+  /**
+   * Called once per `transport.request()` call when the request fails with an
+   * unrecoverable error (after all retries are exhausted). The error is
+   * re-thrown after all handlers run.
+   */
+  onError?: (ctx: MiddlewareContext, error: Error) => void | Promise<void>
+  /**
+   * Called once per `transport.request()` call on a successful final response.
+   */
+  onComplete?: (ctx: MiddlewareContext, result: TransportResult) => void | Promise<void>
 }
