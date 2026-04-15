@@ -1346,3 +1346,42 @@ test('limit max open connections using Undici Agent', async t => {
 
   after.forEach(fn => fn())
 })
+
+test('UTF-8 multi-byte characters not corrupted when split across chunk boundaries', async t => {
+  t.plan(2)
+
+  // CJK character '傳' (U+50B3) is 3 bytes: 0xe5 0x82 0xb3
+  // Build a response where this character is split at a chunk boundary
+  const prefix = 'a'.repeat(10) // 10 ASCII bytes
+  const cjkText = '傳送中文測試'
+  const text = `{"message":"${prefix}${cjkText}"}`
+  const buf = Buffer.from(text)
+
+  // Split in the middle of the first CJK character:
+  // '{"message":"' (14 bytes) + 'a' * 10 (10 bytes) = 24 bytes of ASCII
+  // Then first byte of '傳' (0xe5) at position 24, split after byte 25
+  const splitPoint = 25 // after first byte of '傳'
+
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+    res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
+    res.write(buf.subarray(0, splitPoint))
+    globalThis.setTimeout(() => {
+      res.end(buf.subarray(splitPoint))
+    }, 50)
+  }
+
+  const [{ port }, server] = await buildServer(handler)
+  const connection = new UndiciConnection({
+    url: new URL(`http://localhost:${port}`)
+  })
+  const res = await connection.request({
+    path: '/hello',
+    method: 'GET'
+  }, options)
+
+  // Must not contain U+FFFD replacement characters
+  t.notOk((res.body as string).includes('\ufffd'), 'should not contain U+FFFD replacement characters')
+  t.equal(res.body, text, 'decoded text should match original')
+
+  server.stop()
+})
