@@ -1,0 +1,170 @@
+<!--
+## Sync Impact Report
+
+**Version change**: 1.0.0 → 1.1.0 (MINOR: new principle added)
+
+### Principles Added
+- VI. Transparent Middleware Architecture
+
+### Principles Modified
+- None
+
+### Sections Added
+- None
+
+### Sections Removed
+- None
+
+### Templates
+| File | Status |
+|------|--------|
+| `.specify/templates/plan-template.md` | ✅ No changes needed — Constitution Check gates remain dynamic |
+| `.specify/templates/spec-template.md` | ✅ No changes needed |
+| `.specify/templates/tasks-template.md` | ✅ No changes needed |
+| `.specify/templates/agent-file-template.md` | ✅ No changes needed |
+| `.specify/templates/checklist-template.md` | ✅ No changes needed |
+
+### Deferred TODOs
+- None — all placeholders resolved.
+-->
+
+# Elastic Node.js Transport Constitution
+
+## Core Principles
+
+### I. No Breaking Changes (NON-NEGOTIABLE)
+
+The transport library MUST maintain backward compatibility at all times. Because
+the major version is reserved for Elasticsearch major releases and cannot be
+changed by contributors, any API removal, behavioral change, or incompatible
+interface modification is strictly forbidden in minor and patch releases.
+
+- All public API surfaces MUST remain stable across minor and patch releases.
+- Deprecation MUST precede removal; removal can only occur in a new major version.
+- Changes that alter observable behavior for existing callers are considered
+  breaking and MUST NOT be introduced.
+
+**Rationale**: Consumers depend on this library as a foundational transport layer.
+A broken transport means a broken Elasticsearch client with no safe upgrade path.
+
+### II. Minimal Runtime Dependencies
+
+The library MUST keep its set of runtime (`dependencies`) packages to the minimum
+required for correct operation.
+
+- New packages MUST NOT be added to `dependencies` in `package.json`.
+- `devDependencies` additions are permitted but require deliberate justification.
+- Prefer in-house implementation over a new dependency when the scope is small
+  and the maintenance cost is bounded.
+
+**Rationale**: Every runtime dependency is a transitive dependency for all
+consumers of `@elastic/transport`. Each addition increases supply-chain risk,
+bundle size, and maintenance surface.
+
+### III. Test-Driven Quality (NON-NEGOTIABLE)
+
+Every code change MUST include added or updated unit tests. A change is NOT
+complete until `npm test` passes cleanly.
+
+- New functions, types, and classes MUST have accompanying unit tests in
+  `test/unit/`.
+- Existing tests MUST be updated if changed behavior makes them stale.
+- `npm test` (build + lint + full test suite) MUST exit cleanly before any
+  change is considered done.
+- Tests are written alongside implementation; they are not optional follow-up work.
+
+**Rationale**: The transport layer is critical infrastructure. Unverified changes
+risk silent failures that are difficult to trace in downstream clients.
+
+### IV. API Documentation
+
+Every new public function, type, and class MUST have a complete docstring.
+Existing public API docstrings MUST be updated whenever behavior changes.
+
+- Docstrings MUST describe parameters, return values, and thrown errors.
+- Comments on non-obvious internal logic are encouraged but MUST NOT restate
+  what the code already clearly expresses.
+
+**Rationale**: This library is consumed by other Elastic client libraries and by
+third-party integrators. Clear documentation reduces integration errors and
+support burden.
+
+### V. Elasticsearch-Aligned Versioning
+
+The major version number is reserved exclusively for Elastic Stack major releases
+and MUST NOT be changed by contributors.
+
+- Contributors MUST only increment minor or patch version numbers.
+- A new minor version is appropriate for new backward-compatible functionality.
+- A new patch version is appropriate for bug fixes and non-functional changes.
+- All new development targets the `main` branch; backporting to prior majors or
+  minors is handled externally.
+
+**Rationale**: The versioning contract signals Elasticsearch compatibility to
+consumers. Unilateral major version bumps break that signal and create confusion
+about which Elasticsearch version is supported.
+
+### VI. Transparent Middleware Architecture
+
+`MiddlewareEngine` provides lifecycle hooks across every phase of the
+request/response cycle. A context object is created at the start of each request,
+persists for its entire duration, and is passed to every hook so that middlewares
+can read and write shared state without wrapping functions around functions.
+
+- `MiddlewareEngine` and all middlewares provided by this library MUST be
+  transparent implementation details; they MUST NOT be visible to callers as
+  wrapper layers or alter the call stack observable by consuming code.
+- Middlewares MUST NOT catch, wrap, or re-throw exceptions that originate outside
+  their own hook body. Exceptions from transport infrastructure, other lifecycle
+  hooks, or application code MUST propagate unmodified.
+- New cross-cutting capabilities (e.g., observability, authentication context,
+  retry state) MUST be implemented as lifecycle hooks that read/write the shared
+  request context. Function-wrapping as a substitute for proper middleware
+  registration is forbidden.
+
+**Rationale**: The middleware architecture was introduced specifically to replace
+function-wrapping patterns such as the original OpenTelemetry integration.
+Wrapping exceptions would mask their origin, making root-cause analysis harder.
+Reintroducing function-wrapping would defeat the architectural intent and recreate
+the coupling the refactor was designed to eliminate.
+
+## Technology Standards
+
+- **Language**: TypeScript (source in `src/`); compiled to CommonJS (`lib/`) and
+  ESM (`esm/`) for dual-module publishing.
+- **Runtime**: Node.js >=20.
+- **Linting**: `ts-standard`; all source MUST pass `npm run lint` without errors.
+- **Build**: `npm run build` MUST produce clean, error-free output.
+- **OS Compatibility**: All source code and npm scripts MUST produce equivalent
+  results on Linux, macOS, and Windows. Shell-specific idioms in scripts are
+  forbidden; use Node.js for cross-platform file operations.
+
+## Development Workflow
+
+1. Make changes to `src/**/*.ts`.
+2. Add or update unit tests in `test/unit/`.
+3. Run `npm test` to build, lint, and execute the full test suite.
+4. A change is complete only when `npm test` exits cleanly with no failures.
+5. Docstrings MUST be present on all new public APIs before a change is submitted.
+6. Never modify the major version number.
+
+## Governance
+
+This constitution supersedes all other project practices and guidelines.
+Amendments require:
+
+1. A written proposal describing the change and its rationale.
+2. Consistency propagation — all templates and dependent artifacts MUST be
+   updated in the same commit as the constitution change.
+3. A version bump following the policy below.
+
+**Versioning Policy**:
+
+- MAJOR: Backward-incompatible principle removals or governance redefinitions.
+- MINOR: New principle or section added, or materially expanded guidance.
+- PATCH: Clarifications, wording fixes, or non-semantic refinements.
+
+**Compliance**: All PRs and reviews MUST verify compliance with this constitution.
+Non-compliance blocks merge. Refer to `AGENTS.md` for runtime development guidance.
+
+**Version**: 1.1.0 | **Ratified**: 2026-03-10 | **Last Amended**: 2026-03-13

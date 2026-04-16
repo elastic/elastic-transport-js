@@ -61,6 +61,7 @@ api/generated.d.ts
 docs
 CODE_OF_CONDUCT.md
 CONTRIBUTING.md
+AGENTS.md
 
 # Ignore scripts folder
 scripts
@@ -71,5 +72,14 @@ scripts
 certs
 .github
 renovate.json
+.buildkite
+catalog-info.yml
 
+# specs
+specs
+.specify
+
+# ignore TypeScript src
 src
+tsconfig.json
+tsconfig.esm.json
