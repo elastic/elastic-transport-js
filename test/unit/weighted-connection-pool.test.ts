@@ -143,6 +143,32 @@ test('API', t => {
 
       //   t.end()
       // })
+      t.test('All connections dead should still return a connection', t => {
+        const pool = new WeightedConnectionPool({ Connection: HttpConnection })
+        pool.addConnection([
+          'http://localhost:9200/',
+          'http://localhost:9201/',
+          'http://localhost:9202/'
+        ])
+
+        for (let i = 0; i < 30; i++) {
+          const con = pool.getConnection(opts)
+          if (con != null) {
+            pool.markDead(con)
+          }
+        }
+
+        let nullCount = 0
+        for (let i = 0; i < 100; i++) {
+          const con = pool.getConnection(opts)
+          if (con === null) {
+            nullCount++
+          }
+        }
+
+        t.equal(nullCount, 0, 'should not return null when all nodes are dead')
+        t.end()
+      })
 
       t.test('3 Connections, 3 weights', t => {
         const pool = new WeightedConnectionPool({ Connection: HttpConnection })

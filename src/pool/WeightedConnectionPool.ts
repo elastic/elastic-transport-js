@@ -45,7 +45,7 @@ export default class WeightedConnectionPool extends BaseConnectionPool {
       this.index = (this.index + 1) % this.size
       if (this.index === 0) {
         this.currentWeight = this.currentWeight - this.greatestCommonDivisor
-        if (this.currentWeight <= 0) {
+        if (this.currentWeight <= 0 || this.currentWeight > this.maxWeight) {
           this.currentWeight = this.maxWeight
           /* istanbul ignore if */
           if (this.currentWeight === 0) {
