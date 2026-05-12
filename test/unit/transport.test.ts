@@ -144,6 +144,48 @@ test('Basic error (ConnectionError)', async t => {
   }
 })
 
+test('Basic error (ConnectionError) with empty message', async t => {
+  t.plan(9)
+
+  for (const message of ['', null, undefined]) {
+    class EmptyMessageConnection extends MockConnection {
+      async request (): Promise<any> {
+        throw new ConnectionError(message as any)
+      }
+    }
+
+    class MyPool extends WeightedConnectionPool {
+      markAlive (connection: Connection): this {
+        t.fail('should not be called')
+        return this
+      }
+
+      markDead (connection: Connection): this {
+        t.pass('called')
+        return this
+      }
+    }
+    const pool = new MyPool({ Connection: EmptyMessageConnection })
+    pool.addConnection('http://localhost:9200')
+
+    const transport = new Transport({
+      connectionPool: pool,
+      maxRetries: 0,
+      retryBackoff: () => 0
+    })
+
+    try {
+      await transport.request({
+        method: 'GET',
+        path: '/hello'
+      }, { meta: true })
+    } catch (err: any) {
+      t.ok(err instanceof ConnectionError)
+      t.equal(err.message, 'connection failed (http://localhost:9200/)')
+    }
+  }
+})
+
 test('Ignore status code', async t => {
   const pool = new WeightedConnectionPool({ Connection: MockConnection })
   pool.addConnection('http://localhost:9200')

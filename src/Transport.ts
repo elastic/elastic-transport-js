@@ -720,9 +720,15 @@ export default class Transport {
             }
 
             // Wrap the error to get a clean stack trace
+            const connectionUrl = meta.connection?.url.toString()
+            const connectionErrorMessage = error.message != null && error.message !== '' && error.message !== 'Connection Error'
+              ? error.message
+              : connectionUrl != null
+                ? `connection failed (${connectionUrl})`
+                : 'connection failed'
             const wrappedError = error.name === 'TimeoutError'
               ? new TimeoutError(error.message, result, errorOptions)
-              : new ConnectionError(error.message, result, errorOptions)
+              : new ConnectionError(connectionErrorMessage, result, errorOptions)
             this[kDiagnostic].emit('response', wrappedError, result)
             throw wrappedError
           }
