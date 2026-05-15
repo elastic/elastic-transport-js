@@ -674,7 +674,7 @@ export default class Transport {
           case 'RequestAbortedError': {
             meta.aborted = true
             // Wrap the error to get a clean stack trace
-            const wrappedError = new RequestAbortedError(error.message, result, errorOptions)
+            const wrappedError = new RequestAbortedError(error.message, result, { ...errorOptions, cause: error })
             this[kDiagnostic].emit('response', wrappedError, result)
             throw wrappedError
           }
@@ -682,7 +682,7 @@ export default class Transport {
           // @ts-expect-error `case` fallthrough is intentional: should retry if retryOnTimeout is true
           case 'TimeoutError':
             if (!this[kRetryOnTimeout]) {
-              const wrappedError = new TimeoutError(error.message, result, errorOptions)
+              const wrappedError = new TimeoutError(error.message, result, { ...errorOptions, cause: error })
               this[kDiagnostic].emit('response', wrappedError, result)
               throw wrappedError
             }
@@ -727,8 +727,8 @@ export default class Transport {
                 ? `connection failed (${connectionUrl})`
                 : 'connection failed'
             const wrappedError = error.name === 'TimeoutError'
-              ? new TimeoutError(error.message, result, errorOptions)
-              : new ConnectionError(connectionErrorMessage, result, errorOptions)
+              ? new TimeoutError(error.message, result, { ...errorOptions, cause: error })
+              : new ConnectionError(connectionErrorMessage, result, { ...errorOptions, cause: error })
             this[kDiagnostic].emit('response', wrappedError, result)
             throw wrappedError
           }

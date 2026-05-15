@@ -180,3 +180,19 @@ test('redaction does leak back to original object', t => {
   })
   t.end()
 })
+
+test('Error.cause is propagated through ElasticsearchClientError subclasses', t => {
+  const cause = new Error('original socket error')
+  const diag = makeDiagnostics()[0]
+
+  const timeout = new errors.TimeoutError('timeout', diag, { redaction: { type: 'replace' }, cause })
+  t.equal(timeout.cause, cause, 'TimeoutError should expose cause')
+
+  const conn = new errors.ConnectionError('conn', diag, { redaction: { type: 'replace' }, cause })
+  t.equal(conn.cause, cause, 'ConnectionError should expose cause')
+
+  const aborted = new errors.RequestAbortedError('aborted', diag, { redaction: { type: 'replace' }, cause })
+  t.equal(aborted.cause, cause, 'RequestAbortedError should expose cause')
+
+  t.end()
+})
