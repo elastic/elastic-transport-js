@@ -10,6 +10,7 @@ import { redactDiagnostic } from './security'
 
 export interface ErrorOptions {
   redaction: RedactionOptions
+  cause?: unknown
 }
 
 export interface NativeErrorOptions {
@@ -19,7 +20,7 @@ export interface NativeErrorOptions {
 export class ElasticsearchClientError extends Error {
   options: ErrorOptions
   constructor (message: string, options?: ErrorOptions) {
-    super(message)
+    super(message, { cause: options?.cause })
     this.name = 'ElasticsearchClientError'
 
     this.options = {
