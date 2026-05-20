@@ -500,9 +500,8 @@ export default class Transport {
     headers.accept = headers.accept ?? this[kAcceptHeader]
 
     // Set default content-type header for empty requests
-    // Only set if no content-type is already specified and there's no body
     if (headers['content-type'] == null && (connectionParams.body == null || connectionParams.body === '')) {
-      headers['content-type'] = 'application/json'
+      headers['content-type'] = this[kJsonContentType]
     }
 
     connectionParams.headers = headers

@@ -1829,6 +1829,37 @@ test('Empty request body should include content-type header', async t => {
   t.equal(res.statusCode, 200)
 })
 
+test('Empty request body with vendored headers should use vendored content-type', async t => {
+  t.plan(2)
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number } {
+      t.equal(opts.headers?.['content-type'], 'application/vnd.elasticsearch+json; compatible-with=9')
+      return {
+        body: { hello: 'world' },
+        statusCode: 200
+      }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool,
+    vendoredHeaders: {
+      jsonContentType: 'application/vnd.elasticsearch+json; compatible-with=9',
+      ndjsonContentType: 'application/vnd.elasticsearch+x-ndjson; compatible-with=9',
+      accept: 'application/vnd.elasticsearch+json; compatible-with=9'
+    }
+  })
+
+  const res = await transport.request({
+    method: 'POST',
+    path: '/hello'
+  }, { meta: true })
+  t.equal(res.statusCode, 200)
+})
+
 test('No connection pool', t => {
   t.plan(1)
   try {
