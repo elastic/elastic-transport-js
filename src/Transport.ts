@@ -681,6 +681,9 @@ export default class Transport {
           // @ts-expect-error `case` fallthrough is intentional: should retry if retryOnTimeout is true
           case 'TimeoutError':
             if (!this[kRetryOnTimeout]) {
+              // mark dead before early throw: when not retrying, we never reach the
+              // ConnectionError fallthrough that would otherwise call markDead
+              this[kConnectionPool].markDead(meta.connection as Connection)
               const wrappedError = new TimeoutError(error.message, result, { ...errorOptions, cause: error })
               this[kDiagnostic].emit('response', wrappedError, result)
               throw wrappedError
