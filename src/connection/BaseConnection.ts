@@ -185,7 +185,7 @@ const validStatuses = Object.keys(BaseConnection.statuses)
   // @ts-expect-error
   .map(k => BaseConnection.statuses[k])
 
-function stripAuth (url: string): string {
+export function stripAuth (url: string): string {
   if (!url.includes('@')) return url
   return url.slice(0, url.indexOf('//') + 2) + url.slice(url.indexOf('@') + 1)
 }

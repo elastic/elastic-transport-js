@@ -2667,6 +2667,40 @@ test('OpenTelemetry', t => {
     server.stop()
   })
 
+  t.test('strip auth from url.full attribute', async t => {
+    t.plan(2)
+
+    function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+      res.end('ok')
+    }
+
+    const [{ port }, server] = await buildServer(handler)
+    const pool = new WeightedConnectionPool({ Connection: UndiciConnection })
+    pool.addConnection(`http://user:pass@localhost:${port}`)
+    const transport = new Transport({ connectionPool: pool })
+
+    await transport.request({
+      path: '/hello',
+      method: 'GET',
+      meta: { name: 'hello' },
+    })
+
+    const spans = exporter.getFinishedSpans()
+
+    t.same(spans[0].attributes, {
+      'db.system': 'elasticsearch',
+      'http.request.method': 'GET',
+      'db.operation.name': 'hello',
+      'url.full': `http://localhost:${port}/`,
+      'server.address': 'localhost',
+      'server.port': port,
+      'db.response.status_code': "200"
+    })
+    t.equal(spans[0].status.code, 0)
+
+    server.stop()
+  })
+
   t.test('cloud cluster and instance details', async t => {
     t.plan(2)
 
