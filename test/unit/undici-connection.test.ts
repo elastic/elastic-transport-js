@@ -1385,3 +1385,47 @@ test('UTF-8 multi-byte characters not corrupted when split across chunk boundari
 
   server.stop()
 })
+
+test('HEAD request reuses pooled connection (sends connection: keep-alive)', async t => {
+  t.plan(2)
+
+  let requestCount = 0
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+    requestCount++
+    t.match(req.headers, { connection: /keep-alive/ }, `HEAD request ${requestCount} should keep connection alive`)
+    res.end()
+  }
+
+  const [{ port }, server] = await buildServer(handler)
+  const connection = new UndiciConnection({
+    url: new URL(`http://localhost:${port}`)
+  })
+
+  for (let i = 0; i < 2; i++) {
+    await connection.request({ path: '/hello', method: 'HEAD' }, options)
+  }
+
+  server.stop()
+})
+
+test('DELETE with body reuses pooled connection (sends connection: keep-alive)', async t => {
+  t.plan(2)
+
+  let requestCount = 0
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+    requestCount++
+    t.match(req.headers, { connection: /keep-alive/ }, `DELETE request ${requestCount} should keep connection alive`)
+    res.end('ok')
+  }
+
+  const [{ port }, server] = await buildServer(handler)
+  const connection = new UndiciConnection({
+    url: new URL(`http://localhost:${port}`)
+  })
+
+  for (let i = 0; i < 2; i++) {
+    await connection.request({ path: '/_search/scroll', method: 'DELETE', body: '{"scroll_id":"abc"}' }, options)
+  }
+
+  server.stop()
+})

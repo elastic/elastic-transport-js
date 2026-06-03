@@ -129,7 +129,8 @@ export default class Connection extends BaseConnection {
       path: params.path + (params.querystring == null || params.querystring === '' ? '' : `?${params.querystring}`),
       headers: Object.assign({}, this.headers, params.headers),
       body: params.body,
-      signal: options.signal ?? new AbortController().signal
+      signal: options.signal ?? new AbortController().signal,
+      reset: false
     }
 
     if (requestParams.path[0] !== '/') {
