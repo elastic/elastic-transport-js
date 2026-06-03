@@ -176,3 +176,112 @@ test('MiddlewareEngine', async t => {
   })
 })
 
+test('MiddlewareEngine lifecycle phases', async t => {
+  await t.test('executeBeforeRequest runs onBeforeRequest handlers in priority order', async t => {
+    const engine = new MiddlewareEngine()
+    const order: string[] = []
+
+    engine.register({
+      name: MiddlewareName.PRODUCT_CHECK,
+      priority: 50,
+      onBeforeRequest: async () => { order.push('low') }
+    })
+    engine.register({
+      name: MiddlewareName.OPEN_TELEMETRY,
+      priority: 10,
+      onBeforeRequest: () => { order.push('high') }
+    })
+
+    await engine.executeBeforeRequest(createMockContext())
+
+    t.same(order, ['high', 'low'], 'handlers run in priority order, supporting sync and async')
+  })
+
+  await t.test('executeOnComplete passes context and result to handlers', async t => {
+    const engine = new MiddlewareEngine()
+    let received: any = null
+
+    engine.register({
+      name: MiddlewareName.OPEN_TELEMETRY,
+      priority: 10,
+      onComplete: (ctx, result) => { received = { ctx, result } }
+    })
+
+    const ctx = createMockContext()
+    const result = createMockResult()
+    await engine.executeOnComplete(ctx, result)
+
+    t.equal(received.ctx, ctx, 'context is forwarded')
+    t.equal(received.result, result, 'result is forwarded')
+  })
+
+  await t.test('executeOnError passes context and error to handlers', async t => {
+    const engine = new MiddlewareEngine()
+    let received: Error | null = null
+
+    engine.register({
+      name: MiddlewareName.OPEN_TELEMETRY,
+      priority: 10,
+      onError: (_ctx, error) => { received = error }
+    })
+
+    const error = new Error('boom')
+    await engine.executeOnError(createMockContext(), error)
+
+    t.equal(received, error, 'error is forwarded')
+  })
+
+  await t.test('skips middleware that do not implement the phase', async t => {
+    const engine = new MiddlewareEngine()
+    let called = false
+
+    engine.register({ name: MiddlewareName.PRODUCT_CHECK, priority: 50 })
+    engine.register({
+      name: MiddlewareName.OPEN_TELEMETRY,
+      priority: 10,
+      onComplete: () => { called = true }
+    })
+
+    await engine.executeOnComplete(createMockContext(), createMockResult())
+
+    t.equal(called, true, 'middleware implementing the phase is still called')
+  })
+
+  await t.test('wraps non-transport errors thrown in executeBeforeRequest', async t => {
+    const engine = new MiddlewareEngine()
+
+    engine.register({
+      name: MiddlewareName.OPEN_TELEMETRY,
+      priority: 10,
+      onBeforeRequest: () => { throw new Error('setup failed') }
+    })
+
+    try {
+      await engine.executeBeforeRequest(createMockContext())
+      t.fail('should throw')
+    } catch (err: any) {
+      t.ok(err instanceof MiddlewareException, 'should be MiddlewareException')
+      t.ok(err.message.includes('onBeforeRequest'), 'should include phase name')
+      t.ok(err.cause instanceof Error, 'should preserve original error as cause')
+    }
+  })
+
+  await t.test('wraps non-transport errors thrown in executeOnComplete', async t => {
+    const engine = new MiddlewareEngine()
+
+    engine.register({
+      name: MiddlewareName.OPEN_TELEMETRY,
+      priority: 10,
+      onComplete: () => { throw new Error('complete failed') }
+    })
+
+    try {
+      await engine.executeOnComplete(createMockContext(), createMockResult())
+      t.fail('should throw')
+    } catch (err: any) {
+      t.ok(err instanceof MiddlewareException, 'should be MiddlewareException')
+      t.ok(err.message.includes('onComplete'), 'should include phase name')
+    }
+  })
+})
+
