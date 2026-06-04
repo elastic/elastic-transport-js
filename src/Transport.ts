@@ -293,12 +293,9 @@ export default class Transport {
       suppressInternalInstrumentation: false
     }, opts.openTelemetry ?? {})
 
-    // Middleware are always registered; each one self-gates on its own
-    // constructor options rather than being conditionally registered. This
-    // mirrors the ProductCheck convention (no-op when `productCheck` is null)
-    // and keeps enablement driven by client config: OpenTelemetry is toggled
-    // via `openTelemetry.enabled` / `OTEL_ELASTICSEARCH_ENABLED` / a per-request
-    // override, so disabling (and thus rolling back) needs no engine changes.
+    // Middleware are always registered and self-gate on their own options, so
+    // enablement (and rollback) stays driven by client config rather than which
+    // middleware is registered.
     this[kMiddlewareEngine] = new MiddlewareEngine()
     this[kMiddlewareEngine].register(new OpenTelemetryMiddleware(otelOptions))
     this[kMiddlewareEngine].register(new ProductCheck({
@@ -502,9 +499,8 @@ export default class Transport {
 
     connectionParams.headers = headers
 
-    // Middleware context is built once per request and shared across all
-    // lifecycle phases. `connection` and `attempts` are updated before each
-    // `onResponse` call as they change within the retry loop.
+    // Shared across all lifecycle phases; `connection` and `attempts` are
+    // refreshed each retry attempt before `onResponse` runs.
     const middlewareCtx: MiddlewareContext = {
       request: {
         method: connectionParams.method,
@@ -564,7 +560,6 @@ export default class Transport {
         result.statusCode = statusCode
         result.headers = headers
 
-        // Refresh per-attempt fields before running onResponse handlers.
         middlewareCtx.meta.connection = meta.connection
         middlewareCtx.meta.attempts = meta.attempts
         this[kMiddlewareEngine].executePhase('onResponse', middlewareCtx, result)

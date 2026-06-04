@@ -9,23 +9,16 @@ import { Middleware, MiddlewareContext, MiddlewareName, MiddlewarePriority } fro
 import { TransportResult } from '../types'
 import { transportVersion } from '../version.generated'
 
-/** Key under which the in-flight span is stored in `MiddlewareContext.state`. */
 const SPAN_STATE_KEY = Symbol('opentelemetry.span')
 
 export interface OpenTelemetryOptions {
   enabled?: boolean
   /**
-   * Marks this request's tracing context as suppressed so the Elasticsearch
-   * operation span is not recorded.
-   *
-   * BEHAVIOR CHANGE vs the pre-middleware implementation: the old inline code
-   * wrapped the whole request in `startActiveSpan`, so the suppressed context
-   * was *active* during the underlying HTTP call and therefore also suppressed
-   * the HTTP-layer (e.g. undici) instrumentation. With the lifecycle-hook
-   * design the span starts and ends in separate hooks and is never made the
-   * active context, so this option now only prevents the Elasticsearch span
-   * itself; it no longer suppresses lower-level HTTP instrumentation. See
-   * elastic/elasticsearch-js#3107.
+   * Suppresses the Elasticsearch operation span for the request. Note: unlike
+   * the pre-middleware implementation (which wrapped the request in an active
+   * span), this no longer suppresses lower-level HTTP (e.g. undici)
+   * instrumentation, since the span is never the active context during the HTTP
+   * call. See elastic/elasticsearch-js#3107.
    */
   suppressInternalInstrumentation?: boolean
 }
@@ -47,9 +40,6 @@ export class OpenTelemetryMiddleware implements Middleware {
 
     if (!(otelOptions.enabled ?? true) || ctx.params.meta?.name == null) return
 
-    // The suppressed context is only used as the span's parent (making the span
-    // non-recording); it is not activated for the HTTP call. See the note on
-    // OpenTelemetryOptions.suppressInternalInstrumentation for the implications.
     let otelContext = opentelemetry.context.active()
     if (otelOptions.suppressInternalInstrumentation ?? false) {
       otelContext = suppressTracing(otelContext)
@@ -57,8 +47,6 @@ export class OpenTelemetryMiddleware implements Middleware {
 
     const attributes = this.buildAttributes(ctx)
     const span = this.tracer.startSpan(ctx.params.meta.name, { attributes, kind: SpanKind.CLIENT }, otelContext)
-    // The span is stashed in the per-request state map (keyed by a private
-    // symbol) so it survives from this hook through to onComplete/onError.
     ctx.state.set(SPAN_STATE_KEY, span)
   }
 
@@ -67,8 +55,6 @@ export class OpenTelemetryMiddleware implements Middleware {
     if (span == null) return
     ctx.state.delete(SPAN_STATE_KEY)
 
-    // Capture whatever response metadata exists even on failure (e.g. status
-    // code and node info for a ResponseError).
     this.setResponseAttributes(span, result)
     span.recordException(error as Exception)
     span.setStatus({ code: SpanStatusCode.ERROR })
@@ -86,8 +72,7 @@ export class OpenTelemetryMiddleware implements Middleware {
   }
 
   private setResponseAttributes (span: Span, result: TransportResult): void {
-    // statusCode is 0 when the request failed before receiving a response
-    // (e.g. connection errors), in which case there is no HTTP status to report.
+    // statusCode is 0 when the request failed before receiving a response.
     if (result.statusCode > 0) {
       span.setAttribute('db.response.status_code', result.statusCode.toString())
     }
