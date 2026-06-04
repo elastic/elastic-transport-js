@@ -111,6 +111,40 @@ test('Basic error (TimeoutError)', async t => {
   }
 })
 
+test('TimeoutError marks connection dead even when retryOnTimeout is false', async t => {
+  t.plan(2)
+
+  class MyPool extends WeightedConnectionPool {
+    markAlive (connection: Connection): this {
+      t.fail('should not be called')
+      return this
+    }
+
+    markDead (connection: Connection): this {
+      t.pass('called')
+      return this
+    }
+  }
+  const pool = new MyPool({ Connection: MockConnectionTimeout })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool,
+    maxRetries: 0,
+    retryOnTimeout: false,
+    retryBackoff: () => 0,
+  })
+
+  try {
+    await transport.request({
+      method: 'GET',
+      path: '/hello'
+    })
+  } catch (err: any) {
+    t.ok(err instanceof TimeoutError)
+  }
+})
+
 test('Basic error (ConnectionError)', async t => {
   t.plan(2)
 
