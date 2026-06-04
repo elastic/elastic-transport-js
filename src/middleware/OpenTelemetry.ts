@@ -9,6 +9,9 @@ import { Middleware, MiddlewareContext, MiddlewareName, MiddlewarePriority } fro
 import { TransportResult } from '../types'
 import { transportVersion } from '../version.generated'
 
+/** Key under which the in-flight span is stored in `MiddlewareContext.state`. */
+const SPAN_STATE_KEY = Symbol('opentelemetry.span')
+
 export interface OpenTelemetryOptions {
   enabled?: boolean
   /**
@@ -33,17 +36,6 @@ export class OpenTelemetryMiddleware implements Middleware {
 
   private readonly tracer: Tracer
   private readonly transportOptions: OpenTelemetryOptions
-  /**
-   * Spans indexed by request context, cleaned up in onComplete/onError.
-   *
-   * A WeakMap is used instead of attaching the span directly to `ctx` to keep
-   * `MiddlewareContext` free of OTel-specific fields (which would force an
-   * `@opentelemetry/api` import into shared types for all consumers) and to
-   * preserve encapsulation; no other code can access or mutate these spans.
-   * The weak reference also acts as a safety net: if a context is ever abandoned
-   * without onComplete/onError firing, the entry is reclaimed automatically.
-   */
-  private readonly activeSpans = new WeakMap<MiddlewareContext, Span>()
 
   constructor (transportOptions: OpenTelemetryOptions) {
     this.tracer = opentelemetry.trace.getTracer('@elastic/transport', transportVersion)
@@ -65,14 +57,19 @@ export class OpenTelemetryMiddleware implements Middleware {
 
     const attributes = this.buildAttributes(ctx)
     const span = this.tracer.startSpan(ctx.params.meta.name, { attributes, kind: SpanKind.CLIENT }, otelContext)
-    this.activeSpans.set(ctx, span)
+    // The span is stashed in the per-request state map (keyed by a private
+    // symbol) so it survives from this hook through to onComplete/onError.
+    ctx.state.set(SPAN_STATE_KEY, span)
   }
 
-  onError = (ctx: MiddlewareContext, error: Error): void => {
-    const span = this.activeSpans.get(ctx)
+  onError = (ctx: MiddlewareContext, error: Error, result: TransportResult): void => {
+    const span = ctx.state.get(SPAN_STATE_KEY) as Span | undefined
     if (span == null) return
-    this.activeSpans.delete(ctx)
+    ctx.state.delete(SPAN_STATE_KEY)
 
+    // Capture whatever response metadata exists even on failure (e.g. status
+    // code and node info for a ResponseError).
+    this.setResponseAttributes(span, result)
     span.recordException(error as Exception)
     span.setStatus({ code: SpanStatusCode.ERROR })
     span.setAttribute('error.type', error.name ?? 'Error')
@@ -80,16 +77,20 @@ export class OpenTelemetryMiddleware implements Middleware {
   }
 
   onComplete = (ctx: MiddlewareContext, result: TransportResult): void => {
-    const span = this.activeSpans.get(ctx)
+    const span = ctx.state.get(SPAN_STATE_KEY) as Span | undefined
     if (span == null) return
-    this.activeSpans.delete(ctx)
+    ctx.state.delete(SPAN_STATE_KEY)
 
     this.setResponseAttributes(span, result)
     span.end()
   }
 
   private setResponseAttributes (span: Span, result: TransportResult): void {
-    span.setAttribute('db.response.status_code', result.statusCode.toString())
+    // statusCode is 0 when the request failed before receiving a response
+    // (e.g. connection errors), in which case there is no HTTP status to report.
+    if (result.statusCode > 0) {
+      span.setAttribute('db.response.status_code', result.statusCode.toString())
+    }
 
     if (result.headers?.['x-found-handling-cluster'] != null) {
       span.setAttribute('db.namespace', result.headers['x-found-handling-cluster'] as string)

@@ -75,12 +75,12 @@ export class MiddlewareEngine {
    * `transport.request()` call, when the request fails with an unrecoverable
    * error. The original error is re-thrown by the caller after all handlers run.
    */
-  async executeOnError (context: MiddlewareContext, error: Error): Promise<void> {
+  async executeOnError (context: MiddlewareContext, error: Error, result: TransportResult): Promise<void> {
     for (const middleware of this.middleware) {
       if (middleware.onError == null) continue
 
       try {
-        await middleware.onError(context, error)
+        await middleware.onError(context, error, result)
       } catch (err) {
         if (err instanceof ElasticsearchClientError) {
           throw err

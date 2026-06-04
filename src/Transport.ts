@@ -348,10 +348,10 @@ export default class Transport {
     return this[kDiagnostic]
   }
 
-  private async _request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptionsWithOutMeta): Promise<TResponse>
-  private async _request<TResponse = unknown, TContext = any> (params: TransportRequestParams, options?: TransportRequestOptionsWithMeta): Promise<TransportResult<TResponse, TContext>>
-  private async _request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptions): Promise<TResponse>
-  private async _request (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<any> {
+  async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptionsWithOutMeta): Promise<TResponse>
+  async request<TResponse = unknown, TContext = any> (params: TransportRequestParams, options?: TransportRequestOptionsWithMeta): Promise<TransportResult<TResponse, TContext>>
+  async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptions): Promise<TResponse>
+  async request (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<any> {
     const connectionParams: ConnectionRequestParams = {
       method: params.method,
       path: params.path
@@ -521,7 +521,8 @@ export default class Transport {
         context: meta.context as Context | null,
         connection: null,
         attempts: 0
-      }
+      },
+      state: new Map()
     }
 
     await this[kMiddlewareEngine].executeBeforeRequest(middlewareCtx)
@@ -649,14 +650,14 @@ export default class Transport {
           case 'DeserializationError':
           case 'ResponseError':
             this[kDiagnostic].emit('response', error, result)
-            await this[kMiddlewareEngine].executeOnError(middlewareCtx, error)
+            await this[kMiddlewareEngine].executeOnError(middlewareCtx, error, result)
             throw error
           case 'RequestAbortedError': {
             meta.aborted = true
             // Wrap the error to get a clean stack trace
             const wrappedError = new RequestAbortedError(error.message, result, { ...errorOptions, cause: error })
             this[kDiagnostic].emit('response', wrappedError, result)
-            await this[kMiddlewareEngine].executeOnError(middlewareCtx, wrappedError)
+            await this[kMiddlewareEngine].executeOnError(middlewareCtx, wrappedError, result)
             throw wrappedError
           }
           // should maybe retry
@@ -665,7 +666,7 @@ export default class Transport {
             if (!this[kRetryOnTimeout]) {
               const wrappedError = new TimeoutError(error.message, result, { ...errorOptions, cause: error })
               this[kDiagnostic].emit('response', wrappedError, result)
-              await this[kMiddlewareEngine].executeOnError(middlewareCtx, wrappedError)
+              await this[kMiddlewareEngine].executeOnError(middlewareCtx, wrappedError, result)
               throw wrappedError
             }
           // should retry
@@ -712,29 +713,20 @@ export default class Transport {
               ? new TimeoutError(error.message, result, { ...errorOptions, cause: error })
               : new ConnectionError(connectionErrorMessage, result, { ...errorOptions, cause: error })
             this[kDiagnostic].emit('response', wrappedError, result)
-            await this[kMiddlewareEngine].executeOnError(middlewareCtx, wrappedError)
+            await this[kMiddlewareEngine].executeOnError(middlewareCtx, wrappedError, result)
             throw wrappedError
           }
 
           // edge cases, such as bad compression
           default:
             this[kDiagnostic].emit('response', error, result)
-            await this[kMiddlewareEngine].executeOnError(middlewareCtx, error)
+            await this[kMiddlewareEngine].executeOnError(middlewareCtx, error, result)
             throw error
         }
       }
     }
 
     return returnMeta ? result : result.body
-  }
-
-  async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptionsWithOutMeta): Promise<TResponse>
-  async request<TResponse = unknown, TContext = any> (params: TransportRequestParams, options?: TransportRequestOptionsWithMeta): Promise<TransportResult<TResponse, TContext>>
-  async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptions): Promise<TResponse>
-  async request (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<any> {
-    // OpenTelemetry span lifecycle is handled by the OpenTelemetry middleware,
-    // which is wired into the request lifecycle phases inside `_request`.
-    return await this._request(params, options)
   }
 
   getConnection (opts: GetConnectionOptions): Connection | null {

@@ -31,7 +31,8 @@ function createContext (params: Partial<TransportRequestParams> = {}, options: a
       context: null,
       connection: null,
       attempts: 0
-    }
+    },
+    state: new Map()
   }
 }
 
@@ -132,12 +133,36 @@ test('OpenTelemetryMiddleware', async t => {
     const ctx = createContext()
 
     mw.onBeforeRequest(ctx)
-    mw.onError(ctx, new (class extends Error { name = 'TimeoutError' })('boom'))
+    mw.onError(ctx, new (class extends Error { name = 'TimeoutError' })('boom'), createResult({ statusCode: 0, meta: { connection: null } as any }))
 
     const span: ReadableSpan = exporter.getFinishedSpans()[0]
     t.equal(span.status.code, SpanStatusCode.ERROR)
     t.equal(span.attributes['error.type'], 'TimeoutError')
     t.equal(span.events.length, 1, 'exception is recorded as a span event')
+  })
+
+  await t.test('onError captures response attributes for a failed response', async t => {
+    const mw = new OpenTelemetryMiddleware({ enabled: true })
+    const ctx = createContext()
+
+    mw.onBeforeRequest(ctx)
+    mw.onError(ctx, new (class extends Error { name = 'ResponseError' })('not found'), createResult({ statusCode: 404 }))
+
+    const span = exporter.getFinishedSpans()[0]
+    t.equal(span.status.code, SpanStatusCode.ERROR)
+    t.equal(span.attributes['db.response.status_code'], '404', 'status code captured on error spans')
+    t.equal(span.attributes['server.address'], 'localhost', 'connection info captured on error spans')
+  })
+
+  await t.test('onError omits status code when the request never got a response', async t => {
+    const mw = new OpenTelemetryMiddleware({ enabled: true })
+    const ctx = createContext()
+
+    mw.onBeforeRequest(ctx)
+    mw.onError(ctx, new Error('connection failed'), createResult({ statusCode: 0, meta: { connection: null } as any }))
+
+    const span = exporter.getFinishedSpans()[0]
+    t.equal(span.attributes['db.response.status_code'], undefined, 'no status code when statusCode is 0')
   })
 
   await t.test('does not create a span when disabled at instantiation', async t => {
@@ -186,7 +211,7 @@ test('OpenTelemetryMiddleware', async t => {
 
     // No onBeforeRequest call, so no span was started
     t.doesNotThrow(() => mw.onComplete(ctx, createResult()))
-    t.doesNotThrow(() => mw.onError(ctx, new Error('boom')))
+    t.doesNotThrow(() => mw.onError(ctx, new Error('boom'), createResult()))
     t.equal(exporter.getFinishedSpans().length, 0)
   })
 })

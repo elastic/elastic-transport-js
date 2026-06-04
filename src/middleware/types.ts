@@ -47,6 +47,13 @@ export interface MiddlewareContext {
     /** Updated to the current retry count before each `onResponse` call. */
     attempts: number
   }
+  /**
+   * Per-request scratch space shared across all lifecycle phases. Middleware
+   * can stash state here (keyed by a private symbol) that must survive from one
+   * phase to the next, e.g. an OpenTelemetry span created in `onBeforeRequest`
+   * and ended in `onComplete`/`onError`.
+   */
+  readonly state: Map<symbol, unknown>
 }
 
 export interface MiddlewareResult {
@@ -68,10 +75,11 @@ export interface Middleware {
   onResponse?: (ctx: MiddlewareContext, result: TransportResult) => MiddlewareResult | undefined
   /**
    * Called once per `transport.request()` call when the request fails with an
-   * unrecoverable error (after all retries are exhausted). The error is
+   * unrecoverable error (after all retries are exhausted). `result` carries
+   * whatever response metadata was captured before failing. The error is
    * re-thrown after all handlers run.
    */
-  onError?: (ctx: MiddlewareContext, error: Error) => void | Promise<void>
+  onError?: (ctx: MiddlewareContext, error: Error, result: TransportResult) => void | Promise<void>
   /**
    * Called once per `transport.request()` call on a successful final response.
    */

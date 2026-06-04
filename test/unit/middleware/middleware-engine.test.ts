@@ -26,7 +26,8 @@ function createMockContext (): MiddlewareContext {
       context: null,
       connection: null,
       attempts: 0
-    }
+    },
+    state: new Map()
   }
 }
 
@@ -215,20 +216,22 @@ test('MiddlewareEngine lifecycle phases', async t => {
     t.equal(received.result, result, 'result is forwarded')
   })
 
-  await t.test('executeOnError passes context and error to handlers', async t => {
+  await t.test('executeOnError passes context, error and result to handlers', async t => {
     const engine = new MiddlewareEngine()
-    let received: Error | null = null
+    let received: { error: Error, result: any } | null = null
 
     engine.register({
       name: MiddlewareName.OPEN_TELEMETRY,
       priority: 10,
-      onError: (_ctx, error) => { received = error }
+      onError: (_ctx, error, result) => { received = { error, result } }
     })
 
     const error = new Error('boom')
-    await engine.executeOnError(createMockContext(), error)
+    const result = createMockResult()
+    await engine.executeOnError(createMockContext(), error, result)
 
-    t.equal(received, error, 'error is forwarded')
+    t.equal(received!.error, error, 'error is forwarded')
+    t.equal(received!.result, result, 'result is forwarded')
   })
 
   await t.test('skips middleware that do not implement the phase', async t => {
