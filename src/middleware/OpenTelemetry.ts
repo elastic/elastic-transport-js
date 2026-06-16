@@ -7,6 +7,7 @@ import opentelemetry, { Attributes, Exception, Span, SpanKind, SpanStatusCode, T
 import { suppressTracing } from '@opentelemetry/core'
 import { Middleware, MiddlewareContext, MiddlewareName, MiddlewarePriority } from './types'
 import { TransportResult } from '../types'
+import { stripAuth } from '../connection/BaseConnection'
 import { transportVersion } from '../version.generated'
 
 const SPAN_STATE_KEY = Symbol('opentelemetry.span')
@@ -88,7 +89,7 @@ export class OpenTelemetryMiddleware implements Middleware {
     if (result.meta.connection != null) {
       const url = result.meta.connection.url
       span.setAttributes({
-        'url.full': url.toString(),
+        'url.full': stripAuth(url.toString()),
         'server.address': url.hostname
       })
       if (url.port === '') {
