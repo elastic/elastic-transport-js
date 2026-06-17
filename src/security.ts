@@ -84,3 +84,71 @@ export function redactDiagnostic (diag: DiagnosticResult, options: RedactionOpti
 
   return diag
 }
+
+/** Serializes a value, keeping object keys but replacing literals: strings -> `"?"`, others -> `?`. */
+function sanitizeValue (val: unknown): string {
+  if (val === null || typeof val === 'number' || typeof val === 'boolean') return '?'
+  if (typeof val === 'string') return '"?"'
+  if (Array.isArray(val)) return '[' + val.map(sanitizeValue).join(',') + ']'
+  if (typeof val === 'object') {
+    const entries = Object.entries(val as Record<string, unknown>)
+    return '{' + entries.map(([k, v]) => JSON.stringify(k) + ':' + sanitizeValue(v)).join(',') + '}'
+  }
+  return '?'
+}
+
+/** Replaces literal values in a JSON body with placeholders, keeping keys. Null on empty/invalid input; never throws. */
+export function sanitizeJsonBody (body: string | null | undefined): string | null {
+  if (body == null || body === '') return null
+  try {
+    return sanitizeValue(JSON.parse(body))
+  } catch {
+    return null
+  }
+}
+
+/** Extracts an ES|QL/SQL `query` field, but only when parameterized (contains `?`). Null otherwise; never throws. */
+export function sanitizeStringQuery (body: string | null | undefined): string | null {
+  if (body == null || body === '') return null
+  try {
+    const parsed: unknown = JSON.parse(body)
+    if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed)) return null
+    const query = (parsed as Record<string, unknown>).query
+    if (typeof query !== 'string') return null
+    if (!query.includes('?')) return null
+    return query
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Sanitizes an msearch NDJSON body: even lines are headers (verbatim), odd lines are
+ * query bodies (run through sanitizeJsonBody). Preserves EOL style and trailing newline.
+ * Null on empty input or if any query line fails to sanitize; never throws.
+ */
+export function sanitizeNdjsonBody (body: string | null | undefined): string | null {
+  if (body == null || body === '') return null
+  try {
+    const eol = body.includes('\r\n') ? '\r\n' : '\n'
+    const hasTrailingNewline = body.endsWith('\n')
+    let lines = body.split(eol)
+    if (hasTrailingNewline && lines[lines.length - 1] === '') {
+      lines = lines.slice(0, -1)
+    }
+    const processed: string[] = []
+    for (let i = 0; i < lines.length; i++) {
+      if (i % 2 === 0) {
+        processed.push(lines[i])
+      } else {
+        const sanitized = sanitizeJsonBody(lines[i])
+        if (sanitized === null) return null
+        processed.push(sanitized)
+      }
+    }
+    const joined = processed.join(eol)
+    return hasTrailingNewline ? joined + eol : joined
+  } catch {
+    return null
+  }
+}

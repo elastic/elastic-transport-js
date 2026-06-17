@@ -21,7 +21,7 @@ import {
   ErrorOptions
 } from './errors'
 import { Connection, ConnectionRequestParams } from './connection'
-import { isBinary, stripAuth } from './connection/BaseConnection'
+import { isBinary } from './connection/BaseConnection'
 import Diagnostic from './Diagnostic'
 import Serializer from './Serializer'
 import { Readable as ReadableStream } from 'node:stream'
@@ -64,14 +64,10 @@ import {
   kAcceptHeader,
   kRedaction,
   kRetryBackoff,
-  kOtelTracer,
-  kOtelOptions,
   kMiddlewareEngine
 } from './symbols'
 import { setTimeout } from 'node:timers/promises'
-import opentelemetry, { Attributes, Exception, SpanKind, SpanStatusCode, Span, Tracer } from '@opentelemetry/api'
-import { suppressTracing } from '@opentelemetry/core'
-import { MiddlewareEngine, ProductCheck, MiddlewareContext } from './middleware'
+import { MiddlewareEngine, ProductCheck, OpenTelemetryMiddleware, type OpenTelemetryOptions, MiddlewareContext } from './middleware'
 import { transportVersion } from './version.generated'
 
 const nodeVersion = process.versions.node
@@ -82,10 +78,7 @@ const { createGzip } = zlib
 
 const userAgent = `elastic-transport-js/${transportVersion} (${os.platform()} ${os.release()}-${os.arch()}; Node.js ${process.version})` // eslint-disable-line
 
-export interface OpenTelemetryOptions {
-  enabled?: boolean
-  suppressInternalInstrumentation?: boolean
-}
+export type { OpenTelemetryOptions } from './middleware'
 
 export interface TransportOptions {
   diagnostic?: Diagnostic
@@ -229,8 +222,6 @@ export default class Transport {
   [kAcceptHeader]: string
   [kRedaction]: RedactionOptions
   [kRetryBackoff]: (min: number, max: number, attempt: number) => number
-  [kOtelTracer]: Tracer
-  [kOtelOptions]: OpenTelemetryOptions
   [kMiddlewareEngine]: MiddlewareEngine
 
   static sniffReasons = {
@@ -295,16 +286,23 @@ export default class Transport {
     this[kAcceptHeader] = opts.vendoredHeaders?.accept ?? 'application/json, text/plain'
     this[kRedaction] = opts.redaction ?? { type: 'replace', additionalKeys: [] }
     this[kRetryBackoff] = opts.retryBackoff ?? retryBackoff
-    this[kOtelTracer] = opentelemetry.trace.getTracer('@elastic/transport', transportVersion)
 
     const otelEnabledDefault = process.env.OTEL_ELASTICSEARCH_ENABLED != null ? (process.env.OTEL_ELASTICSEARCH_ENABLED.toLowerCase() !== 'false') : true
-    this[kOtelOptions] = Object.assign({}, {
+    const otelOptions: OpenTelemetryOptions = Object.assign({}, {
       enabled: otelEnabledDefault,
       suppressInternalInstrumentation: false
     }, opts.openTelemetry ?? {})
 
-    // Initialize middleware engine with ProductCheck
+    // Runtime kill switch so ops can disable query capture without redeploying.
+    if (process.env.OTEL_ELASTICSEARCH_CAPTURE_SEARCH_QUERY?.toLowerCase() === 'false') {
+      otelOptions.captureSearchQuery = false
+    }
+
+    // Middleware are always registered and self-gate on their own options, so
+    // enablement (and rollback) stays driven by client config rather than which
+    // middleware is registered.
     this[kMiddlewareEngine] = new MiddlewareEngine()
+    this[kMiddlewareEngine].register(new OpenTelemetryMiddleware(otelOptions))
     this[kMiddlewareEngine].register(new ProductCheck({
       productCheck: this[kProductCheck]
     }))
@@ -352,10 +350,10 @@ export default class Transport {
     return this[kDiagnostic]
   }
 
-  private async _request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptionsWithOutMeta, otelSpan?: Span): Promise<TResponse>
-  private async _request<TResponse = unknown, TContext = any> (params: TransportRequestParams, options?: TransportRequestOptionsWithMeta, otelSpan?: Span): Promise<TransportResult<TResponse, TContext>>
-  private async _request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptions, otelSpan?: Span): Promise<TResponse>
-  private async _request (params: TransportRequestParams, options: TransportRequestOptions = {}, otelSpan?: Span): Promise<any> {
+  async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptionsWithOutMeta): Promise<TResponse>
+  async request<TResponse = unknown, TContext = any> (params: TransportRequestParams, options?: TransportRequestOptionsWithMeta): Promise<TransportResult<TResponse, TContext>>
+  async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptions): Promise<TResponse>
+  async request (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<any> {
     const connectionParams: ConnectionRequestParams = {
       method: params.method,
       path: params.path
@@ -505,312 +503,230 @@ export default class Transport {
     }
 
     connectionParams.headers = headers
-    while (meta.attempts <= maxRetries) {
-      // Capture start time for request duration tracking
-      const startTime = process.hrtime.bigint()
 
-      try {
-        if (signal?.aborted) { // eslint-disable-line
-          throw new RequestAbortedError('Request has been aborted by the user', result, errorOptions)
-        }
+    // Shared across all phases; `connection` and `attempts` are refreshed each
+    // retry attempt before `onResponse` runs.
+    const middlewareCtx: MiddlewareContext = {
+      request: {
+        method: connectionParams.method,
+        path: connectionParams.path,
+        body: connectionParams.body,
+        querystring: connectionParams.querystring,
+        headers: connectionParams.headers ?? {}
+      },
+      params,
+      options,
+      meta: {
+        requestId: meta.request.id,
+        name: this[kName],
+        context: meta.context as Context | null,
+        connection: null,
+        attempts: 0
+      }
+    }
 
-        meta.connection = this.getConnection({
-          requestId: meta.request.id,
-          context: meta.context
-        })
-        if (meta.connection === null) {
-          throw new NoLivingConnectionsError('There are no living connections', result, errorOptions)
-        }
+    // Wrapped by the `around` chain (e.g. OpenTelemetry); `onResponse` still runs
+    // per attempt inside the loop.
+    const runRequest = async (): Promise<TransportResult> => {
+      while (meta.attempts <= maxRetries) {
+        // Capture start time for request duration tracking
+        const startTime = process.hrtime.bigint()
 
-        // generate required OpenTelemetry attributes from the request URL
-        const requestUrl = meta.connection.url
-        otelSpan?.setAttributes({
-          'url.full': stripAuth(requestUrl.toString()),
-          'server.address': requestUrl.hostname
-        })
-        if (requestUrl.port === '') {
-          if (requestUrl.protocol === 'https:') {
-            otelSpan?.setAttribute('server.port', 443)
-          } else if (requestUrl.protocol === 'http:') {
-            otelSpan?.setAttribute('server.port', 80)
+        try {
+          if (signal?.aborted) { // eslint-disable-line
+            throw new RequestAbortedError('Request has been aborted by the user', result, errorOptions)
           }
-        } else {
-          const port = parseInt(requestUrl.port, 10)
-          if (!Number.isNaN(port)) otelSpan?.setAttribute('server.port', port)
-        }
 
-        this[kDiagnostic].emit('request', null, result)
+          meta.connection = this.getConnection({
+            requestId: meta.request.id,
+            context: meta.context
+          })
+          if (meta.connection === null) {
+            throw new NoLivingConnectionsError('There are no living connections', result, errorOptions)
+          }
 
-        // set timeout defaults
-        let timeout = options.requestTimeout ?? this[kRequestTimeout] ?? undefined
-        if (timeout != null) timeout = toMs(timeout)
+          this[kDiagnostic].emit('request', null, result)
 
-        // perform the actual http request
-        let { statusCode, headers, body } = await meta.connection.request(connectionParams, {
-          requestId: meta.request.id,
-          name: this[kName],
-          context: meta.context,
-          maxResponseSize,
-          maxCompressedResponseSize,
-          signal,
-          timeout,
-          ...(options.asStream === true ? { asStream: true } : null)
-        })
-        result.statusCode = statusCode
-        result.headers = headers
+          // set timeout defaults
+          let timeout = options.requestTimeout ?? this[kRequestTimeout] ?? undefined
+          if (timeout != null) timeout = toMs(timeout)
 
-        otelSpan?.setAttribute('db.response.status_code', statusCode.toString())
-
-        if (headers['x-found-handling-cluster'] != null) {
-          otelSpan?.setAttribute('db.namespace', headers['x-found-handling-cluster'])
-        }
-
-        if (headers['x-found-handling-instance'] != null) {
-          otelSpan?.setAttribute('elasticsearch.node.name', headers['x-found-handling-instance'])
-        }
-
-        // Execute middleware onResponse phase (handles product check)
-        const middlewareContext: MiddlewareContext = {
-          request: {
-            method: connectionParams.method,
-            path: connectionParams.path,
-            body: connectionParams.body,
-            querystring: connectionParams.querystring,
-            headers
-          },
-          params,
-          options,
-          meta: {
+          // perform the actual http request
+          let { statusCode, headers, body } = await meta.connection.request(connectionParams, {
             requestId: meta.request.id,
             name: this[kName],
-            context: meta.context as Context | null,
-            connection: meta.connection,
-            attempts: meta.attempts
+            context: meta.context,
+            maxResponseSize,
+            maxCompressedResponseSize,
+            signal,
+            timeout,
+            ...(options.asStream === true ? { asStream: true } : null)
+          })
+          result.statusCode = statusCode
+          result.headers = headers
+
+          middlewareCtx.meta.connection = meta.connection
+          middlewareCtx.meta.attempts = meta.attempts
+          this[kMiddlewareEngine].executeOnResponse(middlewareCtx, result)
+
+          if (options.asStream === true) {
+            result.body = body
+            // Calculate request duration in milliseconds
+            const endTime = process.hrtime.bigint()
+            meta.duration = Number(endTime - startTime) / 1e6
+            this[kDiagnostic].emit('response', null, result)
+            return result
           }
-        }
-        this[kMiddlewareEngine].executePhase('onResponse', middlewareContext, result)
 
-        if (options.asStream === true) {
-          result.body = body
-          // Calculate request duration in milliseconds
-          const endTime = process.hrtime.bigint()
-          meta.duration = Number(endTime - startTime) / 1e6
-          this[kDiagnostic].emit('response', null, result)
-          return returnMeta ? result : body
-        }
-
-        const contentEncoding = (headers['content-encoding'] ?? '').toLowerCase()
-        if (contentEncoding.includes('gzip') || contentEncoding.includes('deflate')) {
-          body = await unzip(body)
-        }
-
-        if (Buffer.isBuffer(body) && !isBinary(headers['content-type'] ?? '')) {
-          body = body.toString()
-        }
-
-        const isHead = params.method === 'HEAD'
-        // we should attempt the payload deserialization only if:
-        //    - a `content-type` is defined and is equal to `application/json`
-        //    - the request is not a HEAD request
-        //    - the payload is not an empty string
-        if (headers['content-type'] !== undefined &&
-            (headers['content-type']?.includes('application/json') ||
-             headers['content-type']?.includes('application/vnd.elasticsearch+json')) &&
-             !isHead && body !== '') { // eslint-disable-line
-          result.body = this[kSerializer].deserialize(body as string)
-        } else {
-          // cast to boolean if the request method was HEAD and there was no error
-          result.body = isHead && statusCode < 400 ? true : body
-        }
-
-        // we should ignore the statusCode if the user has configured the `ignore` field with
-        // the statusCode we just got or if the request method is HEAD and the statusCode is 404
-        const ignoreStatusCode = (Array.isArray(options.ignore) && options.ignore.includes(statusCode)) ||
-          (isHead && statusCode === 404)
-
-        if (!ignoreStatusCode && (statusCode === 502 || statusCode === 503 || statusCode === 504)) {
-          // if the statusCode is 502/3/4 we should run our retry strategy
-          // and mark the connection as dead
-          this[kConnectionPool].markDead(meta.connection)
-          // retry logic
-          if (meta.attempts < maxRetries) {
-            meta.attempts++
-            debug(`Retrying request, there are still ${maxRetries - meta.attempts} attempts`, params)
-            continue
+          const contentEncoding = (headers['content-encoding'] ?? '').toLowerCase()
+          if (contentEncoding.includes('gzip') || contentEncoding.includes('deflate')) {
+            body = await unzip(body)
           }
-        } else {
-          // everything has worked as expected, let's mark
-          // the connection as alive (or confirm it)
-          this[kConnectionPool].markAlive(meta.connection)
-        }
 
-        if (!ignoreStatusCode && statusCode >= 400) {
-          throw new ResponseError(result, errorOptions)
-        } else {
-          // cast to boolean if the request method was HEAD
-          if (isHead && statusCode === 404) {
-            result.body = false
+          if (Buffer.isBuffer(body) && !isBinary(headers['content-type'] ?? '')) {
+            body = body.toString()
           }
-          // Calculate request duration in milliseconds
-          const endTime = process.hrtime.bigint()
-          meta.duration = Number(endTime - startTime) / 1e6
-          this[kDiagnostic].emit('response', null, result)
-          return returnMeta ? result : result.body
-        }
-      } catch (error: any) {
-        // Calculate request duration in milliseconds
-        const endTime = process.hrtime.bigint()
-        meta.duration = Number(endTime - startTime) / 1e6
 
-        switch (error.name) {
-          // should not retry
-          case 'ProductNotSupportedError':
-          case 'NoLivingConnectionsError':
-          case 'DeserializationError':
-          case 'ResponseError':
-            this[kDiagnostic].emit('response', error, result)
-            throw error
-          case 'RequestAbortedError': {
-            meta.aborted = true
-            // Wrap the error to get a clean stack trace
-            const wrappedError = new RequestAbortedError(error.message, result, { ...errorOptions, cause: error })
-            this[kDiagnostic].emit('response', wrappedError, result)
-            throw wrappedError
+          const isHead = params.method === 'HEAD'
+          // we should attempt the payload deserialization only if:
+          //    - a `content-type` is defined and is equal to `application/json`
+          //    - the request is not a HEAD request
+          //    - the payload is not an empty string
+          if (headers['content-type'] !== undefined &&
+              (headers['content-type']?.includes('application/json') ||
+               headers['content-type']?.includes('application/vnd.elasticsearch+json')) &&
+               !isHead && body !== '') { // eslint-disable-line
+            result.body = this[kSerializer].deserialize(body as string)
+          } else {
+            // cast to boolean if the request method was HEAD and there was no error
+            result.body = isHead && statusCode < 400 ? true : body
           }
-          // should maybe retry
-          // @ts-expect-error `case` fallthrough is intentional: should retry if retryOnTimeout is true
-          case 'TimeoutError':
-            if (!this[kRetryOnTimeout]) {
-              // mark dead before early throw: when not retrying, we never reach the
-              // ConnectionError fallthrough that would otherwise call markDead
-              this[kConnectionPool].markDead(meta.connection as Connection)
-              const wrappedError = new TimeoutError(error.message, result, { ...errorOptions, cause: error })
-              this[kDiagnostic].emit('response', wrappedError, result)
-              throw wrappedError
-            }
-          // should retry
-          // eslint-disable-next-line no-fallthrough
-          case 'ConnectionError': {
-            // if there is an error in the connection
-            // let's mark the connection as dead
-            this[kConnectionPool].markDead(meta.connection as Connection)
 
-            if (this[kSniffOnConnectionFault]) {
-              this.sniff({
-                reason: Transport.sniffReasons.SNIFF_ON_CONNECTION_FAULT,
-                requestId: meta.request.id,
-                context: meta.context
-              })
-            }
+          // we should ignore the statusCode if the user has configured the `ignore` field with
+          // the statusCode we just got or if the request method is HEAD and the statusCode is 404
+          const ignoreStatusCode = (Array.isArray(options.ignore) && options.ignore.includes(statusCode)) ||
+            (isHead && statusCode === 404)
 
+          if (!ignoreStatusCode && (statusCode === 502 || statusCode === 503 || statusCode === 504)) {
+            // if the statusCode is 502/3/4 we should run our retry strategy
+            // and mark the connection as dead
+            this[kConnectionPool].markDead(meta.connection)
             // retry logic
             if (meta.attempts < maxRetries) {
               meta.attempts++
               debug(`Retrying request, there are still ${maxRetries - meta.attempts} attempts`, params)
-
-              // don't use exponential backoff until retrying on each node
-              if (meta.attempts >= this[kConnectionPool].size) {
-                // exponential backoff on retries, with jitter
-                const backoff = options.retryBackoff ?? this[kRetryBackoff]
-                const backoffWait = backoff(0, 4, meta.attempts)
-                if (backoffWait > 0) {
-                  await setTimeout(backoffWait * 1000)
-                }
-              }
-
               continue
             }
-
-            // Wrap the error to get a clean stack trace
-            const connectionUrl = meta.connection?.url.toString()
-            const connectionErrorMessage = error.message != null && error.message !== '' && error.message !== 'Connection Error'
-              ? error.message
-              : connectionUrl != null
-                ? `connection failed (${connectionUrl})`
-                : 'connection failed'
-            const wrappedError = error.name === 'TimeoutError'
-              ? new TimeoutError(error.message, result, { ...errorOptions, cause: error })
-              : new ConnectionError(connectionErrorMessage, result, { ...errorOptions, cause: error })
-            this[kDiagnostic].emit('response', wrappedError, result)
-            throw wrappedError
+          } else {
+            // everything has worked as expected, let's mark
+            // the connection as alive (or confirm it)
+            this[kConnectionPool].markAlive(meta.connection)
           }
 
-          // edge cases, such as bad compression
-          default:
-            this[kDiagnostic].emit('response', error, result)
-            throw error
-        }
-      }
-    }
-
-    return returnMeta ? result : result.body
-  }
-
-  async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptionsWithOutMeta): Promise<TResponse>
-  async request<TResponse = unknown, TContext = any> (params: TransportRequestParams, options?: TransportRequestOptionsWithMeta): Promise<TransportResult<TResponse, TContext>>
-  async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptions): Promise<TResponse>
-  async request (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<any> {
-    const otelOptions = Object.assign({}, this[kOtelOptions], options.openTelemetry ?? {})
-
-    // wrap in OpenTelemetry span
-    if ((otelOptions?.enabled ?? true) && params.meta?.name != null) {
-      let context = opentelemetry.context.active()
-      if (otelOptions.suppressInternalInstrumentation ?? false) {
-        context = suppressTracing(context)
-      }
-
-      // gather OpenTelemetry attributes
-      const attributes: Attributes = {
-        'db.system': 'elasticsearch',
-        'http.request.method': params.method,
-        'db.operation.name': params.meta?.name
-      }
-
-      // add path params as otel attributes
-      if (params.meta?.pathParts != null) {
-        for (const [key, value] of Object.entries(params.meta.pathParts)) {
-          if (value == null) continue
-
-          attributes[`db.operation.parameter.${key}`] = value.toString()
-
-          if (['index', '_index', 'indices'].includes(key)) {
-            let indices: string[] = []
-            if (typeof value === 'string') {
-              indices.push(value)
-            } else if (Array.isArray(value)) {
-              indices = indices.concat(value.map(v => v.toString()))
-            } else if (typeof value === 'object') {
-              try {
-                const keys = Object.keys(value)
-                indices = indices.concat(keys.map(v => v.toString()))
-              } catch {
-                // ignore
-              }
+          if (!ignoreStatusCode && statusCode >= 400) {
+            throw new ResponseError(result, errorOptions)
+          } else {
+            // cast to boolean if the request method was HEAD
+            if (isHead && statusCode === 404) {
+              result.body = false
             }
-            if (indices.length > 0) attributes['db.collection.name'] = indices.join(', ')
+            // Calculate request duration in milliseconds
+            const endTime = process.hrtime.bigint()
+            meta.duration = Number(endTime - startTime) / 1e6
+            this[kDiagnostic].emit('response', null, result)
+            return result
+          }
+        } catch (error: any) {
+          // Calculate request duration in milliseconds
+          const endTime = process.hrtime.bigint()
+          meta.duration = Number(endTime - startTime) / 1e6
+
+          switch (error.name) {
+            // should not retry
+            case 'ProductNotSupportedError':
+            case 'NoLivingConnectionsError':
+            case 'DeserializationError':
+            case 'ResponseError':
+              this[kDiagnostic].emit('response', error, result)
+              throw error
+            case 'RequestAbortedError': {
+              meta.aborted = true
+              // Wrap the error to get a clean stack trace
+              const wrappedError = new RequestAbortedError(error.message, result, { ...errorOptions, cause: error })
+              this[kDiagnostic].emit('response', wrappedError, result)
+              throw wrappedError
+            }
+            // should maybe retry
+            // @ts-expect-error `case` fallthrough is intentional: should retry if retryOnTimeout is true
+            case 'TimeoutError':
+              if (!this[kRetryOnTimeout]) {
+                // mark dead before early throw: when not retrying, we never reach the
+                // ConnectionError fallthrough that would otherwise call markDead
+                this[kConnectionPool].markDead(meta.connection as Connection)
+                const wrappedError = new TimeoutError(error.message, result, { ...errorOptions, cause: error })
+                this[kDiagnostic].emit('response', wrappedError, result)
+                throw wrappedError
+              }
+            // should retry
+            // eslint-disable-next-line no-fallthrough
+            case 'ConnectionError': {
+              // if there is an error in the connection
+              // let's mark the connection as dead
+              this[kConnectionPool].markDead(meta.connection as Connection)
+
+              if (this[kSniffOnConnectionFault]) {
+                this.sniff({
+                  reason: Transport.sniffReasons.SNIFF_ON_CONNECTION_FAULT,
+                  requestId: meta.request.id,
+                  context: meta.context
+                })
+              }
+
+              // retry logic
+              if (meta.attempts < maxRetries) {
+                meta.attempts++
+                debug(`Retrying request, there are still ${maxRetries - meta.attempts} attempts`, params)
+
+                // don't use exponential backoff until retrying on each node
+                if (meta.attempts >= this[kConnectionPool].size) {
+                  // exponential backoff on retries, with jitter
+                  const backoff = options.retryBackoff ?? this[kRetryBackoff]
+                  const backoffWait = backoff(0, 4, meta.attempts)
+                  if (backoffWait > 0) {
+                    await setTimeout(backoffWait * 1000)
+                  }
+                }
+
+                continue
+              }
+
+              // Wrap the error to get a clean stack trace
+              const connectionUrl = meta.connection?.url.toString()
+              const connectionErrorMessage = error.message != null && error.message !== '' && error.message !== 'Connection Error'
+                ? error.message
+                : connectionUrl != null
+                  ? `connection failed (${connectionUrl})`
+                  : 'connection failed'
+              const wrappedError = error.name === 'TimeoutError'
+                ? new TimeoutError(error.message, result, { ...errorOptions, cause: error })
+                : new ConnectionError(connectionErrorMessage, result, { ...errorOptions, cause: error })
+              this[kDiagnostic].emit('response', wrappedError, result)
+              throw wrappedError
+            }
+
+            // edge cases, such as bad compression
+            default:
+              this[kDiagnostic].emit('response', error, result)
+              throw error
           }
         }
       }
 
-      return await this[kOtelTracer].startActiveSpan(params.meta.name, { attributes, kind: SpanKind.CLIENT }, context, async (otelSpan: Span) => {
-        let response
-        try {
-          response = await this._request(params, options, otelSpan)
-        } catch (err: any) {
-          otelSpan.recordException(err as Exception)
-          otelSpan.setStatus({ code: SpanStatusCode.ERROR })
-          otelSpan.setAttribute('error.type', err.name ?? 'Error')
-
-          throw err
-        } finally {
-          otelSpan.end()
-        }
-
-        return response
-      })
-    } else {
-      return await this._request(params, options)
+      return result
     }
+
+    const finalResult = await this[kMiddlewareEngine].run(middlewareCtx, runRequest)
+    return returnMeta ? finalResult : finalResult.body
   }
 
   getConnection (opts: GetConnectionOptions): Connection | null {

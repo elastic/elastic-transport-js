@@ -68,7 +68,7 @@ test('MiddlewareEngine', async t => {
     }
 
     engine.register(middleware)
-    engine.executePhase('onResponse', createMockContext(), createMockResult())
+    engine.executeOnResponse(createMockContext(), createMockResult())
 
     t.equal(called, true, 'middleware should be called')
   })
@@ -95,7 +95,7 @@ test('MiddlewareEngine', async t => {
 
     engine.register(lowPriority)
     engine.register(highPriority)
-    engine.executePhase('onResponse', createMockContext(), createMockResult())
+    engine.executeOnResponse(createMockContext(), createMockResult())
 
     t.same(order, ['high', 'low'], 'middleware should execute in priority order')
   })
@@ -122,7 +122,7 @@ test('MiddlewareEngine', async t => {
 
     engine.register(first)
     engine.register(second)
-    engine.executePhase('onResponse', createMockContext(), createMockResult())
+    engine.executeOnResponse(createMockContext(), createMockResult())
 
     t.equal(secondCalled, false, 'second middleware should not be called')
   })
@@ -146,7 +146,7 @@ test('MiddlewareEngine', async t => {
 
     engine.register(withoutHandler)
     engine.register(withHandler)
-    engine.executePhase('onResponse', createMockContext(), createMockResult())
+    engine.executeOnResponse(createMockContext(), createMockResult())
 
     t.equal(called, true, 'middleware with handler should still be called')
   })
@@ -165,13 +165,58 @@ test('MiddlewareEngine', async t => {
     engine.register(middleware)
 
     try {
-      engine.executePhase('onResponse', createMockContext(), createMockResult())
+      engine.executeOnResponse(createMockContext(), createMockResult())
       t.fail('should throw')
     } catch (err: any) {
       t.ok(err instanceof MiddlewareException, 'should be MiddlewareException')
       t.ok(err.message.includes('product-check'), 'should include middleware name')
       t.ok(err.message.includes('onResponse'), 'should include phase name')
       t.ok(err.cause instanceof Error, 'should have original error as cause')
+    }
+  })
+})
+
+test('MiddlewareEngine.run (around chain)', async t => {
+  await t.test('wraps the request as an onion in priority order', async t => {
+    const engine = new MiddlewareEngine()
+    const order: string[] = []
+
+    engine.register({
+      name: MiddlewareName.PRODUCT_CHECK,
+      priority: 50,
+      around: async (_ctx, next) => { order.push('inner-before'); const r = await next(); order.push('inner-after'); return r }
+    })
+    engine.register({
+      name: MiddlewareName.OPEN_TELEMETRY,
+      priority: 10,
+      around: async (_ctx, next) => { order.push('outer-before'); const r = await next(); order.push('outer-after'); return r }
+    })
+
+    const result = createMockResult()
+    const out = await engine.run(createMockContext(), async () => { order.push('run'); return result })
+
+    t.same(order, ['outer-before', 'inner-before', 'run', 'inner-after', 'outer-after'])
+    t.equal(out, result, 'returns the inner result')
+  })
+
+  await t.test('runs the request directly when no around handler is registered', async t => {
+    const engine = new MiddlewareEngine()
+    engine.register({ name: MiddlewareName.PRODUCT_CHECK, priority: 50, onResponse: () => {} })
+
+    const result = createMockResult()
+    t.equal(await engine.run(createMockContext(), async () => result), result)
+  })
+
+  await t.test('propagates errors from the request unchanged', async t => {
+    const engine = new MiddlewareEngine()
+    engine.register({ name: MiddlewareName.OPEN_TELEMETRY, priority: 10, around: async (_ctx, next) => await next() })
+
+    const error = new Error('boom')
+    try {
+      await engine.run(createMockContext(), async () => { throw error })
+      t.fail('should throw')
+    } catch (err) {
+      t.equal(err, error, 'error is not wrapped')
     }
   })
 })

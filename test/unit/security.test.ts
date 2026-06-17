@@ -5,7 +5,7 @@
 
 import { test } from 'tap'
 import { inspect} from 'util'
-import { redactObject } from '../../src/security'
+import { redactObject, sanitizeJsonBody, sanitizeNdjsonBody, sanitizeStringQuery } from '../../src/security'
 
 test('redactObject', t => {
   t.test('redacts values for matching keys at 8+ levels of nesting', t => {
@@ -198,6 +198,78 @@ test('redactObject', t => {
     t.doesNotThrow(() => redactObject(undefined))
     t.doesNotThrow(() => redactObject({ foo: undefined }))
     t.doesNotThrow(() => redactObject({ foo: null }))
+    t.end()
+  })
+
+  t.end()
+})
+
+test('sanitizeJsonBody', t => {
+  t.test('preserves keys and replaces string, number, boolean and null values with placeholders', t => {
+    const out = sanitizeJsonBody('{"query":{"term":{"user":"kimchy","age":30,"active":true,"deleted":null}}}')
+    t.equal(out, '{"query":{"term":{"user":"?","age":?,"active":?,"deleted":?}}}')
+    t.end()
+  })
+
+  t.test('does not leak string values containing escaped quotes', t => {
+    const out = sanitizeJsonBody('{"q":"he said \\"hi\\""}')
+    t.equal(out, '{"q":"?"}')
+    t.end()
+  })
+
+  t.test('returns null for null, undefined and empty string', t => {
+    t.equal(sanitizeJsonBody(null), null)
+    t.equal(sanitizeJsonBody(undefined), null)
+    t.equal(sanitizeJsonBody(''), null)
+    t.end()
+  })
+
+  t.end()
+})
+
+test('sanitizeStringQuery', t => {
+  t.test('returns the query string when parameterized', t => {
+    const out = sanitizeStringQuery('{"query":"FROM logs | WHERE host == ?"}')
+    t.equal(out, 'FROM logs | WHERE host == ?')
+    t.end()
+  })
+
+  t.test('returns null when the query is not parameterized', t => {
+    t.equal(sanitizeStringQuery('{"query":"FROM logs | WHERE host == \\"a\\""}'), null)
+    t.end()
+  })
+
+  t.test('returns null for missing/non-string query, non-object bodies and bad JSON', t => {
+    t.equal(sanitizeStringQuery('{"foo":"bar"}'), null)
+    t.equal(sanitizeStringQuery('{"query":123}'), null)
+    t.equal(sanitizeStringQuery('["a","b"]'), null)
+    t.equal(sanitizeStringQuery('not json'), null)
+    t.equal(sanitizeStringQuery(''), null)
+    t.end()
+  })
+
+  t.end()
+})
+
+test('sanitizeNdjsonBody', t => {
+  t.test('passes header lines verbatim and sanitizes query lines', t => {
+    const body = '{"index":"my-index"}\n{"query":{"match":{"title":"elasticsearch"}}}\n'
+    const out = sanitizeNdjsonBody(body)
+    t.equal(out, '{"index":"my-index"}\n{"query":{"match":{"title":"?"}}}\n')
+    t.end()
+  })
+
+  t.test('preserves CRLF line endings and trailing newline', t => {
+    const body = '{"index":"my-index"}\r\n{"query":{"match_all":{}}}\r\n'
+    const out = sanitizeNdjsonBody(body)
+    t.equal(out, '{"index":"my-index"}\r\n{"query":{"match_all":{}}}\r\n')
+    t.end()
+  })
+
+  t.test('returns null for null, undefined and empty string', t => {
+    t.equal(sanitizeNdjsonBody(null), null)
+    t.equal(sanitizeNdjsonBody(undefined), null)
+    t.equal(sanitizeNdjsonBody(''), null)
     t.end()
   })
 
