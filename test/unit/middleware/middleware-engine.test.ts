@@ -26,8 +26,7 @@ function createMockContext (): MiddlewareContext {
       context: null,
       connection: null,
       attempts: 0
-    },
-    state: new Map()
+    }
   }
 }
 
@@ -69,7 +68,7 @@ test('MiddlewareEngine', async t => {
     }
 
     engine.register(middleware)
-    engine.executePhase('onResponse', createMockContext(), createMockResult())
+    engine.executeOnResponse(createMockContext(), createMockResult())
 
     t.equal(called, true, 'middleware should be called')
   })
@@ -96,7 +95,7 @@ test('MiddlewareEngine', async t => {
 
     engine.register(lowPriority)
     engine.register(highPriority)
-    engine.executePhase('onResponse', createMockContext(), createMockResult())
+    engine.executeOnResponse(createMockContext(), createMockResult())
 
     t.same(order, ['high', 'low'], 'middleware should execute in priority order')
   })
@@ -123,7 +122,7 @@ test('MiddlewareEngine', async t => {
 
     engine.register(first)
     engine.register(second)
-    engine.executePhase('onResponse', createMockContext(), createMockResult())
+    engine.executeOnResponse(createMockContext(), createMockResult())
 
     t.equal(secondCalled, false, 'second middleware should not be called')
   })
@@ -147,7 +146,7 @@ test('MiddlewareEngine', async t => {
 
     engine.register(withoutHandler)
     engine.register(withHandler)
-    engine.executePhase('onResponse', createMockContext(), createMockResult())
+    engine.executeOnResponse(createMockContext(), createMockResult())
 
     t.equal(called, true, 'middleware with handler should still be called')
   })
@@ -166,7 +165,7 @@ test('MiddlewareEngine', async t => {
     engine.register(middleware)
 
     try {
-      engine.executePhase('onResponse', createMockContext(), createMockResult())
+      engine.executeOnResponse(createMockContext(), createMockResult())
       t.fail('should throw')
     } catch (err: any) {
       t.ok(err instanceof MiddlewareException, 'should be MiddlewareException')

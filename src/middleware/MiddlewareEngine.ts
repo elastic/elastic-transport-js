@@ -38,30 +38,18 @@ export class MiddlewareEngine {
   }
 
   /**
-   * Executes all `onResponse` handlers synchronously in priority order.
-   * Called on each HTTP response within the retry loop. A handler may return
-   * `{ continue: false }` to stop subsequent handlers from running.
+   * Runs every `onResponse` handler in priority order on each HTTP response
+   * within the retry loop. A handler returning `{ continue: false }` stops the rest.
    */
-  executePhase (
-    phase: 'onResponse',
-    context: MiddlewareContext,
-    result: TransportResult
-  ): void {
+  executeOnResponse (context: MiddlewareContext, result: TransportResult): void {
     for (const middleware of this.middleware) {
-      const handler = middleware[phase]
-      if (handler == null) continue
+      if (middleware.onResponse == null) continue
 
       try {
-        const handlerResult = handler(context, result)
-
-        if (handlerResult?.continue === false) {
-          return
-        }
+        if (middleware.onResponse(context, result)?.continue === false) return
       } catch (error) {
-        if (error instanceof ElasticsearchClientError) {
-          throw error
-        }
-        throw new MiddlewareException(`Middleware ${middleware.name} failed in ${phase}`, { cause: error })
+        if (error instanceof ElasticsearchClientError) throw error
+        throw new MiddlewareException(`Middleware ${middleware.name} failed in onResponse`, { cause: error })
       }
     }
   }
