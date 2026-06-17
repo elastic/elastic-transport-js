@@ -521,9 +521,8 @@ export default class Transport {
       state: new Map()
     }
 
-    // The retry loop is wrapped by the middleware `around` chain so a middleware
-    // (e.g. OpenTelemetry) can keep an async context active across the whole
-    // request. `onResponse` still runs per attempt inside the loop.
+    // Wrapped by the `around` chain (e.g. OpenTelemetry); `onResponse` still runs
+    // per attempt inside the loop.
     const runRequest = async (): Promise<TransportResult> => {
       while (meta.attempts <= maxRetries) {
         // Capture start time for request duration tracking

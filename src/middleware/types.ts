@@ -65,12 +65,10 @@ export interface Middleware {
   readonly name: MiddlewareName
   readonly priority?: number
   /**
-   * Wraps the entire request (all retries) in an "onion" layer. The handler must
-   * call `next()` to run the inner layers and the HTTP request, and return its
-   * result. Because the work runs inside the handler, this is the only hook that
-   * can keep an async context (e.g. an active OpenTelemetry span) active across
-   * the request, so child spans from the HTTP layer nest correctly. Errors
-   * propagate through `next()` and may be observed in a try/catch.
+   * Wraps the whole request (all retries). Call `next()` to run the inner layers
+   * and the HTTP request, then return its result. Because the work runs inside the
+   * handler, this is the only hook that can keep an async context (e.g. an active
+   * OpenTelemetry span) active across the request so HTTP-layer spans nest under it.
    */
   around?: (ctx: MiddlewareContext, next: MiddlewareNext) => Promise<TransportResult>
   /**

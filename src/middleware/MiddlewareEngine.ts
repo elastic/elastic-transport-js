@@ -23,30 +23,17 @@ export class MiddlewareEngine {
   }
 
   /**
-   * Wraps `run` (the actual request, including all retries) in the `around`
-   * handlers, composed as an onion: the highest-priority (lowest number)
-   * middleware is the outermost layer. Middleware without an `around` handler is
-   * skipped. Non-Elasticsearch errors thrown by a handler are wrapped in a
-   * `MiddlewareException`.
+   * Wraps `run` (the request, including all retries) in the `around` handlers as
+   * an onion: highest priority (lowest number) is outermost. Errors propagate as-is.
    */
   async run (context: MiddlewareContext, run: MiddlewareNext): Promise<TransportResult> {
     let next: MiddlewareNext = run
     for (let i = this.middleware.length - 1; i >= 0; i--) {
-      const middleware = this.middleware[i]
-      const around = middleware.around
+      const around = this.middleware[i].around
       if (around == null) continue
-
       const inner = next
-      next = async () => {
-        try {
-          return await around(context, inner)
-        } catch (error) {
-          if (error instanceof ElasticsearchClientError) throw error
-          throw new MiddlewareException(`Middleware ${middleware.name} failed in around`, { cause: error })
-        }
-      }
+      next = async () => await around(context, inner)
     }
-
     return await next()
   }
 
