@@ -177,113 +177,47 @@ test('MiddlewareEngine', async t => {
   })
 })
 
-test('MiddlewareEngine lifecycle phases', async t => {
-  await t.test('executeBeforeRequest runs onBeforeRequest handlers in priority order', async t => {
+test('MiddlewareEngine.run (around chain)', async t => {
+  await t.test('wraps the request as an onion in priority order', async t => {
     const engine = new MiddlewareEngine()
     const order: string[] = []
 
     engine.register({
       name: MiddlewareName.PRODUCT_CHECK,
       priority: 50,
-      onBeforeRequest: async () => { order.push('low') }
+      around: async (_ctx, next) => { order.push('inner-before'); const r = await next(); order.push('inner-after'); return r }
     })
     engine.register({
       name: MiddlewareName.OPEN_TELEMETRY,
       priority: 10,
-      onBeforeRequest: () => { order.push('high') }
+      around: async (_ctx, next) => { order.push('outer-before'); const r = await next(); order.push('outer-after'); return r }
     })
 
-    await engine.executeBeforeRequest(createMockContext())
-
-    t.same(order, ['high', 'low'], 'handlers run in priority order, supporting sync and async')
-  })
-
-  await t.test('executeOnComplete passes context and result to handlers', async t => {
-    const engine = new MiddlewareEngine()
-    let received: any = null
-
-    engine.register({
-      name: MiddlewareName.OPEN_TELEMETRY,
-      priority: 10,
-      onComplete: (ctx, result) => { received = { ctx, result } }
-    })
-
-    const ctx = createMockContext()
     const result = createMockResult()
-    await engine.executeOnComplete(ctx, result)
+    const out = await engine.run(createMockContext(), async () => { order.push('run'); return result })
 
-    t.equal(received.ctx, ctx, 'context is forwarded')
-    t.equal(received.result, result, 'result is forwarded')
+    t.same(order, ['outer-before', 'inner-before', 'run', 'inner-after', 'outer-after'])
+    t.equal(out, result, 'returns the inner result')
   })
 
-  await t.test('executeOnError passes context, error and result to handlers', async t => {
+  await t.test('runs the request directly when no around handler is registered', async t => {
     const engine = new MiddlewareEngine()
-    let received: { error: Error, result: any } | null = null
+    engine.register({ name: MiddlewareName.PRODUCT_CHECK, priority: 50, onResponse: () => {} })
 
-    engine.register({
-      name: MiddlewareName.OPEN_TELEMETRY,
-      priority: 10,
-      onError: (_ctx, error, result) => { received = { error, result } }
-    })
+    const result = createMockResult()
+    t.equal(await engine.run(createMockContext(), async () => result), result)
+  })
+
+  await t.test('propagates errors from the request unchanged', async t => {
+    const engine = new MiddlewareEngine()
+    engine.register({ name: MiddlewareName.OPEN_TELEMETRY, priority: 10, around: async (_ctx, next) => await next() })
 
     const error = new Error('boom')
-    const result = createMockResult()
-    await engine.executeOnError(createMockContext(), error, result)
-
-    t.equal(received!.error, error, 'error is forwarded')
-    t.equal(received!.result, result, 'result is forwarded')
-  })
-
-  await t.test('skips middleware that do not implement the phase', async t => {
-    const engine = new MiddlewareEngine()
-    let called = false
-
-    engine.register({ name: MiddlewareName.PRODUCT_CHECK, priority: 50 })
-    engine.register({
-      name: MiddlewareName.OPEN_TELEMETRY,
-      priority: 10,
-      onComplete: () => { called = true }
-    })
-
-    await engine.executeOnComplete(createMockContext(), createMockResult())
-
-    t.equal(called, true, 'middleware implementing the phase is still called')
-  })
-
-  await t.test('wraps non-transport errors thrown in executeBeforeRequest', async t => {
-    const engine = new MiddlewareEngine()
-
-    engine.register({
-      name: MiddlewareName.OPEN_TELEMETRY,
-      priority: 10,
-      onBeforeRequest: () => { throw new Error('setup failed') }
-    })
-
     try {
-      await engine.executeBeforeRequest(createMockContext())
+      await engine.run(createMockContext(), async () => { throw error })
       t.fail('should throw')
-    } catch (err: any) {
-      t.ok(err instanceof MiddlewareException, 'should be MiddlewareException')
-      t.ok(err.message.includes('onBeforeRequest'), 'should include phase name')
-      t.ok(err.cause instanceof Error, 'should preserve original error as cause')
-    }
-  })
-
-  await t.test('wraps non-transport errors thrown in executeOnComplete', async t => {
-    const engine = new MiddlewareEngine()
-
-    engine.register({
-      name: MiddlewareName.OPEN_TELEMETRY,
-      priority: 10,
-      onComplete: () => { throw new Error('complete failed') }
-    })
-
-    try {
-      await engine.executeOnComplete(createMockContext(), createMockResult())
-      t.fail('should throw')
-    } catch (err: any) {
-      t.ok(err instanceof MiddlewareException, 'should be MiddlewareException')
-      t.ok(err.message.includes('onComplete'), 'should include phase name')
+    } catch (err) {
+      t.equal(err, error, 'error is not wrapped')
     }
   })
 })
