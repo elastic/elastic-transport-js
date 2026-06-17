@@ -15,7 +15,6 @@ import { Connection } from '../connection'
 export enum MiddlewareName {
   OPEN_TELEMETRY = 'opentelemetry',
   PRODUCT_CHECK = 'product-check'
-  // Add new middleware names here
 }
 
 /**
@@ -25,7 +24,6 @@ export enum MiddlewareName {
 export const MiddlewarePriority: Record<MiddlewareName, number> = {
   [MiddlewareName.OPEN_TELEMETRY]: 10,
   [MiddlewareName.PRODUCT_CHECK]: 50
-  // Add new middleware priorities here
 } as const
 
 export interface MiddlewareContext {
@@ -47,11 +45,6 @@ export interface MiddlewareContext {
     /** Updated to the current retry count before each `onResponse` call. */
     attempts: number
   }
-  /**
-   * Per-request scratch space shared across phases. Middleware can stash state
-   * here keyed by a private symbol when it must survive from one phase to the next.
-   */
-  readonly state: Map<symbol, unknown>
 }
 
 export interface MiddlewareResult {

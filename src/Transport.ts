@@ -522,8 +522,7 @@ export default class Transport {
         context: meta.context as Context | null,
         connection: null,
         attempts: 0
-      },
-      state: new Map()
+      }
     }
 
     // Wrapped by the `around` chain (e.g. OpenTelemetry); `onResponse` still runs
@@ -568,7 +567,7 @@ export default class Transport {
 
           middlewareCtx.meta.connection = meta.connection
           middlewareCtx.meta.attempts = meta.attempts
-          this[kMiddlewareEngine].executePhase('onResponse', middlewareCtx, result)
+          this[kMiddlewareEngine].executeOnResponse(middlewareCtx, result)
 
           if (options.asStream === true) {
             result.body = body

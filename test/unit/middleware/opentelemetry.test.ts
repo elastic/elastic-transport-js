@@ -49,8 +49,7 @@ function createContext (params: Partial<TransportRequestParams> = {}, options: a
       context: null,
       connection: null,
       attempts: 0
-    },
-    state: new Map()
+    }
   }
 }
 
