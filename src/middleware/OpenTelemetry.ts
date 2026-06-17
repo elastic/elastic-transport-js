@@ -8,7 +8,24 @@ import { suppressTracing } from '@opentelemetry/core'
 import { Middleware, MiddlewareContext, MiddlewareName, MiddlewareNext, MiddlewarePriority } from './types'
 import { TransportResult } from '../types'
 import { stripAuth } from '../connection/BaseConnection'
+import { sanitizeJsonBody, sanitizeNdjsonBody, sanitizeStringQuery } from '../security'
+import Serializer from '../Serializer'
 import { transportVersion } from '../version.generated'
+
+/** Endpoints whose body can be captured as `db.query.text`. */
+export const SEARCH_LIKE_ENDPOINTS: ReadonlySet<string> = new Set([
+  'async_search.submit', 'esql.async_query', 'esql.query', 'fleet.msearch', 'fleet.search',
+  'knn_search', 'msearch', 'rollup.rollup_search', 'search', 'search_mvt', 'sql.query'
+])
+
+/** Endpoints whose body is an ES|QL/SQL string query (captured only when parameterized). */
+export const STRING_QUERY_ENDPOINTS: ReadonlySet<string> = new Set(['esql.async_query', 'esql.query', 'sql.query'])
+
+/** Endpoints whose body is NDJSON (header + query line pairs). */
+export const NDJSON_ENDPOINTS: ReadonlySet<string> = new Set(['fleet.msearch', 'msearch'])
+
+/** Max length of the `db.query.text` attribute, in characters. */
+export const SEARCH_QUERY_MAX_LENGTH = 2048
 
 export interface OpenTelemetryOptions {
   enabled?: boolean
@@ -18,6 +35,16 @@ export interface OpenTelemetryOptions {
    * HTTP (e.g. undici) instrumentation is suppressed too.
    */
   suppressInternalInstrumentation?: boolean
+  /**
+   * Records sanitized request bodies as `db.query.text`. Off by default: even
+   * sanitized, query structure can reveal schema or search patterns, so enable only
+   * where tracing data is access-controlled.
+   */
+  captureSearchQuery?: boolean
+}
+
+function isStream (body: unknown): boolean {
+  return body != null && typeof (body as any).pipe === 'function'
 }
 
 export class OpenTelemetryMiddleware implements Middleware {
@@ -26,10 +53,12 @@ export class OpenTelemetryMiddleware implements Middleware {
 
   private readonly tracer: Tracer
   private readonly transportOptions: OpenTelemetryOptions
+  private readonly serializer: Serializer
 
   constructor (transportOptions: OpenTelemetryOptions) {
     this.tracer = opentelemetry.trace.getTracer('@elastic/transport', transportVersion)
     this.transportOptions = transportOptions
+    this.serializer = new Serializer()
   }
 
   around = async (ctx: MiddlewareContext, next: MiddlewareNext): Promise<TransportResult> => {
@@ -44,7 +73,7 @@ export class OpenTelemetryMiddleware implements Middleware {
       otelContext = suppressTracing(otelContext)
     }
 
-    const attributes = this.buildAttributes(ctx)
+    const attributes = this.buildAttributes(ctx, otelOptions)
     // startActiveSpan makes the span the active context for the duration of `next()`,
     // so spans created by the HTTP layer nest under this Elasticsearch span.
     return await this.tracer.startActiveSpan(
@@ -99,7 +128,7 @@ export class OpenTelemetryMiddleware implements Middleware {
     }
   }
 
-  private buildAttributes (ctx: MiddlewareContext): Attributes {
+  private buildAttributes (ctx: MiddlewareContext, otelOptions: OpenTelemetryOptions): Attributes {
     const { params } = ctx
     const attributes: Attributes = {
       'db.system': 'elasticsearch',
@@ -131,6 +160,39 @@ export class OpenTelemetryMiddleware implements Middleware {
       }
     }
 
+    if ((otelOptions.captureSearchQuery ?? false) && params.meta?.name != null && SEARCH_LIKE_ENDPOINTS.has(params.meta.name)) {
+      const queryText = this.captureQueryText(params.meta.name, ctx)
+      if (queryText != null) attributes['db.query.text'] = queryText
+    }
+
     return attributes
+  }
+
+  private captureQueryText (name: string, ctx: MiddlewareContext): string | null {
+    const { params } = ctx
+    const rawBody = NDJSON_ENDPOINTS.has(name) ? params.bulkBody : params.body
+    if (rawBody == null || rawBody === '' || isStream(rawBody)) return null
+
+    let bodyStr: string
+    if (typeof rawBody === 'string') {
+      bodyStr = rawBody
+    } else if (Array.isArray(rawBody)) {
+      bodyStr = this.serializer.ndserialize(rawBody)
+    } else {
+      bodyStr = this.serializer.serialize(rawBody)
+    }
+
+    let sanitized: string | null
+    if (NDJSON_ENDPOINTS.has(name)) {
+      sanitized = sanitizeNdjsonBody(bodyStr)
+    } else if (STRING_QUERY_ENDPOINTS.has(name)) {
+      sanitized = sanitizeStringQuery(bodyStr)
+    } else {
+      sanitized = sanitizeJsonBody(bodyStr)
+    }
+
+    if (sanitized == null) return null
+    // Sanitize first, then truncate, so no raw literal can survive near the cutoff.
+    return sanitized.slice(0, SEARCH_QUERY_MAX_LENGTH)
   }
 }
