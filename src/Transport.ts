@@ -499,8 +499,8 @@ export default class Transport {
 
     connectionParams.headers = headers
 
-    // Shared across all lifecycle phases; `connection` and `attempts` are
-    // refreshed each retry attempt before `onResponse` runs.
+    // Shared across all phases; `connection` and `attempts` are refreshed each
+    // retry attempt before `onResponse` runs.
     const middlewareCtx: MiddlewareContext = {
       request: {
         method: connectionParams.method,
@@ -521,210 +521,209 @@ export default class Transport {
       state: new Map()
     }
 
-    await this[kMiddlewareEngine].executeBeforeRequest(middlewareCtx)
+    // The retry loop is wrapped by the middleware `around` chain so a middleware
+    // (e.g. OpenTelemetry) can keep an async context active across the whole
+    // request. `onResponse` still runs per attempt inside the loop.
+    const runRequest = async (): Promise<TransportResult> => {
+      while (meta.attempts <= maxRetries) {
+        // Capture start time for request duration tracking
+        const startTime = process.hrtime.bigint()
 
-    while (meta.attempts <= maxRetries) {
-      // Capture start time for request duration tracking
-      const startTime = process.hrtime.bigint()
-
-      try {
-        if (signal?.aborted) { // eslint-disable-line
-          throw new RequestAbortedError('Request has been aborted by the user', result, errorOptions)
-        }
-
-        meta.connection = this.getConnection({
-          requestId: meta.request.id,
-          context: meta.context
-        })
-        if (meta.connection === null) {
-          throw new NoLivingConnectionsError('There are no living connections', result, errorOptions)
-        }
-
-        this[kDiagnostic].emit('request', null, result)
-
-        // set timeout defaults
-        let timeout = options.requestTimeout ?? this[kRequestTimeout] ?? undefined
-        if (timeout != null) timeout = toMs(timeout)
-
-        // perform the actual http request
-        let { statusCode, headers, body } = await meta.connection.request(connectionParams, {
-          requestId: meta.request.id,
-          name: this[kName],
-          context: meta.context,
-          maxResponseSize,
-          maxCompressedResponseSize,
-          signal,
-          timeout,
-          ...(options.asStream === true ? { asStream: true } : null)
-        })
-        result.statusCode = statusCode
-        result.headers = headers
-
-        middlewareCtx.meta.connection = meta.connection
-        middlewareCtx.meta.attempts = meta.attempts
-        this[kMiddlewareEngine].executePhase('onResponse', middlewareCtx, result)
-
-        if (options.asStream === true) {
-          result.body = body
-          // Calculate request duration in milliseconds
-          const endTime = process.hrtime.bigint()
-          meta.duration = Number(endTime - startTime) / 1e6
-          this[kDiagnostic].emit('response', null, result)
-          await this[kMiddlewareEngine].executeOnComplete(middlewareCtx, result)
-          return returnMeta ? result : body
-        }
-
-        const contentEncoding = (headers['content-encoding'] ?? '').toLowerCase()
-        if (contentEncoding.includes('gzip') || contentEncoding.includes('deflate')) {
-          body = await unzip(body)
-        }
-
-        if (Buffer.isBuffer(body) && !isBinary(headers['content-type'] ?? '')) {
-          body = body.toString()
-        }
-
-        const isHead = params.method === 'HEAD'
-        // we should attempt the payload deserialization only if:
-        //    - a `content-type` is defined and is equal to `application/json`
-        //    - the request is not a HEAD request
-        //    - the payload is not an empty string
-        if (headers['content-type'] !== undefined &&
-            (headers['content-type']?.includes('application/json') ||
-             headers['content-type']?.includes('application/vnd.elasticsearch+json')) &&
-             !isHead && body !== '') { // eslint-disable-line
-          result.body = this[kSerializer].deserialize(body as string)
-        } else {
-          // cast to boolean if the request method was HEAD and there was no error
-          result.body = isHead && statusCode < 400 ? true : body
-        }
-
-        // we should ignore the statusCode if the user has configured the `ignore` field with
-        // the statusCode we just got or if the request method is HEAD and the statusCode is 404
-        const ignoreStatusCode = (Array.isArray(options.ignore) && options.ignore.includes(statusCode)) ||
-          (isHead && statusCode === 404)
-
-        if (!ignoreStatusCode && (statusCode === 502 || statusCode === 503 || statusCode === 504)) {
-          // if the statusCode is 502/3/4 we should run our retry strategy
-          // and mark the connection as dead
-          this[kConnectionPool].markDead(meta.connection)
-          // retry logic
-          if (meta.attempts < maxRetries) {
-            meta.attempts++
-            debug(`Retrying request, there are still ${maxRetries - meta.attempts} attempts`, params)
-            continue
+        try {
+          if (signal?.aborted) { // eslint-disable-line
+            throw new RequestAbortedError('Request has been aborted by the user', result, errorOptions)
           }
-        } else {
-          // everything has worked as expected, let's mark
-          // the connection as alive (or confirm it)
-          this[kConnectionPool].markAlive(meta.connection)
-        }
 
-        if (!ignoreStatusCode && statusCode >= 400) {
-          throw new ResponseError(result, errorOptions)
-        } else {
-          // cast to boolean if the request method was HEAD
-          if (isHead && statusCode === 404) {
-            result.body = false
+          meta.connection = this.getConnection({
+            requestId: meta.request.id,
+            context: meta.context
+          })
+          if (meta.connection === null) {
+            throw new NoLivingConnectionsError('There are no living connections', result, errorOptions)
           }
-          // Calculate request duration in milliseconds
-          const endTime = process.hrtime.bigint()
-          meta.duration = Number(endTime - startTime) / 1e6
-          this[kDiagnostic].emit('response', null, result)
-          await this[kMiddlewareEngine].executeOnComplete(middlewareCtx, result)
-          return returnMeta ? result : result.body
-        }
-      } catch (error: any) {
-        // Calculate request duration in milliseconds
-        const endTime = process.hrtime.bigint()
-        meta.duration = Number(endTime - startTime) / 1e6
 
-        switch (error.name) {
-          // should not retry
-          case 'ProductNotSupportedError':
-          case 'NoLivingConnectionsError':
-          case 'DeserializationError':
-          case 'ResponseError':
-            this[kDiagnostic].emit('response', error, result)
-            await this[kMiddlewareEngine].executeOnError(middlewareCtx, error, result)
-            throw error
-          case 'RequestAbortedError': {
-            meta.aborted = true
-            // Wrap the error to get a clean stack trace
-            const wrappedError = new RequestAbortedError(error.message, result, { ...errorOptions, cause: error })
-            this[kDiagnostic].emit('response', wrappedError, result)
-            await this[kMiddlewareEngine].executeOnError(middlewareCtx, wrappedError, result)
-            throw wrappedError
+          this[kDiagnostic].emit('request', null, result)
+
+          // set timeout defaults
+          let timeout = options.requestTimeout ?? this[kRequestTimeout] ?? undefined
+          if (timeout != null) timeout = toMs(timeout)
+
+          // perform the actual http request
+          let { statusCode, headers, body } = await meta.connection.request(connectionParams, {
+            requestId: meta.request.id,
+            name: this[kName],
+            context: meta.context,
+            maxResponseSize,
+            maxCompressedResponseSize,
+            signal,
+            timeout,
+            ...(options.asStream === true ? { asStream: true } : null)
+          })
+          result.statusCode = statusCode
+          result.headers = headers
+
+          middlewareCtx.meta.connection = meta.connection
+          middlewareCtx.meta.attempts = meta.attempts
+          this[kMiddlewareEngine].executePhase('onResponse', middlewareCtx, result)
+
+          if (options.asStream === true) {
+            result.body = body
+            // Calculate request duration in milliseconds
+            const endTime = process.hrtime.bigint()
+            meta.duration = Number(endTime - startTime) / 1e6
+            this[kDiagnostic].emit('response', null, result)
+            return result
           }
-          // should maybe retry
-          // @ts-expect-error `case` fallthrough is intentional: should retry if retryOnTimeout is true
-          case 'TimeoutError':
-            if (!this[kRetryOnTimeout]) {
-              // mark dead before early throw: when not retrying, we never reach the
-              // ConnectionError fallthrough that would otherwise call markDead
-              this[kConnectionPool].markDead(meta.connection as Connection)
-              const wrappedError = new TimeoutError(error.message, result, { ...errorOptions, cause: error })
-              this[kDiagnostic].emit('response', wrappedError, result)
-              await this[kMiddlewareEngine].executeOnError(middlewareCtx, wrappedError, result)
-              throw wrappedError
-            }
-          // should retry
-          // eslint-disable-next-line no-fallthrough
-          case 'ConnectionError': {
-            // if there is an error in the connection
-            // let's mark the connection as dead
-            this[kConnectionPool].markDead(meta.connection as Connection)
 
-            if (this[kSniffOnConnectionFault]) {
-              this.sniff({
-                reason: Transport.sniffReasons.SNIFF_ON_CONNECTION_FAULT,
-                requestId: meta.request.id,
-                context: meta.context
-              })
-            }
+          const contentEncoding = (headers['content-encoding'] ?? '').toLowerCase()
+          if (contentEncoding.includes('gzip') || contentEncoding.includes('deflate')) {
+            body = await unzip(body)
+          }
 
+          if (Buffer.isBuffer(body) && !isBinary(headers['content-type'] ?? '')) {
+            body = body.toString()
+          }
+
+          const isHead = params.method === 'HEAD'
+          // we should attempt the payload deserialization only if:
+          //    - a `content-type` is defined and is equal to `application/json`
+          //    - the request is not a HEAD request
+          //    - the payload is not an empty string
+          if (headers['content-type'] !== undefined &&
+              (headers['content-type']?.includes('application/json') ||
+               headers['content-type']?.includes('application/vnd.elasticsearch+json')) &&
+               !isHead && body !== '') { // eslint-disable-line
+            result.body = this[kSerializer].deserialize(body as string)
+          } else {
+            // cast to boolean if the request method was HEAD and there was no error
+            result.body = isHead && statusCode < 400 ? true : body
+          }
+
+          // we should ignore the statusCode if the user has configured the `ignore` field with
+          // the statusCode we just got or if the request method is HEAD and the statusCode is 404
+          const ignoreStatusCode = (Array.isArray(options.ignore) && options.ignore.includes(statusCode)) ||
+            (isHead && statusCode === 404)
+
+          if (!ignoreStatusCode && (statusCode === 502 || statusCode === 503 || statusCode === 504)) {
+            // if the statusCode is 502/3/4 we should run our retry strategy
+            // and mark the connection as dead
+            this[kConnectionPool].markDead(meta.connection)
             // retry logic
             if (meta.attempts < maxRetries) {
               meta.attempts++
               debug(`Retrying request, there are still ${maxRetries - meta.attempts} attempts`, params)
-
-              // don't use exponential backoff until retrying on each node
-              if (meta.attempts >= this[kConnectionPool].size) {
-                // exponential backoff on retries, with jitter
-                const backoff = options.retryBackoff ?? this[kRetryBackoff]
-                const backoffWait = backoff(0, 4, meta.attempts)
-                if (backoffWait > 0) {
-                  await setTimeout(backoffWait * 1000)
-                }
-              }
-
               continue
             }
-
-            // Wrap the error to get a clean stack trace
-            const connectionUrl = meta.connection?.url.toString()
-            const connectionErrorMessage = error.message != null && error.message !== '' && error.message !== 'Connection Error'
-              ? error.message
-              : connectionUrl != null
-                ? `connection failed (${connectionUrl})`
-                : 'connection failed'
-            const wrappedError = error.name === 'TimeoutError'
-              ? new TimeoutError(error.message, result, { ...errorOptions, cause: error })
-              : new ConnectionError(connectionErrorMessage, result, { ...errorOptions, cause: error })
-            this[kDiagnostic].emit('response', wrappedError, result)
-            await this[kMiddlewareEngine].executeOnError(middlewareCtx, wrappedError, result)
-            throw wrappedError
+          } else {
+            // everything has worked as expected, let's mark
+            // the connection as alive (or confirm it)
+            this[kConnectionPool].markAlive(meta.connection)
           }
 
-          // edge cases, such as bad compression
-          default:
-            this[kDiagnostic].emit('response', error, result)
-            await this[kMiddlewareEngine].executeOnError(middlewareCtx, error, result)
-            throw error
+          if (!ignoreStatusCode && statusCode >= 400) {
+            throw new ResponseError(result, errorOptions)
+          } else {
+            // cast to boolean if the request method was HEAD
+            if (isHead && statusCode === 404) {
+              result.body = false
+            }
+            // Calculate request duration in milliseconds
+            const endTime = process.hrtime.bigint()
+            meta.duration = Number(endTime - startTime) / 1e6
+            this[kDiagnostic].emit('response', null, result)
+            return result
+          }
+        } catch (error: any) {
+          // Calculate request duration in milliseconds
+          const endTime = process.hrtime.bigint()
+          meta.duration = Number(endTime - startTime) / 1e6
+
+          switch (error.name) {
+            // should not retry
+            case 'ProductNotSupportedError':
+            case 'NoLivingConnectionsError':
+            case 'DeserializationError':
+            case 'ResponseError':
+              this[kDiagnostic].emit('response', error, result)
+              throw error
+            case 'RequestAbortedError': {
+              meta.aborted = true
+              // Wrap the error to get a clean stack trace
+              const wrappedError = new RequestAbortedError(error.message, result, { ...errorOptions, cause: error })
+              this[kDiagnostic].emit('response', wrappedError, result)
+              throw wrappedError
+            }
+            // should maybe retry
+            // @ts-expect-error `case` fallthrough is intentional: should retry if retryOnTimeout is true
+            case 'TimeoutError':
+              if (!this[kRetryOnTimeout]) {
+                // mark dead before early throw: when not retrying, we never reach the
+                // ConnectionError fallthrough that would otherwise call markDead
+                this[kConnectionPool].markDead(meta.connection as Connection)
+                const wrappedError = new TimeoutError(error.message, result, { ...errorOptions, cause: error })
+                this[kDiagnostic].emit('response', wrappedError, result)
+                throw wrappedError
+              }
+            // should retry
+            // eslint-disable-next-line no-fallthrough
+            case 'ConnectionError': {
+              // if there is an error in the connection
+              // let's mark the connection as dead
+              this[kConnectionPool].markDead(meta.connection as Connection)
+
+              if (this[kSniffOnConnectionFault]) {
+                this.sniff({
+                  reason: Transport.sniffReasons.SNIFF_ON_CONNECTION_FAULT,
+                  requestId: meta.request.id,
+                  context: meta.context
+                })
+              }
+
+              // retry logic
+              if (meta.attempts < maxRetries) {
+                meta.attempts++
+                debug(`Retrying request, there are still ${maxRetries - meta.attempts} attempts`, params)
+
+                // don't use exponential backoff until retrying on each node
+                if (meta.attempts >= this[kConnectionPool].size) {
+                  // exponential backoff on retries, with jitter
+                  const backoff = options.retryBackoff ?? this[kRetryBackoff]
+                  const backoffWait = backoff(0, 4, meta.attempts)
+                  if (backoffWait > 0) {
+                    await setTimeout(backoffWait * 1000)
+                  }
+                }
+
+                continue
+              }
+
+              // Wrap the error to get a clean stack trace
+              const connectionUrl = meta.connection?.url.toString()
+              const connectionErrorMessage = error.message != null && error.message !== '' && error.message !== 'Connection Error'
+                ? error.message
+                : connectionUrl != null
+                  ? `connection failed (${connectionUrl})`
+                  : 'connection failed'
+              const wrappedError = error.name === 'TimeoutError'
+                ? new TimeoutError(error.message, result, { ...errorOptions, cause: error })
+                : new ConnectionError(connectionErrorMessage, result, { ...errorOptions, cause: error })
+              this[kDiagnostic].emit('response', wrappedError, result)
+              throw wrappedError
+            }
+
+            // edge cases, such as bad compression
+            default:
+              this[kDiagnostic].emit('response', error, result)
+              throw error
+          }
         }
       }
+
+      return result
     }
 
-    return returnMeta ? result : result.body
+    const finalResult = await this[kMiddlewareEngine].run(middlewareCtx, runRequest)
+    return returnMeta ? finalResult : finalResult.body
   }
 
   getConnection (opts: GetConnectionOptions): Connection | null {

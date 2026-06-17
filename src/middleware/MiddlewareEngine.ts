@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Middleware, MiddlewareContext } from './types'
+import { Middleware, MiddlewareContext, MiddlewareNext } from './types'
 import { TransportResult } from '../types'
 import { ElasticsearchClientError, NativeErrorOptions } from '../errors'
 
@@ -23,22 +23,31 @@ export class MiddlewareEngine {
   }
 
   /**
-   * Executes all `onBeforeRequest` handlers in priority order, once per
-   * `transport.request()` call, before the first connection attempt.
+   * Wraps `run` (the actual request, including all retries) in the `around`
+   * handlers, composed as an onion: the highest-priority (lowest number)
+   * middleware is the outermost layer. Middleware without an `around` handler is
+   * skipped. Non-Elasticsearch errors thrown by a handler are wrapped in a
+   * `MiddlewareException`.
    */
-  async executeBeforeRequest (context: MiddlewareContext): Promise<void> {
-    for (const middleware of this.middleware) {
-      if (middleware.onBeforeRequest == null) continue
+  async run (context: MiddlewareContext, run: MiddlewareNext): Promise<TransportResult> {
+    let next: MiddlewareNext = run
+    for (let i = this.middleware.length - 1; i >= 0; i--) {
+      const middleware = this.middleware[i]
+      const around = middleware.around
+      if (around == null) continue
 
-      try {
-        await middleware.onBeforeRequest(context)
-      } catch (error) {
-        if (error instanceof ElasticsearchClientError) {
-          throw error
+      const inner = next
+      next = async () => {
+        try {
+          return await around(context, inner)
+        } catch (error) {
+          if (error instanceof ElasticsearchClientError) throw error
+          throw new MiddlewareException(`Middleware ${middleware.name} failed in around`, { cause: error })
         }
-        throw new MiddlewareException(`Middleware ${middleware.name} failed in onBeforeRequest`, { cause: error })
       }
     }
+
+    return await next()
   }
 
   /**
@@ -66,45 +75,6 @@ export class MiddlewareEngine {
           throw error
         }
         throw new MiddlewareException(`Middleware ${middleware.name} failed in ${phase}`, { cause: error })
-      }
-    }
-  }
-
-  /**
-   * Executes all `onError` handlers in priority order, once per
-   * `transport.request()` call, when the request fails with an unrecoverable
-   * error. The original error is re-thrown by the caller after all handlers run.
-   */
-  async executeOnError (context: MiddlewareContext, error: Error, result: TransportResult): Promise<void> {
-    for (const middleware of this.middleware) {
-      if (middleware.onError == null) continue
-
-      try {
-        await middleware.onError(context, error, result)
-      } catch (err) {
-        if (err instanceof ElasticsearchClientError) {
-          throw err
-        }
-        throw new MiddlewareException(`Middleware ${middleware.name} failed in onError`, { cause: err })
-      }
-    }
-  }
-
-  /**
-   * Executes all `onComplete` handlers in priority order, once per
-   * `transport.request()` call, on a successful final response.
-   */
-  async executeOnComplete (context: MiddlewareContext, result: TransportResult): Promise<void> {
-    for (const middleware of this.middleware) {
-      if (middleware.onComplete == null) continue
-
-      try {
-        await middleware.onComplete(context, result)
-      } catch (error) {
-        if (error instanceof ElasticsearchClientError) {
-          throw error
-        }
-        throw new MiddlewareException(`Middleware ${middleware.name} failed in onComplete`, { cause: error })
       }
     }
   }

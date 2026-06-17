@@ -48,10 +48,8 @@ export interface MiddlewareContext {
     attempts: number
   }
   /**
-   * Per-request scratch space shared across all lifecycle phases. Middleware
-   * can stash state here (keyed by a private symbol) that must survive from one
-   * phase to the next, e.g. an OpenTelemetry span created in `onBeforeRequest`
-   * and ended in `onComplete`/`onError`.
+   * Per-request scratch space shared across phases. Middleware can stash state
+   * here keyed by a private symbol when it must survive from one phase to the next.
    */
   readonly state: Map<symbol, unknown>
 }
@@ -60,28 +58,24 @@ export interface MiddlewareResult {
   continue?: boolean
 }
 
+/** Runs the rest of the middleware chain plus the actual request, resolving to the final result. */
+export type MiddlewareNext = () => Promise<TransportResult>
+
 export interface Middleware {
   readonly name: MiddlewareName
   readonly priority?: number
   /**
-   * Called once per `transport.request()` call, after serialization and before
-   * the first connection attempt. Use this to set up per-request state.
+   * Wraps the entire request (all retries) in an "onion" layer. The handler must
+   * call `next()` to run the inner layers and the HTTP request, and return its
+   * result. Because the work runs inside the handler, this is the only hook that
+   * can keep an async context (e.g. an active OpenTelemetry span) active across
+   * the request, so child spans from the HTTP layer nest correctly. Errors
+   * propagate through `next()` and may be observed in a try/catch.
    */
-  onBeforeRequest?: (ctx: MiddlewareContext) => void | Promise<void>
+  around?: (ctx: MiddlewareContext, next: MiddlewareNext) => Promise<TransportResult>
   /**
    * Called on each successful HTTP response within the retry loop.
    * Returning `{ continue: false }` stops subsequent middleware from running.
    */
   onResponse?: (ctx: MiddlewareContext, result: TransportResult) => MiddlewareResult | undefined
-  /**
-   * Called once per `transport.request()` call when the request fails with an
-   * unrecoverable error (after all retries are exhausted). `result` carries
-   * whatever response metadata was captured before failing. The error is
-   * re-thrown after all handlers run.
-   */
-  onError?: (ctx: MiddlewareContext, error: Error, result: TransportResult) => void | Promise<void>
-  /**
-   * Called once per `transport.request()` call on a successful final response.
-   */
-  onComplete?: (ctx: MiddlewareContext, result: TransportResult) => void | Promise<void>
 }

@@ -5,21 +5,17 @@
 
 import opentelemetry, { Attributes, Exception, Span, SpanKind, SpanStatusCode, Tracer } from '@opentelemetry/api'
 import { suppressTracing } from '@opentelemetry/core'
-import { Middleware, MiddlewareContext, MiddlewareName, MiddlewarePriority } from './types'
+import { Middleware, MiddlewareContext, MiddlewareName, MiddlewareNext, MiddlewarePriority } from './types'
 import { TransportResult } from '../types'
 import { stripAuth } from '../connection/BaseConnection'
 import { transportVersion } from '../version.generated'
 
-const SPAN_STATE_KEY = Symbol('opentelemetry.span')
-
 export interface OpenTelemetryOptions {
   enabled?: boolean
   /**
-   * Suppresses the Elasticsearch operation span for the request. Note: unlike
-   * the pre-middleware implementation (which wrapped the request in an active
-   * span), this no longer suppresses lower-level HTTP (e.g. undici)
-   * instrumentation, since the span is never the active context during the HTTP
-   * call. See elastic/elasticsearch-js#3107.
+   * Suppresses tracing for the request: the Elasticsearch span is non-recording
+   * and, because the suppressed context is active during the HTTP call, lower-level
+   * HTTP (e.g. undici) instrumentation is suppressed too.
    */
   suppressInternalInstrumentation?: boolean
 }
@@ -36,10 +32,12 @@ export class OpenTelemetryMiddleware implements Middleware {
     this.transportOptions = transportOptions
   }
 
-  onBeforeRequest = (ctx: MiddlewareContext): void => {
+  around = async (ctx: MiddlewareContext, next: MiddlewareNext): Promise<TransportResult> => {
     const otelOptions = Object.assign({}, this.transportOptions, ctx.options.openTelemetry ?? {})
 
-    if (!(otelOptions.enabled ?? true) || ctx.params.meta?.name == null) return
+    if (!(otelOptions.enabled ?? true) || ctx.params.meta?.name == null) {
+      return await next()
+    }
 
     let otelContext = opentelemetry.context.active()
     if (otelOptions.suppressInternalInstrumentation ?? false) {
@@ -47,29 +45,29 @@ export class OpenTelemetryMiddleware implements Middleware {
     }
 
     const attributes = this.buildAttributes(ctx)
-    const span = this.tracer.startSpan(ctx.params.meta.name, { attributes, kind: SpanKind.CLIENT }, otelContext)
-    ctx.state.set(SPAN_STATE_KEY, span)
-  }
-
-  onError = (ctx: MiddlewareContext, error: Error, result: TransportResult): void => {
-    const span = ctx.state.get(SPAN_STATE_KEY) as Span | undefined
-    if (span == null) return
-    ctx.state.delete(SPAN_STATE_KEY)
-
-    this.setResponseAttributes(span, result)
-    span.recordException(error as Exception)
-    span.setStatus({ code: SpanStatusCode.ERROR })
-    span.setAttribute('error.type', error.name ?? 'Error')
-    span.end()
-  }
-
-  onComplete = (ctx: MiddlewareContext, result: TransportResult): void => {
-    const span = ctx.state.get(SPAN_STATE_KEY) as Span | undefined
-    if (span == null) return
-    ctx.state.delete(SPAN_STATE_KEY)
-
-    this.setResponseAttributes(span, result)
-    span.end()
+    // startActiveSpan makes the span the active context for the duration of `next()`,
+    // so spans created by the HTTP layer nest under this Elasticsearch span.
+    return await this.tracer.startActiveSpan(
+      ctx.params.meta.name,
+      { attributes, kind: SpanKind.CLIENT },
+      otelContext,
+      async (span: Span): Promise<TransportResult> => {
+        try {
+          const result = await next()
+          this.setResponseAttributes(span, result)
+          return result
+        } catch (error: any) {
+          // ElasticsearchClientErrors carry the partial result on `.meta`.
+          if (error?.meta != null) this.setResponseAttributes(span, error.meta as TransportResult)
+          span.recordException(error as Exception)
+          span.setStatus({ code: SpanStatusCode.ERROR })
+          span.setAttribute('error.type', (error as Error).name ?? 'Error')
+          throw error
+        } finally {
+          span.end()
+        }
+      }
+    )
   }
 
   private setResponseAttributes (span: Span, result: TransportResult): void {
