@@ -293,6 +293,11 @@ export default class Transport {
       suppressInternalInstrumentation: false
     }, opts.openTelemetry ?? {})
 
+    // Runtime kill switch so ops can disable query capture without redeploying.
+    if (process.env.OTEL_ELASTICSEARCH_CAPTURE_SEARCH_QUERY?.toLowerCase() === 'false') {
+      otelOptions.captureSearchQuery = false
+    }
+
     // Middleware are always registered and self-gate on their own options, so
     // enablement (and rollback) stays driven by client config rather than which
     // middleware is registered.
