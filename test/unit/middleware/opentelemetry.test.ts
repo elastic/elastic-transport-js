@@ -218,4 +218,80 @@ test('OpenTelemetryMiddleware', async t => {
     await runOk(mw, createContext())
     t.equal(exporter.getFinishedSpans().length, 0)
   })
+
+  async function captureQuerySpan (params: Partial<TransportRequestParams>, options: any = {}, transportOptions: any = { enabled: true, captureSearchQuery: true }): Promise<any> {
+    const mw = new OpenTelemetryMiddleware(transportOptions)
+    await runOk(mw, createContext(params, options))
+    const spans = exporter.getFinishedSpans()
+    return spans[spans.length - 1]
+  }
+
+  await t.test('captures sanitized db.query.text for a DSL search body', async t => {
+    const span = await captureQuerySpan({ method: 'POST', meta: { name: 'search' }, body: { query: { match: { title: 'elasticsearch' } } } })
+    t.equal(span.attributes['db.query.text'], '{"query":{"match":{"title":"?"}}}')
+  })
+
+  await t.test('captures sanitized db.query.text from an NDJSON bulkBody', async t => {
+    const span = await captureQuerySpan({
+      method: 'POST',
+      meta: { name: 'msearch' },
+      bulkBody: [{ index: 'my-index' }, { query: { match_all: {} } }]
+    })
+    t.equal(span.attributes['db.query.text'], '{"index":"my-index"}\n{"query":{"match_all":{}}}\n')
+  })
+
+  await t.test('captures db.query.text for parameterized string-query endpoints', async t => {
+    const span = await captureQuerySpan({ method: 'POST', meta: { name: 'esql.query' }, body: { query: 'FROM logs | WHERE host == ?' } })
+    t.equal(span.attributes['db.query.text'], 'FROM logs | WHERE host == ?')
+  })
+
+  await t.test('omits db.query.text for non-parameterized string queries', async t => {
+    const span = await captureQuerySpan({ method: 'POST', meta: { name: 'esql.query' }, body: { query: 'FROM logs | WHERE host == "a"' } })
+    t.equal(span.attributes['db.query.text'], undefined)
+  })
+
+  await t.test('omits db.query.text for empty, null and stream bodies', async t => {
+    t.equal((await captureQuerySpan({ method: 'POST', meta: { name: 'search' }, body: '' })).attributes['db.query.text'], undefined, 'empty string')
+    t.equal((await captureQuerySpan({ method: 'POST', meta: { name: 'search' } })).attributes['db.query.text'], undefined, 'no body')
+    t.equal((await captureQuerySpan({ method: 'POST', meta: { name: 'search' }, body: { pipe () {} } as any })).attributes['db.query.text'], undefined, 'stream body')
+  })
+
+  await t.test('omits db.query.text for non-search endpoints', async t => {
+    const span = await captureQuerySpan({ method: 'PUT', meta: { name: 'index' }, body: { title: 'doc' } })
+    t.equal(span.attributes['db.query.text'], undefined)
+  })
+
+  await t.test('omits db.query.text when captureSearchQuery is not configured', async t => {
+    const span = await captureQuerySpan({ method: 'POST', meta: { name: 'search' }, body: { query: { match_all: {} } } }, {}, { enabled: true })
+    t.equal(span.attributes['db.query.text'], undefined)
+  })
+
+  await t.test('omits db.query.text when captureSearchQuery is false', async t => {
+    const span = await captureQuerySpan({ method: 'POST', meta: { name: 'search' }, body: { query: { match_all: {} } } }, {}, { enabled: true, captureSearchQuery: false })
+    t.equal(span.attributes['db.query.text'], undefined)
+  })
+
+  await t.test('per-request captureSearchQuery: false suppresses capture', async t => {
+    const span = await captureQuerySpan(
+      { method: 'POST', meta: { name: 'search' }, body: { query: { match_all: {} } } },
+      { openTelemetry: { captureSearchQuery: false } }
+    )
+    t.equal(span.attributes['db.query.text'], undefined)
+  })
+
+  await t.test('per-request captureSearchQuery: true enables capture when transport default is false', async t => {
+    const span = await captureQuerySpan(
+      { method: 'POST', meta: { name: 'search' }, body: { query: { match_all: {} } } },
+      { openTelemetry: { captureSearchQuery: true } },
+      { enabled: true, captureSearchQuery: false }
+    )
+    t.equal(span.attributes['db.query.text'], '{"query":{"match_all":{}}}')
+  })
+
+  await t.test('truncates db.query.text to the maximum length', async t => {
+    const body: Record<string, string> = {}
+    for (let i = 0; i < 400; i++) body[`k${i}`] = `v${i}`
+    const span = await captureQuerySpan({ method: 'POST', meta: { name: 'search' }, body })
+    t.equal((span.attributes['db.query.text'] as string).length, 2048)
+  })
 })
