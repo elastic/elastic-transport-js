@@ -62,7 +62,7 @@ safe-outputs:
     title-prefix: ""
     labels: [backport]
     allowed-base-branches:
-      - "[0-9]*"
+      - "*"
   env:
     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 network:
