@@ -107,7 +107,7 @@ export default class Connection extends BaseConnection {
       undiciOptions.connect = this.tls as buildConnector.BuildOptions
     }
 
-    this.pool = new Pool(this.url.toString(), undiciOptions)
+    this.pool = new Pool(this.url.origin, undiciOptions)
   }
 
   async request (params: ConnectionRequestParams, options: ConnectionRequestOptions): Promise<ConnectionRequestResponse>
@@ -115,9 +115,10 @@ export default class Connection extends BaseConnection {
   async request (params: ConnectionRequestParams, options: any): Promise<any> {
     const maxResponseSize = options.maxResponseSize ?? MAX_STRING_LENGTH
     const maxCompressedResponseSize = options.maxCompressedResponseSize ?? MAX_BUFFER_LENGTH
+    const pathPrefix = this.url.pathname === '/' ? '' : this.url.pathname.replace(/\/$/, '')
     const requestParams = {
       method: params.method,
-      path: params.path + (params.querystring == null || params.querystring === '' ? '' : `?${params.querystring}`),
+      path: pathPrefix + params.path + (params.querystring == null || params.querystring === '' ? '' : `?${params.querystring}`),
       headers: Object.assign({}, this.headers, params.headers),
       body: params.body,
       signal: options.signal ?? new AbortController().signal
