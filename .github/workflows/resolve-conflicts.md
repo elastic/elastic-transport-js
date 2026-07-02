@@ -63,8 +63,7 @@ safe-outputs:
     labels: [backport]
     allowed-base-branches:
       - "*"
-    allowed-files:
-      - "**"
+    protected-files: fallback-to-issue
   env:
     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 network:
