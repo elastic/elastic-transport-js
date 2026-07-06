@@ -32,20 +32,19 @@ jobs:
         run: |
           npm install
 
-      - name: Enable WebCrypto global for Node 18
-        if: matrix.node-version == '18.x'
-        shell: bash
-        run: echo "NODE_OPTIONS=--experimental-global-webcrypto" >> $GITHUB_ENV
-
       - name: Lint
         run: |
           npm run lint
 
       - name: Unit test
+        env:
+          NODE_OPTIONS: ${{ matrix.node-version == '18.x' && '--experimental-global-webcrypto' || '' }}
         run: |
           npm run test:unit
 
       - name: Acceptance test
+        env:
+          NODE_OPTIONS: ${{ matrix.node-version == '18.x' && '--experimental-global-webcrypto' || '' }}
         run: |
           npm run test:acceptance
 
@@ -92,12 +91,9 @@ jobs:
           npm install
           npm install ../transport --install-links
 
-      - name: Enable WebCrypto global for Node 18
-        if: matrix.node-version == '18.x'
-        shell: bash
-        run: echo "NODE_OPTIONS=--experimental-global-webcrypto" >> $GITHUB_ENV
-
       - name: Unit test
+        env:
+          NODE_OPTIONS: ${{ matrix.node-version == '18.x' && '--experimental-global-webcrypto' || '' }}
         run: |
           cd "$GITHUB_WORKSPACE/client"
           npm run test:unit
