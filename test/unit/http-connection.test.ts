@@ -1127,6 +1127,121 @@ test('Connection closed while sending the request body as string (EPIPE)', async
   server.stop()
 })
 
+// Regression: HAProxy-style early 414 + RST while large bodies are still writing, under
+// keep-alive parallelism. Previously this could raise uncaughtException write EPIPE
+// (WriteWrap.onWriteComplete) and crash the process even though request.on('error') was set.
+test('Peer reset mid-write under keep-alive parallelism should not uncaughtException', async t => {
+  t.plan(2)
+
+  const haproxy414 =
+    'HTTP/1.1 414 URI Too Long\r\n' +
+    'Content-length: 110\r\n' +
+    'Cache-Control: no-cache\r\n' +
+    'Content-Type: text/html\r\n' +
+    '\r\n' +
+    '<html><body><h1>414 URI Too Long</h1>\n' +
+    'The URI provided was too long for the server to process.\n' +
+    '</body></html>\n'
+
+  let uncaughtEpipe = false
+  const onUncaught = (err: Error & { code?: string }): void => {
+    if (err.code === 'EPIPE' || /write EPIPE/.test(err.message)) {
+      uncaughtEpipe = true
+    }
+  }
+  process.on('uncaughtException', onUncaught)
+
+  const server = net.createServer(sock => {
+    sock.once('data', () => {
+      sock.write(haproxy414)
+      sock.destroy()
+    })
+  })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', () => resolve()))
+  const { port } = server.address() as net.AddressInfo
+
+  const agent = new Agent({ keepAlive: true, maxSockets: 1, maxFreeSockets: 1 })
+  const connection = new HttpConnection({
+    url: new URL(`http://127.0.0.1:${port}`),
+    agent
+  })
+
+  await Promise.allSettled(
+    Array.from({ length: 32 }, (_, i) =>
+      connection.request({
+        path: '/_resolve/index/' + 'a'.repeat(100000) + String(i),
+        method: 'POST',
+        body: 'x'.repeat(5_000_000)
+      }, { ...options, requestId: i })
+    )
+  )
+  await setTimeout(300)
+
+  process.removeListener('uncaughtException', onUncaught)
+  t.equal(uncaughtEpipe, false, 'should not raise uncaught write EPIPE')
+
+  await connection.close()
+  agent.destroy()
+  await new Promise<void>((resolve, reject) => {
+    server.close(err => err != null ? reject(err) : resolve())
+  })
+  t.pass('cleaned up')
+})
+
+// Keep-alive poison: peer sends 200 then RSTs the pooled socket. The next request's
+// write can EPIPE; http.Agent may have removed prior socket error listeners on reuse.
+test('Keep-alive socket destroyed after successful response should not uncaughtException', { todo: 'residual: afterWriteDispatched EPIPE after 200+keep-alive peer destroy bypasses socket error listeners' }, async t => {
+  t.plan(2)
+
+  let uncaughtEpipe = false
+  const onUncaught = (err: Error & { code?: string }): void => {
+    if (err.code === 'EPIPE' || /EPIPE/.test(err.message)) {
+      uncaughtEpipe = true
+    }
+  }
+  process.on('uncaughtException', onUncaught)
+
+  const server = net.createServer(sock => {
+    let buf = ''
+    sock.on('data', c => {
+      buf += c.toString('latin1')
+      if (buf.includes('\r\n\r\n')) {
+        sock.write('HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: keep-alive\r\n\r\nok')
+        setTimeout(() => sock.destroy(), 2)
+      }
+    })
+  })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', () => resolve()))
+  const { port } = server.address() as net.AddressInfo
+
+  const agent = new Agent({ keepAlive: true, maxSockets: 1, maxFreeSockets: 1 })
+  const connection = new HttpConnection({
+    url: new URL(`http://127.0.0.1:${port}`),
+    agent
+  })
+
+  await Promise.allSettled(
+    Array.from({ length: 32 }, (_, i) =>
+      connection.request({
+        path: '/hello' + String(i),
+        method: 'POST',
+        body: 'x'.repeat(5_000_000)
+      }, { ...options, requestId: i })
+    )
+  )
+  await setTimeout(300)
+
+  process.removeListener('uncaughtException', onUncaught)
+  t.equal(uncaughtEpipe, false, 'should not raise uncaught EPIPE after keep-alive poison')
+
+  await connection.close()
+  agent.destroy()
+  await new Promise<void>((resolve, reject) => {
+    server.close(err => err != null ? reject(err) : resolve())
+  })
+  t.pass('cleaned up')
+})
+
 test('Compressed response should return a buffer as body (gzip)', async t => {
   t.plan(2)
 
