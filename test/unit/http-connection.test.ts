@@ -1152,6 +1152,9 @@ test('Peer reset mid-write under keep-alive parallelism should not uncaughtExcep
   process.on('uncaughtException', onUncaught)
 
   const server = net.createServer(sock => {
+    // Synthetic peer runs in-process; absorb its own write errors so they are not
+    // mistaken for client uncaughtException.
+    sock.on('error', () => {})
     sock.once('data', () => {
       sock.write(haproxy414)
       sock.destroy()
@@ -1188,9 +1191,9 @@ test('Peer reset mid-write under keep-alive parallelism should not uncaughtExcep
   t.pass('cleaned up')
 })
 
-// Keep-alive poison: peer sends 200 then RSTs the pooled socket. The next request's
-// write can EPIPE; http.Agent may have removed prior socket error listeners on reuse.
-test('Keep-alive socket destroyed after successful response should not uncaughtException', { todo: 'residual: afterWriteDispatched EPIPE after 200+keep-alive peer destroy bypasses socket error listeners' }, async t => {
+// Keep-alive poison: peer sends 200 then RSTs the pooled socket. Requests must fail as
+// handled ConnectionError, never as process-level uncaughtException.
+test('Keep-alive socket destroyed after successful response should not uncaughtException', async t => {
   t.plan(2)
 
   let uncaughtEpipe = false
@@ -1202,6 +1205,9 @@ test('Keep-alive socket destroyed after successful response should not uncaughtE
   process.on('uncaughtException', onUncaught)
 
   const server = net.createServer(sock => {
+    // Synthetic peer runs in-process; absorb its own write errors so they are not
+    // mistaken for client uncaughtException.
+    sock.on('error', () => {})
     let buf = ''
     sock.on('data', c => {
       buf += c.toString('latin1')
