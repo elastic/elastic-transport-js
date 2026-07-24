@@ -1078,9 +1078,7 @@ test('Connection closed while sending the request body as stream (EPIPE)', async
       err.message === 'Connection closed while reading the body' ||
         err.message === 'Response aborted while reading the body' ||
         err.message.startsWith('write ECONNRESET - Local:') ||
-        err.message.startsWith('read ECONNRESET - Local:') ||
-        err.message.startsWith('write EPIPE - Local:') ||
-        /pathBytes=\d+/.test(err.message),
+        err.message.startsWith('read ECONNRESET - Local:'),
       `Unexpected error message: ${err.message}`
     )
   }
@@ -1121,9 +1119,7 @@ test('Connection closed while sending the request body as string (EPIPE)', async
       err.message === 'Connection closed while reading the body' ||
         err.message === 'Response aborted while reading the body' ||
         err.message.startsWith('write ECONNRESET - Local:') ||
-        err.message.startsWith('read ECONNRESET - Local:') ||
-        err.message.startsWith('write EPIPE - Local:') ||
-        /pathBytes=\d+/.test(err.message),
+        err.message.startsWith('read ECONNRESET - Local:'),
       `Unexpected error message: ${err.message}`
     )
   }
@@ -1408,40 +1404,6 @@ test('Should show local/remote socket address in case of ECONNRESET', async t =>
       t.match(err.message, /socket\shang\sup\s-\sLocal:\s::1:\d+,\sRemote:\s::1:\d+/)
     } else {
       t.match(err.message, /socket\shang\sup\s-\sLocal:\s127.0.0.1:\d+,\sRemote:\s127.0.0.1:\d+/)
-    }
-  }
-  server.stop()
-})
-
-test('Should enrich EPIPE ConnectionError with method and pathBytes when present', async t => {
-  t.plan(2)
-
-  // Close the socket while the client is still writing a large body so Node
-  // surfaces write EPIPE on the ClientRequest (handled → ConnectionError).
-  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
-    req.socket.destroy()
-  }
-
-  const [{ port }, server] = await buildServer(handler)
-  const connection = new HttpConnection({
-    url: new URL(`http://localhost:${port}`)
-  })
-  const longPath = '/_resolve/index/' + encodeURIComponent('idx,'.repeat(200))
-  try {
-    await connection.request({
-      path: longPath,
-      method: 'POST',
-      body: Buffer.alloc(256 * 1024)
-    }, options)
-    t.fail('should throw')
-  } catch (err: any) {
-    t.ok(err instanceof ConnectionError)
-    // Depending on timing/OS this may be EPIPE or ECONNRESET; both should carry socket info.
-    // When it is EPIPE, pathBytes must be present for triage.
-    if (err.message.includes('EPIPE') || /pathBytes=/.test(err.message)) {
-      t.match(err.message, /pathBytes=\d+/)
-    } else {
-      t.match(err.message, /Local:.*Remote:/)
     }
   }
   server.stop()

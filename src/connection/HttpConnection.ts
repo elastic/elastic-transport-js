@@ -32,7 +32,6 @@ import {
 } from '../errors'
 import { setTimeout } from 'node:timers/promises'
 import { HttpAgentOptions } from '../types'
-import { enrichSocketErrorMessage } from './enrichSocketErrorMessage'
 
 const debug = Debug('elasticsearch')
 const INVALID_PATH_REGEX = /[^\u0021-\u00ff]/
@@ -230,7 +229,7 @@ export default class HttpConnection extends BaseConnection {
 
       const onError = (err: Error): void => {
         // @ts-expect-error
-        const { name, message, code } = err
+        let { name, message, code } = err
 
         // ignore this error, it means we got a response body for a request that didn't expect a body (e.g. HEAD)
         // rather than failing, let it return a response with an empty string as body
@@ -241,10 +240,10 @@ export default class HttpConnection extends BaseConnection {
           return reject(err)
         }
 
-        // ECONNRESET / EPIPE: keep the original syscall message and add socket + request
-        // path metadata so oversized URIs (e.g. resolveIndex) are diagnosable.
-        if (code === 'ECONNRESET' || code === 'EPIPE') {
-          return reject(new ConnectionError(enrichSocketErrorMessage(err, request, requestParams)))
+        if (code === 'ECONNRESET') {
+          message += ` - Local: ${request.socket?.localAddress ?? 'unknown'}:${request.socket?.localPort ?? 'unknown'}, Remote: ${request.socket?.remoteAddress ?? 'unknown'}:${request.socket?.remotePort ?? 'unknown'}`
+        } else if (code === 'EPIPE') {
+          message = 'Response aborted while reading the body'
         }
         return reject(new ConnectionError(message))
       }
