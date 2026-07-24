@@ -27,11 +27,6 @@ export const kJsonOptions = Symbol('secure json parse options')
 export const kStatus = Symbol('status')
 export const kProductCheck = Symbol('product check')
 export const kCaFingerprint = Symbol('ca fingerprint')
-/**
- * Marks sockets that already have our no-op error listener attached.
- * Prevents uncaughtException from late write EPIPE/ECONNRESET under keep-alive reuse.
- */
-export const kSocketErrorHandler = Symbol('socket error handler')
 export const kMaxResponseSize = Symbol('max response size')
 export const kMaxCompressedResponseSize = Symbol('max compressed response size')
 export const kJsonContentType = Symbol('json content type')

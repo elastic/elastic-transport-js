@@ -22,7 +22,7 @@ import BaseConnection, {
   isCaFingerprintMatch,
   isBinary
 } from './BaseConnection'
-import { kCaFingerprint, kSocketErrorHandler } from '../symbols'
+import { kCaFingerprint } from '../symbols'
 import { Readable as ReadableStream, pipeline } from 'node:stream'
 import {
   ConfigurationError,
@@ -262,8 +262,6 @@ export default class HttpConnection extends BaseConnection {
         // ConnectionError handling.
         if (!socket.listeners('error').includes(noop)) {
           socket.on('error', noop)
-          // @ts-expect-error
-          socket[kSocketErrorHandler] = true
         }
 
         if (this[kCaFingerprint] != null && requestParams.protocol === 'https:') {

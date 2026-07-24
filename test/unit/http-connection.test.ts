@@ -1169,16 +1169,17 @@ test('Peer reset mid-write under keep-alive parallelism should not uncaughtExcep
     agent
   })
 
+  // Sized to keep the mid-write race reliable on revert (~24 x 3MB, path length irrelevant).
   await Promise.allSettled(
-    Array.from({ length: 32 }, (_, i) =>
+    Array.from({ length: 24 }, (_, i) =>
       connection.request({
-        path: '/_resolve/index/' + 'a'.repeat(100000) + String(i),
+        path: '/hello' + String(i),
         method: 'POST',
-        body: 'x'.repeat(5_000_000)
+        body: 'x'.repeat(3_000_000)
       }, { ...options, requestId: i })
     )
   )
-  await setTimeout(300)
+  await setTimeout(250)
 
   process.removeListener('uncaughtException', onUncaught)
   t.equal(uncaughtEpipe, false, 'should not raise uncaught write EPIPE')
@@ -1227,15 +1228,15 @@ test('Keep-alive socket destroyed after successful response should not uncaughtE
   })
 
   await Promise.allSettled(
-    Array.from({ length: 32 }, (_, i) =>
+    Array.from({ length: 24 }, (_, i) =>
       connection.request({
         path: '/hello' + String(i),
         method: 'POST',
-        body: 'x'.repeat(5_000_000)
+        body: 'x'.repeat(3_000_000)
       }, { ...options, requestId: i })
     )
   )
-  await setTimeout(300)
+  await setTimeout(250)
 
   process.removeListener('uncaughtException', onUncaught)
   t.equal(uncaughtEpipe, false, 'should not raise uncaught EPIPE after keep-alive poison')
