@@ -236,6 +236,9 @@ export default class HttpConnection extends BaseConnection {
         if (code === 'HPE_INVALID_CONSTANT' && message.startsWith('Parse Error: Expected HTTP/')) return
 
         cleanListeners()
+        // Absorb follow-up socket/request errors from in-flight writes after the peer resets.
+        // Without this, a second write EPIPE can surface as uncaughtException.
+        request.once('error', noop)
         if (name === 'RequestAbortedError') {
           return reject(err)
         }
@@ -249,25 +252,39 @@ export default class HttpConnection extends BaseConnection {
       }
 
       const onSocket = (socket: TLSSocket): void => {
-        /* istanbul ignore else */
-        if (!socket.isSessionReused()) {
-          socket.once('secureConnect', () => {
-            const issuerCertificate = getIssuerCertificate(socket)
-            /* istanbul ignore next */
-            if (issuerCertificate == null) {
-              onError(new Error('Invalid or malformed certificate'))
-              request.once('error', noop) // we need to catch the request aborted error
-              return request.destroy()
-            }
+        // Ensure the socket has our error listener whenever it is assigned to a request.
+        // Node can emit write EPIPE/ECONNRESET on the socket after ClientRequest has
+        // detached under keep-alive reuse; with no listener that becomes an
+        // uncaughtException (process crash). http.Agent may also remove 'error'
+        // listeners when pooling/reusing sockets, so re-attach on every assignment
+        // (idempotent via the shared noop reference).
+        // ClientRequest still receives errors via its own listener for normal
+        // ConnectionError handling.
+        if (!socket.listeners('error').includes(noop)) {
+          socket.on('error', noop)
+        }
 
-            // Check if fingerprint matches
-            /* istanbul ignore else */
-            if (!isCaFingerprintMatch(this[kCaFingerprint], issuerCertificate.fingerprint256)) {
-              onError(new Error('Server certificate CA fingerprint does not match the value configured in caFingerprint'))
-              request.once('error', noop) // we need to catch the request aborted error
-              return request.destroy()
-            }
-          })
+        if (this[kCaFingerprint] != null && requestParams.protocol === 'https:') {
+          /* istanbul ignore else */
+          if (!socket.isSessionReused()) {
+            socket.once('secureConnect', () => {
+              const issuerCertificate = getIssuerCertificate(socket)
+              /* istanbul ignore next */
+              if (issuerCertificate == null) {
+                onError(new Error('Invalid or malformed certificate'))
+                request.once('error', noop) // we need to catch the request aborted error
+                return request.destroy()
+              }
+
+              // Check if fingerprint matches
+              /* istanbul ignore else */
+              if (!isCaFingerprintMatch(this[kCaFingerprint], issuerCertificate.fingerprint256)) {
+                onError(new Error('Server certificate CA fingerprint does not match the value configured in caFingerprint'))
+                request.once('error', noop) // we need to catch the request aborted error
+                return request.destroy()
+              }
+            })
+          }
         }
       }
 
@@ -308,8 +325,11 @@ export default class HttpConnection extends BaseConnection {
       request.on('timeout', onTimeout)
       request.on('error', onError)
       request.on('finish', onFinish)
-      if (this[kCaFingerprint] != null && requestParams.protocol === 'https:') {
-        request.on('socket', onSocket)
+      request.on('socket', onSocket)
+      // keep-alive reuse may assign the socket synchronously inside makeRequest(),
+      // emitting 'socket' before we attach the listener — handle that case.
+      if (request.socket != null) {
+        onSocket(request.socket as TLSSocket)
       }
 
       // Disables the Nagle algorithm
