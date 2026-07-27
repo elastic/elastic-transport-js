@@ -4,6 +4,7 @@
  */
 
 import { test } from 'tap'
+import { setTimeout } from 'timers/promises'
 import { URL } from 'url'
 import * as http from 'http'
 import { Agent } from 'http'
