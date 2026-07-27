@@ -4,7 +4,6 @@
  */
 
 import { test } from 'tap'
-import { setTimeout } from 'timers/promises'
 import { URL } from 'url'
 import * as http from 'http'
 import { Agent } from 'http'
@@ -1068,7 +1067,7 @@ test('Peer reset mid-write under keep-alive parallelism should not uncaughtExcep
       }, { ...options, requestId: i })
     )
   )
-  await setTimeout(250)
+  await new Promise(resolve => setTimeout(resolve, 250))
 
   process.removeListener('uncaughtException', onUncaught)
   t.equal(uncaughtEpipe, false, 'should not raise uncaught write EPIPE')
@@ -1125,7 +1124,7 @@ test('Keep-alive socket destroyed after successful response should not uncaughtE
       }, { ...options, requestId: i })
     )
   )
-  await setTimeout(250)
+  await new Promise(resolve => setTimeout(resolve, 250))
 
   process.removeListener('uncaughtException', onUncaught)
   t.equal(uncaughtEpipe, false, 'should not raise uncaught EPIPE after keep-alive poison')
