@@ -2440,24 +2440,24 @@ test('Should throw on bad maxCompressedResponseSize', t => {
   t.end()
 })
 
-test('Should throw on bad maxUrlLength', t => {
+test('Should throw on bad maxPathLength', t => {
   const pool = new WeightedConnectionPool({ Connection: UndiciConnection })
   pool.addConnection('http://localhost:9200')
 
   try {
     new Transport({ // eslint-disable-line
       connectionPool: pool,
-      maxUrlLength: 0
+      maxPathLength: 0
     })
     t.fail('Should throw')
   } catch (err: any) {
     t.ok(err instanceof ConfigurationError)
-    t.equal(err.message, 'The maxUrlLength option must be a positive integer')
+    t.equal(err.message, 'The maxPathLength option must be a positive integer')
   }
   t.end()
 })
 
-test('maxUrlLength constructor option rejects oversized path', async t => {
+test('maxPathLength constructor option rejects oversized path', async t => {
   t.plan(3)
   let called = false
   const Conn = buildMockConnection({
@@ -2472,7 +2472,7 @@ test('maxUrlLength constructor option rejects oversized path', async t => {
 
   const transport = new Transport({
     connectionPool: pool,
-    maxUrlLength: 20
+    maxPathLength: 20
   })
 
   try {
@@ -2483,12 +2483,12 @@ test('maxUrlLength constructor option rejects oversized path', async t => {
     t.fail('Should throw')
   } catch (err: any) {
     t.ok(err instanceof ConfigurationError)
-    t.match(err.message, /exceeds maxUrlLength \(20\)/)
+    t.match(err.message, /exceeds maxPathLength \(20\)/)
     t.equal(called, false)
   }
 })
 
-test('maxUrlLength includes querystring bytes', async t => {
+test('maxPathLength includes querystring bytes', async t => {
   t.plan(2)
   const Conn = buildMockConnection({
     onRequest (): { body: any, statusCode: number } {
@@ -2502,7 +2502,7 @@ test('maxUrlLength includes querystring bytes', async t => {
 
   const transport = new Transport({
     connectionPool: pool,
-    maxUrlLength: 30
+    maxPathLength: 30
   })
 
   try {
@@ -2514,11 +2514,11 @@ test('maxUrlLength includes querystring bytes', async t => {
     t.fail('Should throw')
   } catch (err: any) {
     t.ok(err instanceof ConfigurationError)
-    t.match(err.message, /exceeds maxUrlLength \(30\)/)
+    t.match(err.message, /exceeds maxPathLength \(30\)/)
   }
 })
 
-test('maxUrlLength request option overrides constructor', async t => {
+test('maxPathLength request option overrides constructor', async t => {
   t.plan(1)
   const Conn = buildMockConnection({
     onRequest (): { body: any, statusCode: number } {
@@ -2531,18 +2531,18 @@ test('maxUrlLength request option overrides constructor', async t => {
 
   const transport = new Transport({
     connectionPool: pool,
-    maxUrlLength: 10
+    maxPathLength: 10
   })
 
   // Path exceeds constructor limit but request option disables the check
   const body = await transport.request({
     method: 'GET',
     path: '/this/path/is/too/long'
-  }, { maxUrlLength: null })
+  }, { maxPathLength: null })
   t.same(body, {})
 })
 
-test('maxUrlLength allows requests within the limit', async t => {
+test('maxPathLength allows requests within the limit', async t => {
   t.plan(1)
   const Conn = buildMockConnection({
     onRequest (): { body: any, statusCode: number } {
@@ -2555,7 +2555,7 @@ test('maxUrlLength allows requests within the limit', async t => {
 
   const transport = new Transport({
     connectionPool: pool,
-    maxUrlLength: 100
+    maxPathLength: 100
   })
 
   const body = await transport.request({
