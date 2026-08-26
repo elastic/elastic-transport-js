@@ -60,6 +60,7 @@ import {
   kProductCheck,
   kMaxResponseSize,
   kMaxCompressedResponseSize,
+  kMaxPathLength,
   kJsonContentType,
   kNdjsonContentType,
   kAcceptHeader,
@@ -107,6 +108,15 @@ export interface TransportOptions {
   productCheck?: string
   maxResponseSize?: number
   maxCompressedResponseSize?: number
+  /**
+   * Maximum allowed byte length of the request path (`path` + optional `?querystring`).
+   * Does not include scheme or hostname — those are not part of the HTTP request-target
+   * in origin-form (as used by Kibana/HttpConnection). When exceeded, the request is
+   * rejected with a `ConfigurationError` before it is sent.
+   * Aligns with Elasticsearch's `http.max_initial_line_length` (default 4kb); leave headroom
+   * for the HTTP method and version on the wire. Disabled when unset.
+   */
+  maxPathLength?: number | null
   vendoredHeaders?: {
     jsonContentType?: string
     ndjsonContentType?: string
@@ -146,6 +156,10 @@ export interface TransportRequestOptions {
   signal?: AbortSignal
   maxResponseSize?: number
   maxCompressedResponseSize?: number
+  /**
+   * Per-request override for {@link TransportOptions.maxPathLength}.
+   */
+  maxPathLength?: number | null
   /**
     * Warning: If you set meta to true the result will no longer be
     * the response body, but an object containing the body, statusCode,
@@ -220,6 +234,7 @@ export default class Transport {
   [kProductCheck]: string | null
   [kMaxResponseSize]: number
   [kMaxCompressedResponseSize]: number
+  [kMaxPathLength]: number | null
   [kJsonContentType]: string
   [kNdjsonContentType]: string
   [kAcceptHeader]: string
@@ -257,6 +272,11 @@ export default class Transport {
       throw new ConfigurationError(`The maxCompressedResponseSize cannot be bigger than ${buffer.constants.MAX_LENGTH}`)
     }
 
+    if (opts.maxPathLength != null &&
+        (!Number.isInteger(opts.maxPathLength) || opts.maxPathLength < 1)) {
+      throw new ConfigurationError('The maxPathLength option must be a positive integer')
+    }
+
     this[kNodeFilter] = opts.nodeFilter ?? defaultNodeFilter
     this[kNodeSelector] = opts.nodeSelector ?? roundRobinSelector()
     this[kHeaders] = Object.assign({},
@@ -284,6 +304,7 @@ export default class Transport {
     this[kProductCheck] = opts.productCheck ?? null
     this[kMaxResponseSize] = opts.maxResponseSize ?? buffer.constants.MAX_STRING_LENGTH
     this[kMaxCompressedResponseSize] = opts.maxCompressedResponseSize ?? buffer.constants.MAX_LENGTH
+    this[kMaxPathLength] = opts.maxPathLength ?? null
     this[kJsonContentType] = opts.vendoredHeaders?.jsonContentType ?? 'application/json'
     this[kNdjsonContentType] = opts.vendoredHeaders?.ndjsonContentType ?? 'application/x-ndjson'
     this[kAcceptHeader] = opts.vendoredHeaders?.accept ?? 'application/json, text/plain'
@@ -460,6 +481,27 @@ export default class Transport {
       connectionParams.querystring = this[kSerializer].qserialize(
         Object.assign({}, params.querystring, options.querystring)
       )
+    }
+
+    const maxPathLength = options.maxPathLength !== undefined
+      ? options.maxPathLength
+      : this[kMaxPathLength]
+    if (maxPathLength != null) {
+      const query = connectionParams.querystring
+      const pathBytes = Buffer.byteLength(connectionParams.path) +
+        (query != null && query !== '' ? 1 + Buffer.byteLength(query) : 0)
+      if (pathBytes > maxPathLength) {
+        const pathPreview = connectionParams.path.length > 200
+          ? `${connectionParams.path.slice(0, 200)}...`
+          : connectionParams.path
+        const err = new ConfigurationError(
+          `The request path is ${pathBytes} bytes, which exceeds maxPathLength (${maxPathLength}). ` +
+          'Elasticsearch rejects HTTP initial lines larger than http.max_initial_line_length (default 4kb). ' +
+          `path=${pathPreview}`
+        )
+        this[kDiagnostic].emit('request', err, result)
+        throw err
+      }
     }
 
     // handle compression
