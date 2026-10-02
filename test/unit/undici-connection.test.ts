@@ -306,6 +306,26 @@ test('Should concatenate the querystring', async t => {
   server.stop()
 })
 
+test('Node URL with path prefix', async t => {
+  t.plan(1)
+
+  function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+    t.equal(req.url, '/elastic/_search')
+    res.end('ok')
+  }
+
+  const [{ port }, server] = await buildServer(handler)
+  const connection = new UndiciConnection({
+    url: new URL(`http://localhost:${port}/elastic/`)
+  })
+
+  await connection.request({
+    path: '/_search',
+    method: 'GET'
+  }, options)
+  server.stop()
+})
+
 test('Body request', async t => {
   t.plan(1)
 

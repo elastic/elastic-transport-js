@@ -12,11 +12,11 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
           ref: ${{ github.event.inputs.branch }}
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "20.x"
           registry-url: "https://registry.npmjs.org"
@@ -46,7 +46,7 @@ jobs:
           fi
       - name: Fetch ephemeral GitHub token
         id: fetch-token
-        uses: elastic/ci-gh-actions/fetch-github-token@2feb1c6f5086cf8e06f61ef35e275abed3456f7b # v1.5.3
+        uses: elastic/ci-gh-actions/fetch-github-token@f1837d5894f688eb909c1d777aaaf2f1df705cef # v1.5.4
         with:
           vault-instance: "ci-prod"
       - name: Publish version on GitHub

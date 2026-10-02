@@ -61,6 +61,9 @@ safe-outputs:
   create-pull-request:
     title-prefix: ""
     labels: [backport]
+    allowed-base-branches:
+      - "*"
+    protected-files: fallback-to-issue
   env:
     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 network:
