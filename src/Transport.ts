@@ -251,21 +251,11 @@ export default class Transport {
       throw new ConfigurationError('The Connection Pool option is not defined')
     }
 
-    if (typeof opts.maxRetries === 'number' && opts.maxRetries < 0 && Number.isInteger(opts.maxRetries)) {
-      throw new ConfigurationError('The maxRetries option must be a positive integer or zero')
-    }
+    validateOptions(opts)
 
     if (opts.sniffInterval === true ||
        (typeof opts.sniffInterval === 'number' && opts.sniffInterval < 0 && Number.isInteger(opts.sniffInterval))) {
       throw new ConfigurationError('The sniffInterval option must be false or a positive integer')
-    }
-
-    if (opts.maxResponseSize != null && opts.maxResponseSize > buffer.constants.MAX_STRING_LENGTH) {
-      throw new ConfigurationError(`The maxResponseSize cannot be bigger than ${buffer.constants.MAX_STRING_LENGTH}`)
-    }
-
-    if (opts.maxCompressedResponseSize != null && opts.maxCompressedResponseSize > buffer.constants.MAX_LENGTH) {
-      throw new ConfigurationError(`The maxCompressedResponseSize cannot be bigger than ${buffer.constants.MAX_LENGTH}`)
     }
 
     if (opts.maxPathLength != null &&
@@ -375,6 +365,8 @@ export default class Transport {
   async request<TResponse = unknown, TContext = any> (params: TransportRequestParams, options?: TransportRequestOptionsWithMeta): Promise<TransportResult<TResponse, TContext>>
   async request<TResponse = unknown> (params: TransportRequestParams, options?: TransportRequestOptions): Promise<TResponse>
   async request (params: TransportRequestParams, options: TransportRequestOptions = {}): Promise<any> {
+    validateOptions(options)
+
     const connectionParams: ConnectionRequestParams = {
       method: params.method,
       path: params.path
@@ -793,6 +785,20 @@ export default class Transport {
 
   /* istanbul ignore next */
   sniff (opts: SniffOptions): void {}
+}
+
+function validateOptions (opts: Pick<TransportOptions, 'maxRetries' | 'maxResponseSize' | 'maxCompressedResponseSize'>): void {
+  if (opts.maxRetries != null && (!Number.isInteger(opts.maxRetries) || opts.maxRetries < 0)) {
+    throw new ConfigurationError('The maxRetries option must be a positive integer or zero')
+  }
+
+  if (opts.maxResponseSize != null && opts.maxResponseSize > buffer.constants.MAX_STRING_LENGTH) {
+    throw new ConfigurationError(`The maxResponseSize cannot be bigger than ${buffer.constants.MAX_STRING_LENGTH}`)
+  }
+
+  if (opts.maxCompressedResponseSize != null && opts.maxCompressedResponseSize > buffer.constants.MAX_LENGTH) {
+    throw new ConfigurationError(`The maxCompressedResponseSize cannot be bigger than ${buffer.constants.MAX_LENGTH}`)
+  }
 }
 
 function toMs (time: number | string): number {

@@ -1919,6 +1919,37 @@ test('Negative maxRetries is not valid', t => {
   }
 })
 
+test('Invalid shared options are rejected in the constructor and per request', async t => {
+  const invalidOptions: Array<{ options: TransportRequestOptions, message: string }> = [
+    ...[-1, -0.5, 0.5, NaN, Infinity, 'foo'].map(maxRetries => ({
+      options: { maxRetries } as TransportRequestOptions,
+      message: 'The maxRetries option must be a positive integer or zero'
+    })),
+    {
+      options: { maxResponseSize: buffer.constants.MAX_STRING_LENGTH + 1 },
+      message: `The maxResponseSize cannot be bigger than ${buffer.constants.MAX_STRING_LENGTH}`
+    },
+    {
+      options: { maxCompressedResponseSize: buffer.constants.MAX_LENGTH + 1 },
+      message: `The maxCompressedResponseSize cannot be bigger than ${buffer.constants.MAX_LENGTH}`
+    }
+  ]
+
+  for (const { options, message } of invalidOptions) {
+    await t.test(message + ': ' + JSON.stringify(options), async t => {
+      // An empty pool also verifies that validation happens before selecting a connection.
+      const pool = new WeightedConnectionPool({ Connection: MockConnection })
+      t.throws(() => new Transport({ connectionPool: pool, ...options }), {
+        name: 'ConfigurationError', message
+      })
+      const transport = new Transport({ connectionPool: pool })
+      await t.rejects(transport.request({ method: 'GET', path: '/' }, options), {
+        name: 'ConfigurationError', message
+      })
+    })
+  }
+})
+
 test('sniffInterval should be false or a positive integer', t => {
   t.plan(2)
   const pool = new WeightedConnectionPool({ Connection: MockConnection })
