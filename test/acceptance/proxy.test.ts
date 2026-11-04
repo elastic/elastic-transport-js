@@ -12,6 +12,7 @@ import {
   TestClient,
   buildProxy
 } from '../utils'
+import { HttpConnection, UndiciConnection } from '../..'
 
 const {
   createProxy,
@@ -20,138 +21,151 @@ const {
   createSecureServer
 } = buildProxy
 
-test('http-http proxy support', async t => {
-  const server = await createServer()
-  const proxy = await createProxy()
-  server.on('request', (req, res) => {
-    t.equal(req.url, '/_cluster/health')
-    res.setHeader('content-type', 'application/json')
-    res.setHeader('x-elastic-product', 'Elasticsearch')
-    res.end(JSON.stringify({ hello: 'world' }))
+const connections = [
+  { name: 'HttpConnection', Connection: HttpConnection },
+  { name: 'UndiciConnection', Connection: UndiciConnection }
+]
+
+for (const { name, Connection } of connections) {
+  test(`${name}: http-http proxy support`, async t => {
+    const server = await createServer()
+    const proxy = await createProxy()
+    server.on('request', (req, res) => {
+      t.equal(req.url, '/_cluster/health')
+      res.setHeader('content-type', 'application/json')
+      res.setHeader('x-elastic-product', 'Elasticsearch')
+      res.end(JSON.stringify({ hello: 'world' }))
+    })
+
+    const client = new TestClient({
+      Connection,
+      node: `http://${(server.address() as AddressInfo).address}:${(server.address() as AddressInfo).port}`,
+      proxy: `http://${(proxy.address() as AddressInfo).address}:${(proxy.address() as AddressInfo).port}`
+    })
+
+    const response = await client.request({ path: '/_cluster/health', method: 'GET' })
+    t.same(response, { hello: 'world' })
+
+    server.close()
+    proxy.close()
   })
 
-  const client = new TestClient({
-    node: `http://${(server.address() as AddressInfo).address}:${(server.address() as AddressInfo).port}`,
-    proxy: `http://${(proxy.address() as AddressInfo).address}:${(proxy.address() as AddressInfo).port}`
+  test(`${name}: http-https proxy support`, async t => {
+    const server = await createSecureServer()
+    const proxy = await createProxy()
+    server.on('request', (req, res) => {
+      t.equal(req.url, '/_cluster/health')
+      res.setHeader('content-type', 'application/json')
+      res.setHeader('x-elastic-product', 'Elasticsearch')
+      res.end(JSON.stringify({ hello: 'world' }))
+    })
+
+    const client = new TestClient({
+      Connection,
+      node: `https://localhost:${(server.address() as AddressInfo).port}`,
+      proxy: `http://${(proxy.address() as AddressInfo).address}:${(proxy.address() as AddressInfo).port}`
+    })
+
+    const response = await client.request({ path: '/_cluster/health', method: 'GET' })
+    t.same(response, { hello: 'world' })
+
+    server.close()
+    proxy.close()
   })
 
-  const response = await client.request({ path: '/_cluster/health', method: 'GET' })
-  t.same(response, { hello: 'world' })
+  test(`${name}: https-http proxy support`, async t => {
+    const server = await createServer()
+    const proxy = await createSecureProxy()
+    server.on('request', (req, res) => {
+      t.equal(req.url, '/_cluster/health')
+      res.setHeader('content-type', 'application/json')
+      res.setHeader('x-elastic-product', 'Elasticsearch')
+      res.end(JSON.stringify({ hello: 'world' }))
+    })
 
-  server.close()
-  proxy.close()
-})
+    const client = new TestClient({
+      Connection,
+      node: `http://${(server.address() as AddressInfo).address}:${(server.address() as AddressInfo).port}`,
+      proxy: `https://localhost:${(proxy.address() as AddressInfo).port}`
+    })
 
-test('http-https proxy support', async t => {
-  const server = await createSecureServer()
-  const proxy = await createProxy()
-  server.on('request', (req, res) => {
-    t.equal(req.url, '/_cluster/health')
-    res.setHeader('content-type', 'application/json')
-    res.setHeader('x-elastic-product', 'Elasticsearch')
-    res.end(JSON.stringify({ hello: 'world' }))
+    const response = await client.request({ path: '/_cluster/health', method: 'GET' })
+    t.same(response, { hello: 'world' })
+
+    server.close()
+    proxy.close()
   })
 
-  const client = new TestClient({
-    node: `https://localhost:${(server.address() as AddressInfo).port}`,
-    proxy: `http://${(proxy.address() as AddressInfo).address}:${(proxy.address() as AddressInfo).port}`
+  test(`${name}: https-https proxy support`, async t => {
+    const server = await createSecureServer()
+    const proxy = await createSecureProxy()
+    server.on('request', (req, res) => {
+      t.equal(req.url, '/_cluster/health')
+      res.setHeader('content-type', 'application/json')
+      res.setHeader('x-elastic-product', 'Elasticsearch')
+      res.end(JSON.stringify({ hello: 'world' }))
+    })
+
+    const client = new TestClient({
+      Connection,
+      node: `https://localhost:${(server.address() as AddressInfo).port}`,
+      proxy: `https://localhost:${(proxy.address() as AddressInfo).port}`
+    })
+
+    const response = await client.request({ path: '/_cluster/health', method: 'GET' })
+    t.same(response, { hello: 'world' })
+
+    server.close()
+    proxy.close()
   })
 
-  const response = await client.request({ path: '/_cluster/health', method: 'GET' })
-  t.same(response, { hello: 'world' })
+  test(`${name}: http basic authentication`, async t => {
+    const server = await createServer()
+    const proxy = await createProxy()
+    server.on('request', (req, res) => {
+      t.equal(req.url, '/_cluster/health')
+      res.setHeader('content-type', 'application/json')
+      res.setHeader('x-elastic-product', 'Elasticsearch')
+      res.end(JSON.stringify({ hello: 'world' }))
+    })
 
-  server.close()
-  proxy.close()
-})
+    proxy.authenticate = (req) => req.headers['proxy-authorization'] === `Basic ${Buffer.from('hello:world').toString('base64')}`
 
-test('https-http proxy support', async t => {
-  const server = await createServer()
-  const proxy = await createSecureProxy()
-  server.on('request', (req, res) => {
-    t.equal(req.url, '/_cluster/health')
-    res.setHeader('content-type', 'application/json')
-    res.setHeader('x-elastic-product', 'Elasticsearch')
-    res.end(JSON.stringify({ hello: 'world' }))
+    const client = new TestClient({
+      Connection,
+      node: `http://${(server.address() as AddressInfo).address}:${(server.address() as AddressInfo).port}`,
+      proxy: `http://hello:world@${(proxy.address() as AddressInfo).address}:${(proxy.address() as AddressInfo).port}`
+    })
+
+    const response = await client.request({ path: '/_cluster/health', method: 'GET' })
+    t.same(response, { hello: 'world' })
+
+    server.close()
+    proxy.close()
   })
 
-  const client = new TestClient({
-    node: `http://${(server.address() as AddressInfo).address}:${(server.address() as AddressInfo).port}`,
-    proxy: `https://localhost:${(proxy.address() as AddressInfo).port}`
+  test(`${name}: https basic authentication`, async t => {
+    const server = await createSecureServer()
+    const proxy = await createProxy()
+    server.on('request', (req, res) => {
+      t.equal(req.url, '/_cluster/health')
+      res.setHeader('content-type', 'application/json')
+      res.setHeader('x-elastic-product', 'Elasticsearch')
+      res.end(JSON.stringify({ hello: 'world' }))
+    })
+
+    proxy.authenticate = (req) => req.headers['proxy-authorization'] === `Basic ${Buffer.from('hello:world').toString('base64')}`
+
+    const client = new TestClient({
+      Connection,
+      node: `https://localhost:${(server.address() as AddressInfo).port}`,
+      proxy: `http://hello:world@${(proxy.address() as AddressInfo).address}:${(proxy.address() as AddressInfo).port}`
+    })
+
+    const response = await client.request({ path: '/_cluster/health', method: 'GET' })
+    t.same(response, { hello: 'world' })
+
+    server.close()
+    proxy.close()
   })
-
-  const response = await client.request({ path: '/_cluster/health', method: 'GET' })
-  t.same(response, { hello: 'world' })
-
-  server.close()
-  proxy.close()
-})
-
-test('https-https proxy support', async t => {
-  const server = await createSecureServer()
-  const proxy = await createSecureProxy()
-  server.on('request', (req, res) => {
-    t.equal(req.url, '/_cluster/health')
-    res.setHeader('content-type', 'application/json')
-    res.setHeader('x-elastic-product', 'Elasticsearch')
-    res.end(JSON.stringify({ hello: 'world' }))
-  })
-
-  const client = new TestClient({
-    node: `https://localhost:${(server.address() as AddressInfo).port}`,
-    proxy: `https://localhost:${(proxy.address() as AddressInfo).port}`
-  })
-
-  const response = await client.request({ path: '/_cluster/health', method: 'GET' })
-  t.same(response, { hello: 'world' })
-
-  server.close()
-  proxy.close()
-})
-
-test('http basic authentication', async t => {
-  const server = await createServer()
-  const proxy = await createProxy()
-  server.on('request', (req, res) => {
-    t.equal(req.url, '/_cluster/health')
-    res.setHeader('content-type', 'application/json')
-    res.setHeader('x-elastic-product', 'Elasticsearch')
-    res.end(JSON.stringify({ hello: 'world' }))
-  })
-
-  proxy.authenticate = (req) => req.headers['proxy-authorization'] === `Basic ${Buffer.from('hello:world').toString('base64')}`
-
-  const client = new TestClient({
-    node: `http://${(server.address() as AddressInfo).address}:${(server.address() as AddressInfo).port}`,
-    proxy: `http://hello:world@${(proxy.address() as AddressInfo).address}:${(proxy.address() as AddressInfo).port}`
-  })
-
-  const response = await client.request({ path: '/_cluster/health', method: 'GET' })
-  t.same(response, { hello: 'world' })
-
-  server.close()
-  proxy.close()
-})
-
-test('https basic authentication', async t => {
-  const server = await createSecureServer()
-  const proxy = await createProxy()
-  server.on('request', (req, res) => {
-    t.equal(req.url, '/_cluster/health')
-    res.setHeader('content-type', 'application/json')
-    res.setHeader('x-elastic-product', 'Elasticsearch')
-    res.end(JSON.stringify({ hello: 'world' }))
-  })
-
-  proxy.authenticate = (req) => req.headers['proxy-authorization'] === `Basic ${Buffer.from('hello:world').toString('base64')}`
-
-  const client = new TestClient({
-    node: `https://localhost:${(server.address() as AddressInfo).port}`,
-    proxy: `http://hello:world@${(proxy.address() as AddressInfo).address}:${(proxy.address() as AddressInfo).port}`
-  })
-
-  const response = await client.request({ path: '/_cluster/health', method: 'GET' })
-  t.same(response, { hello: 'world' })
-
-  server.close()
-  proxy.close()
-})
+}
