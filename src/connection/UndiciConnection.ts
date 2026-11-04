@@ -20,7 +20,7 @@ import BaseConnection, {
   isCaFingerprintMatch,
   isBinary
 } from './BaseConnection'
-import { Pool, buildConnector } from 'undici'
+import { Pool, ProxyAgent, buildConnector } from 'undici'
 import {
   ConfigurationError,
   RequestAbortedError,
@@ -32,6 +32,7 @@ import { kCaFingerprint } from '../symbols'
 
 const debug = Debug('elasticsearch')
 const INVALID_PATH_REGEX = /[^\u0021-\u00ff]/
+const PROXY_TUNNEL_ERROR_REGEX = /^Proxy response \(\d+\) !== 200/
 const MAX_BUFFER_LENGTH = buffer.constants.MAX_LENGTH
 const MAX_STRING_LENGTH = buffer.constants.MAX_STRING_LENGTH
 
@@ -39,14 +40,10 @@ const MAX_STRING_LENGTH = buffer.constants.MAX_STRING_LENGTH
  * A connection to an Elasticsearch node, managed by the Undici HTTP client library
  */
 export default class Connection extends BaseConnection {
-  pool: Pool
+  pool: Pool | ProxyAgent
 
   constructor (opts: ConnectionOptions) {
     super(opts)
-
-    if (opts.proxy != null) {
-      throw new ConfigurationError('Undici connection can\'t work with proxies')
-    }
 
     if (typeof opts.agent === 'boolean') {
       throw new ConfigurationError('Undici connection agent options can\'t be a boolean')
@@ -75,46 +72,42 @@ export default class Connection extends BaseConnection {
         ...(typeof opts.agent === 'object' ? opts.agent : {})
       }
 
-      if (this[kCaFingerprint] !== null) {
-        const caFingerprint = this[kCaFingerprint]
-        const connector = buildConnector((this.tls ?? {}) as buildConnector.BuildOptions)
-        undiciOptions.connect = function (opts: buildConnector.Options, cb: buildConnector.Callback) {
-          connector(opts, (err, socket) => {
-            if (err != null) {
-              return cb(err, null)
-            }
-            if (caFingerprint !== null && isTlsSocket(opts, socket)) {
-              const issuerCertificate = getIssuerCertificate(socket)
-              /* istanbul ignore next */
-              if (issuerCertificate == null) {
-                socket.destroy()
-                return cb(new Error('Invalid or malformed certificate'), null)
-              }
+      const caFingerprint = this[kCaFingerprint]
 
-              // Certificate will be empty if a session is reused. In this case, getPeerCertificate
-              // will return an empty object, causing a fingeprint check to fail. But, if the session
-              // is being reused, it means this socket's peer certificate fingerprint has already been
-              // checked, so we can skip it and assume the connection is secure.
-              // See https://github.com/nodejs/node/issues/3940#issuecomment-166696776
-              if (Object.keys(issuerCertificate).length === 0 && socket.isSessionReused()) {
-                return cb(null, socket)
-              }
-
-              // Check if fingerprint matches
-              /* istanbul ignore else */
-              if (!isCaFingerprintMatch(caFingerprint, issuerCertificate.fingerprint256)) {
-                socket.destroy()
-                return cb(new Error('Server certificate CA fingerprint does not match the value configured in caFingerprint'), null)
-              }
-            }
-            return cb(null, socket)
-          })
+      if (opts.proxy != null) {
+        // Requests are tunneled through the proxy with HTTP CONNECT. `tls` applies to the
+        // Elasticsearch node (like HttpConnection with hpagent), and proxy credentials in the
+        // URL are sent as a Basic `proxy-authorization` header by ProxyAgent.
+        const proxyOptions: ProxyAgent.Options = {
+          ...undiciOptions,
+          uri: opts.proxy.toString()
         }
-      } else if (this.tls !== null) {
-        undiciOptions.connect = this.tls as buildConnector.BuildOptions
-      }
+        if (this.tls !== null) {
+          proxyOptions.requestTls = this.tls as buildConnector.BuildOptions
+        }
+        if (caFingerprint !== null) {
+          // ProxyAgent creates one Pool per origin and hands it a connector that opens the tunnel
+          // and the TLS session to the node. Wrap it so the CA fingerprint is checked on that socket.
+          proxyOptions.factory = (origin, factoryOpts) => {
+            const poolOptions = factoryOpts as Pool.Options
+            const tunnelConnect = poolOptions.connect as buildConnector.connector
+            return new Pool(origin, {
+              ...poolOptions,
+              connect: withCaFingerprintCheck(tunnelConnect, caFingerprint)
+            })
+          }
+        }
+        this.pool = new ProxyAgent(proxyOptions)
+      } else {
+        if (caFingerprint !== null) {
+          const connector = buildConnector((this.tls ?? {}) as buildConnector.BuildOptions)
+          undiciOptions.connect = withCaFingerprintCheck(connector, caFingerprint)
+        } else if (this.tls !== null) {
+          undiciOptions.connect = this.tls as buildConnector.BuildOptions
+        }
 
-      this.pool = new Pool(this.url.origin, undiciOptions)
+        this.pool = new Pool(this.url.origin, undiciOptions)
+      }
     }
   }
 
@@ -164,6 +157,11 @@ export default class Connection extends BaseConnection {
       if (timeoutId != null) clearTimeout(timeoutId)
     } catch (err: any) {
       if (timeoutId != null) clearTimeout(timeoutId)
+      // undici reports a refused CONNECT tunnel (e.g. 407 from the proxy) as an aborted request,
+      // but it is a connection failure, same as with HttpConnection
+      if (this.pool instanceof ProxyAgent && PROXY_TUNNEL_ERROR_REGEX.test(err.message)) {
+        throw new ConnectionError(err.message)
+      }
       switch (err.code) {
         case 'UND_ERR_ABORTED':
         case DOMException.ABORT_ERR:
@@ -261,6 +259,41 @@ function isUndiciAgentOptions (opts: Record<string, any>): opts is UndiciAgentOp
   if (opts.scheduling != null) return false
   if (opts.proxy != null) return false
   return true
+}
+
+function withCaFingerprintCheck (connector: buildConnector.connector, caFingerprint: string): buildConnector.connector {
+  return function (opts: buildConnector.Options, cb: buildConnector.Callback) {
+    connector(opts, (err, socket) => {
+      if (err != null) {
+        return cb(err, null)
+      }
+      if (isTlsSocket(opts, socket)) {
+        const issuerCertificate = getIssuerCertificate(socket)
+        /* istanbul ignore next */
+        if (issuerCertificate == null) {
+          socket.destroy()
+          return cb(new Error('Invalid or malformed certificate'), null)
+        }
+
+        // Certificate will be empty if a session is reused. In this case, getPeerCertificate
+        // will return an empty object, causing a fingeprint check to fail. But, if the session
+        // is being reused, it means this socket's peer certificate fingerprint has already been
+        // checked, so we can skip it and assume the connection is secure.
+        // See https://github.com/nodejs/node/issues/3940#issuecomment-166696776
+        if (Object.keys(issuerCertificate).length === 0 && socket.isSessionReused()) {
+          return cb(null, socket)
+        }
+
+        // Check if fingerprint matches
+        /* istanbul ignore else */
+        if (!isCaFingerprintMatch(caFingerprint, issuerCertificate.fingerprint256)) {
+          socket.destroy()
+          return cb(new Error('Server certificate CA fingerprint does not match the value configured in caFingerprint'), null)
+        }
+      }
+      return cb(null, socket)
+    })
+  }
 }
 
 function isTlsSocket (opts: buildConnector.Options, socket: Socket | TLSSocket | null): socket is TLSSocket {

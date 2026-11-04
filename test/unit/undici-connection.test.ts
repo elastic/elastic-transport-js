@@ -9,11 +9,12 @@ import * as http from 'node:http'
 import buffer from 'node:buffer'
 import { gzipSync, deflateSync } from 'node:zlib'
 import { Readable } from 'node:stream'
-import { Agent } from 'undici'
+import { Agent, ProxyAgent } from 'undici'
 import { test } from 'tap'
 import intoStream from 'into-stream'
 import FakeTimers from '@sinonjs/fake-timers'
-import { buildServer } from '../utils'
+import { AddressInfo } from 'node:net'
+import { buildServer, buildProxy } from '../utils'
 import { UndiciConnection, errors, ConnectionOptions, ConnectionRequestResponse } from '../../'
 
 const {
@@ -1082,17 +1083,292 @@ test('Throw if detects http agent options', async t => {
   }
 })
 
-test('Throw if detects proxy option', async t => {
-  t.plan(1)
+test('Proxy support', t => {
+  const { createProxy } = buildProxy
 
-  try {
-    new UndiciConnection({
-      url: new URL('http://localhost:9200'),
-      proxy: new URL('http://localhost:9201')
+  function trackTunnels (proxy: http.Server): string[] {
+    const targets: string[] = []
+    proxy.prependListener('connect', (req: http.IncomingMessage) => {
+      targets.push(req.url ?? '')
     })
-  } catch (err: any) {
-    t.ok(err instanceof ConfigurationError)
+    return targets
   }
+
+  t.test('uses a ProxyAgent and tunnels http requests through the proxy', async t => {
+    function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+      t.equal(req.url, '/hello?foo=bar')
+      t.equal(req.headers['proxy-authorization'], undefined)
+      res.end('ok')
+    }
+
+    const [{ port }, server] = await buildServer(handler)
+    const proxy = await createProxy()
+    const tunnels = trackTunnels(proxy)
+    const connection = new UndiciConnection({
+      url: new URL(`http://localhost:${port}`),
+      proxy: `http://127.0.0.1:${(proxy.address() as AddressInfo).port}`
+    })
+    t.ok(connection.pool instanceof ProxyAgent)
+
+    const res = await connection.request({
+      path: '/hello',
+      method: 'GET',
+      querystring: 'foo=bar'
+    }, options)
+    t.equal(res.body, 'ok')
+    t.same(tunnels, [`localhost:${port}`])
+
+    await connection.close()
+    server.stop()
+    proxy.close()
+  })
+
+  t.test('accepts the proxy as a URL object and reuses the tunnel across requests', async t => {
+    function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      res.end('ok')
+    }
+
+    const [{ port }, server] = await buildServer(handler)
+    const proxy = await createProxy()
+    const tunnels = trackTunnels(proxy)
+    const connection = new UndiciConnection({
+      url: new URL(`http://localhost:${port}`),
+      proxy: new URL(`http://127.0.0.1:${(proxy.address() as AddressInfo).port}`)
+    })
+
+    for (let i = 0; i < 10; i++) {
+      const res = await connection.request({ path: '/hello', method: 'GET' }, options)
+      t.equal(res.body, 'ok')
+    }
+    t.ok(tunnels.length < 10, 'keep-alive tunnels are reused')
+    t.ok(tunnels.every(target => target === `localhost:${port}`))
+
+    await connection.close()
+    server.stop()
+    proxy.close()
+  })
+
+  t.test('https node through an http proxy', async t => {
+    function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      res.end('ok')
+    }
+
+    const [{ port }, server] = await buildServer(handler, { secure: true })
+    const proxy = await createProxy()
+    const tunnels = trackTunnels(proxy)
+    const connection = new UndiciConnection({
+      url: new URL(`https://localhost:${port}`),
+      proxy: `http://127.0.0.1:${(proxy.address() as AddressInfo).port}`,
+      tls: { rejectUnauthorized: false }
+    })
+
+    const res = await connection.request({ path: '/hello', method: 'GET' }, options)
+    t.equal(res.body, 'ok')
+    t.same(tunnels, [`localhost:${port}`])
+
+    await connection.close()
+    server.stop()
+    proxy.close()
+  })
+
+  t.test('applies tls options to the Elasticsearch node, not just direct connections', async t => {
+    function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      res.end('ok')
+    }
+
+    const [{ port }, server] = await buildServer(handler, { secure: true })
+    const proxy = await createProxy()
+    const connection = new UndiciConnection({
+      url: new URL(`https://localhost:${port}`),
+      proxy: `http://127.0.0.1:${(proxy.address() as AddressInfo).port}`,
+      // the test certificate is issued for localhost, so this must fail
+      tls: { rejectUnauthorized: true, servername: 'not-localhost.example' }
+    })
+
+    try {
+      await connection.request({ path: '/hello', method: 'GET' }, options)
+      t.fail('Should throw')
+    } catch (err: any) {
+      t.ok(err instanceof ConnectionError)
+    }
+
+    await connection.close()
+    server.stop()
+    proxy.close()
+  })
+
+  t.test('sends credentials from the proxy URL as proxy-authorization', async t => {
+    function handler (req: http.IncomingMessage, res: http.ServerResponse) {
+      // credentials go to the proxy only, never to Elasticsearch
+      t.equal(req.headers['proxy-authorization'], undefined)
+      res.end('ok')
+    }
+
+    const [{ port }, server] = await buildServer(handler)
+    const proxy = await createProxy()
+    proxy.authenticate = (req: http.IncomingMessage) => req.headers['proxy-authorization'] === `Basic ${Buffer.from('user:p@ss').toString('base64')}`
+    const connection = new UndiciConnection({
+      url: new URL(`http://localhost:${port}`),
+      proxy: `http://user:p%40ss@127.0.0.1:${(proxy.address() as AddressInfo).port}`
+    })
+
+    const res = await connection.request({ path: '/hello', method: 'GET' }, options)
+    t.equal(res.body, 'ok')
+
+    await connection.close()
+    server.stop()
+    proxy.close()
+  })
+
+  t.test('proxy authentication failure is a ConnectionError', async t => {
+    const [{ port }, server] = await buildServer((_req, res) => { res.end('ok') })
+    const proxy = await createProxy()
+    proxy.authenticate = () => false
+    const connection = new UndiciConnection({
+      url: new URL(`http://localhost:${port}`),
+      proxy: `http://user:wrong@127.0.0.1:${(proxy.address() as AddressInfo).port}`
+    })
+
+    try {
+      await connection.request({ path: '/hello', method: 'GET' }, options)
+      t.fail('Should throw')
+    } catch (err: any) {
+      t.ok(err instanceof ConnectionError)
+      t.match(err.message, /407/)
+    }
+
+    await connection.close()
+    server.stop()
+    proxy.close()
+  })
+
+  t.test('unreachable proxy is a ConnectionError', async t => {
+    const [{ port }, server] = await buildServer((_req, res) => { res.end('ok') })
+    const proxy = await createProxy()
+    const proxyPort = (proxy.address() as AddressInfo).port
+    await new Promise(resolve => proxy.close(resolve))
+    const connection = new UndiciConnection({
+      url: new URL(`http://localhost:${port}`),
+      proxy: `http://127.0.0.1:${proxyPort}`
+    })
+
+    try {
+      await connection.request({ path: '/hello', method: 'GET' }, options)
+      t.fail('Should throw')
+    } catch (err: any) {
+      t.ok(err instanceof ConnectionError)
+    }
+
+    await connection.close()
+    server.stop()
+  })
+
+  t.test('request timeout through the proxy', async t => {
+    function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      setTimeout(1000).then(() => res.end('ok')).catch(() => {})
+    }
+
+    const [{ port }, server] = await buildServer(handler)
+    const proxy = await createProxy()
+    const connection = new UndiciConnection({
+      url: new URL(`http://localhost:${port}`),
+      proxy: `http://127.0.0.1:${(proxy.address() as AddressInfo).port}`,
+      timeout: 200
+    })
+
+    try {
+      await connection.request({ path: '/hello', method: 'GET' }, options)
+      t.fail('Should throw')
+    } catch (err: any) {
+      t.ok(err instanceof TimeoutError)
+    }
+
+    await connection.close()
+    server.stop()
+    proxy.close()
+  })
+
+  t.test('checks caFingerprint on the tunneled TLS connection (success)', async t => {
+    const [{ port, caFingerprint }, server] = await buildServer((_req, res) => { res.end('ok') }, { secure: true })
+    const proxy = await createProxy()
+    const connection = new UndiciConnection({
+      url: new URL(`https://localhost:${port}`),
+      proxy: `http://127.0.0.1:${(proxy.address() as AddressInfo).port}`,
+      caFingerprint
+    })
+
+    for (let i = 0; i < 2; i++) {
+      const res = await connection.request({ path: '/hello', method: 'GET' }, options)
+      t.equal(res.body, 'ok')
+    }
+
+    await connection.close()
+    server.stop()
+    proxy.close()
+  })
+
+  t.test('checks caFingerprint on the tunneled TLS connection (mismatch)', async t => {
+    const [{ port }, server] = await buildServer((_req, res) => { res.end('ok') }, { secure: true })
+    const proxy = await createProxy()
+    const connection = new UndiciConnection({
+      url: new URL(`https://localhost:${port}`),
+      proxy: `http://127.0.0.1:${(proxy.address() as AddressInfo).port}`,
+      caFingerprint: 'FO:OB:AR'
+    })
+
+    try {
+      await connection.request({ path: '/hello', method: 'GET' }, options)
+      t.fail('Should throw')
+    } catch (err: any) {
+      t.ok(err instanceof ConnectionError)
+      t.equal(err.message, 'Server certificate CA fingerprint does not match the value configured in caFingerprint')
+    }
+
+    await connection.close()
+    server.stop()
+    proxy.close()
+  })
+
+  t.test('passes agent options to the per-origin pool', async t => {
+    let open = 0
+    let maxOpen = 0
+    function handler (_req: http.IncomingMessage, res: http.ServerResponse) {
+      open++
+      maxOpen = Math.max(maxOpen, open)
+      setTimeout(50).then(() => { open--; res.end('ok') }).catch(() => {})
+    }
+
+    const [{ port }, server] = await buildServer(handler)
+    const proxy = await createProxy()
+    const tunnels = trackTunnels(proxy)
+    const connection = new UndiciConnection({
+      url: new URL(`http://localhost:${port}`),
+      proxy: `http://127.0.0.1:${(proxy.address() as AddressInfo).port}`,
+      agent: { connections: 2 }
+    })
+
+    const results = await Promise.all(Array.from({ length: 6 }, async () => await connection.request({ path: '/hello', method: 'GET' }, options)))
+    t.same(results.map(r => r.body), ['ok', 'ok', 'ok', 'ok', 'ok', 'ok'])
+    t.equal(maxOpen, 2)
+    t.equal(tunnels.length, 2)
+
+    await connection.close()
+    server.stop()
+    proxy.close()
+  })
+
+  t.test('an agent function takes precedence over proxy', async t => {
+    const dispatcher = new Agent()
+    const connection = new UndiciConnection({
+      url: new URL('http://localhost:9200'),
+      proxy: 'http://localhost:9201',
+      agent: () => dispatcher
+    })
+    t.equal(connection.pool, dispatcher)
+    await dispatcher.close()
+  })
+
+  t.end()
 })
 
 test('Support mapbox vector tile', async t => {
