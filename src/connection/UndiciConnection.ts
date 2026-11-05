@@ -7,8 +7,6 @@
 
 import Debug from 'debug'
 import buffer from 'node:buffer'
-import { TLSSocket } from 'node:tls'
-import { Socket } from 'node:net'
 import BaseConnection, {
   ConnectionOptions,
   ConnectionRequestParams,
@@ -16,10 +14,9 @@ import BaseConnection, {
   ConnectionRequestOptionsAsStream,
   ConnectionRequestResponse,
   ConnectionRequestResponseAsStream,
-  getIssuerCertificate,
-  isCaFingerprintMatch,
   isBinary
 } from './BaseConnection'
+import { assertCaFingerprintOptions, fetchPinnedCaPem, pinOnce, PinSlot } from './caFingerprint'
 import { Pool, buildConnector } from 'undici'
 import {
   ConfigurationError,
@@ -40,9 +37,12 @@ const MAX_STRING_LENGTH = buffer.constants.MAX_STRING_LENGTH
  */
 export default class Connection extends BaseConnection {
   pool: Pool
+  private readonly undiciAgent?: UndiciAgentOptions
+  private readonly pinSlot: PinSlot = { task: null }
 
   constructor (opts: ConnectionOptions) {
     super(opts)
+    assertCaFingerprintOptions(opts)
 
     if (opts.proxy != null) {
       throw new ConfigurationError('Undici connection can\'t work with proxies')
@@ -52,75 +52,26 @@ export default class Connection extends BaseConnection {
       throw new ConfigurationError('Undici connection agent options can\'t be a boolean')
     }
 
-    // if agent is a function, its returned value must be an Undici object with a `request()` function that works the same as Pool.request()
-    // NOTE: providing an agent function will ignore built-in handling of `caFingerprint` and `tls` options, so they must be handled by the implementer
+    // function agent must return an undici-compatible pool and skips built-in tls handling
+    // caFingerprint with a function agent throws
     if (typeof opts.agent === 'function') {
       this.pool = opts.agent(opts)
     } else {
       if (opts.agent != null && !isUndiciAgentOptions(opts.agent)) {
         throw new ConfigurationError('Bad agent configuration for Undici agent')
       }
-
-      const undiciOptions: Pool.Options = {
-        keepAliveTimeout: 600e3,
-        keepAliveMaxTimeout: 600e3,
-        keepAliveTimeoutThreshold: 1000,
-        pipelining: 1,
-        maxHeaderSize: 16384,
-        connections: 256,
-        // only set a timeout if it has a value; default to no timeout
-        // see https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-network.html#_http_client_configuration
-        headersTimeout: this.timeout ?? 0,
-        bodyTimeout: this.timeout ?? 0,
-        ...(typeof opts.agent === 'object' ? opts.agent : {})
-      }
-
-      if (this[kCaFingerprint] !== null) {
-        const caFingerprint = this[kCaFingerprint]
-        const connector = buildConnector((this.tls ?? {}) as buildConnector.BuildOptions)
-        undiciOptions.connect = function (opts: buildConnector.Options, cb: buildConnector.Callback) {
-          connector(opts, (err, socket) => {
-            if (err != null) {
-              return cb(err, null)
-            }
-            if (caFingerprint !== null && isTlsSocket(opts, socket)) {
-              const issuerCertificate = getIssuerCertificate(socket)
-              /* istanbul ignore next */
-              if (issuerCertificate == null) {
-                socket.destroy()
-                return cb(new Error('Invalid or malformed certificate'), null)
-              }
-
-              // Certificate will be empty if a session is reused. In this case, getPeerCertificate
-              // will return an empty object, causing a fingeprint check to fail. But, if the session
-              // is being reused, it means this socket's peer certificate fingerprint has already been
-              // checked, so we can skip it and assume the connection is secure.
-              // See https://github.com/nodejs/node/issues/3940#issuecomment-166696776
-              if (Object.keys(issuerCertificate).length === 0 && socket.isSessionReused()) {
-                return cb(null, socket)
-              }
-
-              // Check if fingerprint matches
-              /* istanbul ignore else */
-              if (!isCaFingerprintMatch(caFingerprint, issuerCertificate.fingerprint256)) {
-                socket.destroy()
-                return cb(new Error('Server certificate CA fingerprint does not match the value configured in caFingerprint'), null)
-              }
-            }
-            return cb(null, socket)
-          })
-        }
-      } else if (this.tls !== null) {
-        undiciOptions.connect = this.tls as buildConnector.BuildOptions
-      }
-
-      this.pool = new Pool(this.url.origin, undiciOptions)
+      this.undiciAgent = typeof opts.agent === 'object' ? opts.agent : undefined
+      this.pool = this.createPool()
     }
   }
 
   async request (params: ConnectionRequestParams, options: ConnectionRequestOptions): Promise<ConnectionRequestResponse>
   async request (params: ConnectionRequestParams, options: ConnectionRequestOptionsAsStream): Promise<ConnectionRequestResponseAsStream>
   async request (params: ConnectionRequestParams, options: any): Promise<any> {
+    if (this[kCaFingerprint] != null && this.url.protocol === 'https:') {
+      await pinOnce(this.pinSlot, async () => await this.pinCa())
+      if (options.signal?.aborted === true) throw new RequestAbortedError('Request aborted')
+    }
     const maxResponseSize = options.maxResponseSize ?? MAX_STRING_LENGTH
     const maxCompressedResponseSize = options.maxCompressedResponseSize ?? MAX_BUFFER_LENGTH
     const pathPrefix = this.url.pathname === '/' ? '' : this.url.pathname.replace(/\/$/, '')
@@ -250,6 +201,33 @@ export default class Connection extends BaseConnection {
     debug('Closing connection', this.id)
     await this.pool.close()
   }
+
+  private createPool (): Pool {
+    const undiciOptions: Pool.Options = {
+      keepAliveTimeout: 600e3,
+      keepAliveMaxTimeout: 600e3,
+      keepAliveTimeoutThreshold: 1000,
+      pipelining: 1,
+      maxHeaderSize: 16384,
+      connections: 256,
+      // only set a timeout if it has a value; default to no timeout
+      // see https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-network.html#_http_client_configuration
+      headersTimeout: this.timeout ?? 0,
+      bodyTimeout: this.timeout ?? 0,
+      ...this.undiciAgent
+    }
+    if (this.tls != null) {
+      undiciOptions.connect = this.tls as buildConnector.BuildOptions
+    }
+    return new Pool(this.url.origin, undiciOptions)
+  }
+
+  private async pinCa (): Promise<void> {
+    const pem = await fetchPinnedCaPem(this.url, this[kCaFingerprint] as string, this.timeout)
+    this.tls = { ...(this.tls ?? {}), ca: pem, rejectUnauthorized: true }
+    await this.pool.close()
+    this.pool = this.createPool()
+  }
 }
 
 /* istanbul ignore next */
@@ -261,8 +239,4 @@ function isUndiciAgentOptions (opts: Record<string, any>): opts is UndiciAgentOp
   if (opts.scheduling != null) return false
   if (opts.proxy != null) return false
   return true
-}
-
-function isTlsSocket (opts: buildConnector.Options, socket: Socket | TLSSocket | null): socket is TLSSocket {
-  return socket !== null && opts.protocol === 'https:'
 }
