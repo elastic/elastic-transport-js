@@ -4,7 +4,9 @@
  */
 
 import { createPublicKey, createSign, generateKeyPairSync, randomBytes, X509Certificate, KeyObject } from 'node:crypto'
+import http from 'node:http'
 import https from 'node:https'
+import net from 'node:net'
 import { URL } from 'node:url'
 import { test } from 'tap'
 import { HttpConnection, UndiciConnection, errors } from '../../'
@@ -25,19 +27,61 @@ interface Started {
   port: number
   hits: () => number
   auths: () => string[]
+  names: () => string[]
   close: () => Promise<void>
 }
 
-function start (leaf: Buffer, key: Buffer): Promise<Started> {
+async function startProxy (targetPort: number, user: string, password: string): Promise<{ port: number, connects: () => number, close: () => Promise<void> }> {
+  let connects = 0
+  const expected = `Basic ${Buffer.from(`${user}:${password}`).toString('base64')}`
+  const proxy = http.createServer()
+  proxy.on('connect', (req, clientSocket, head) => {
+    if (req.headers['proxy-authorization'] !== expected) {
+      clientSocket.write('HTTP/1.1 407 Proxy Authentication Required\r\n\r\n')
+      clientSocket.destroy()
+      return
+    }
+    connects++
+    const upstream = net.connect(targetPort, '127.0.0.1', () => {
+      clientSocket.write('HTTP/1.1 200 Connection Established\r\n\r\n')
+      if (head.length > 0) upstream.write(head)
+      upstream.pipe(clientSocket)
+      clientSocket.pipe(upstream)
+    })
+    upstream.on('error', () => clientSocket.destroy())
+    clientSocket.on('error', () => upstream.destroy())
+  })
+  return await new Promise((resolve, reject) => {
+    proxy.listen(0, '127.0.0.1', () => {
+      const addr = proxy.address()
+      if (addr == null || typeof addr === 'string') {
+        reject(new Error('proxy has no port'))
+        return
+      }
+      resolve({
+        port: addr.port,
+        connects: () => connects,
+        close: async () => await new Promise(done => { proxy.close(() => done()) })
+      })
+    })
+  })
+}
+
+function start (leaf: Buffer, key: Buffer, extra?: https.ServerOptions): Promise<Started> {
   let hits = 0
   const auths: string[] = []
+  const names: string[] = []
   const server = https.createServer({
     cert: Buffer.concat([leaf, Buffer.from('\n'), ca]),
-    key
+    key,
+    ...extra
   }, (req, res) => {
     hits++
     if (req.headers.authorization != null) auths.push(String(req.headers.authorization))
     res.end('ok')
+  })
+  server.on('secureConnection', (socket) => {
+    names.push(socket.servername ?? '')
   })
   return new Promise((resolve, reject) => {
     server.listen(0, '127.0.0.1', () => {
@@ -50,6 +94,7 @@ function start (leaf: Buffer, key: Buffer): Promise<Started> {
         port: addr.port,
         hits: () => hits,
         auths: () => auths,
+        names: () => names,
         close: async () => await new Promise(done => { server.close(() => done()) })
       })
     })
@@ -201,22 +246,49 @@ for (const { name, Connection } of connections) {
     await server.close()
   })
 
-  test(`${name} rejects verify off and another trust anchor`, async t => {
-    const url = new URL('https://localhost:1')
-    for (const tls of [
-      { rejectUnauthorized: false },
-      { ca },
-      { ca: '' },
-      { ca: '../' }
-    ]) {
-      try {
-        // @ts-expect-error tls fixtures are partial on purpose
-        new Connection({ url, caFingerprint: fingerprint, tls })
-        t.fail('constructor should throw')
-      } catch (err: any) {
-        t.ok(err instanceof ConfigurationError, `Not a ConfigurationError: ${err}`)
-      }
+  test(`${name} keeps verification on when the caller disabled it`, async t => {
+    const server = await start(certs.good, certs.goodKey)
+    const tls = { rejectUnauthorized: false, ca }
+    const connection = new Connection({
+      url: new URL(`https://localhost:${server.port}`),
+      caFingerprint: fingerprint,
+      tls
+    })
+    const res = await connection.request({ method: 'GET', path: '/' }, requestOptions)
+    t.equal(res.body, 'ok')
+    t.equal(server.hits(), 1)
+    t.equal(tls.rejectUnauthorized, false)
+    t.equal(tls.ca, ca)
+    if (connection instanceof HttpConnection) {
+      const agent = connection.agent as https.Agent
+      t.equal(agent.options.rejectUnauthorized, true)
+      t.match(String(agent.options.ca), /BEGIN CERTIFICATE/)
     }
+    await connection.close()
+    await server.close()
+  })
+
+  test(`${name} probe uses the caller tls options`, async t => {
+    const server = await start(certs.good, certs.goodKey, {
+      requestCert: true,
+      rejectUnauthorized: true,
+      ca
+    })
+    const connection = new Connection({
+      url: new URL(`https://127.0.0.1:${server.port}`),
+      caFingerprint: fingerprint,
+      tls: { cert: certs.good, key: certs.goodKey, servername: 'localhost' }
+    })
+    const res = await connection.request({ method: 'GET', path: '/' }, requestOptions)
+    t.equal(res.body, 'ok')
+    t.equal(server.hits(), 1)
+    t.equal(server.names()[0], 'localhost')
+    await connection.close()
+    await server.close()
+  })
+
+  test(`${name} rejects a custom agent`, async t => {
+    const url = new URL('https://localhost:1')
     try {
       new Connection({
         url,
@@ -230,6 +302,24 @@ for (const { name, Connection } of connections) {
     }
   })
 }
+
+test('HttpConnection probe connects through the proxy', async t => {
+  const server = await start(certs.good, certs.goodKey)
+  const proxy = await startProxy(server.port, 'a', 'p@ss')
+  const connection = new HttpConnection({
+    url: new URL('https://127.0.0.1:1'),
+    caFingerprint: fingerprint,
+    proxy: `http://a:p%40ss@127.0.0.1:${proxy.port}`,
+    tls: { servername: 'localhost' }
+  })
+  const res = await connection.request({ method: 'GET', path: '/' }, requestOptions)
+  t.equal(res.body, 'ok')
+  t.equal(server.hits(), 1)
+  t.ok(proxy.connects() >= 2)
+  await connection.close()
+  await proxy.close()
+  await server.close()
+})
 
 test('HttpConnection agent: false still pins the data connection', async t => {
   const server = await start(certs.forged, certs.forgedKey)

@@ -403,7 +403,10 @@ export default class HttpConnection extends BaseConnection {
   }
 
   private async pinCa (): Promise<void> {
-    const pem = await fetchPinnedCaPem(this.url, this[kCaFingerprint] as string, this.timeout)
+    const pem = await fetchPinnedCaPem(this.url, this[kCaFingerprint] as string, this.timeout, {
+      proxy: this.proxy,
+      tls: this.tls
+    })
     // copy, caller's tls object stays unchanged
     this.tls = { ...(this.tls ?? {}), ca: pem, rejectUnauthorized: true }
     if (!this.bareAgent) this.installAgent()

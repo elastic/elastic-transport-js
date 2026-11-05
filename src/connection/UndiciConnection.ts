@@ -223,7 +223,9 @@ export default class Connection extends BaseConnection {
   }
 
   private async pinCa (): Promise<void> {
-    const pem = await fetchPinnedCaPem(this.url, this[kCaFingerprint] as string, this.timeout)
+    const pem = await fetchPinnedCaPem(this.url, this[kCaFingerprint] as string, this.timeout, {
+      tls: this.tls
+    })
     this.tls = { ...(this.tls ?? {}), ca: pem, rejectUnauthorized: true }
     await this.pool.close()
     this.pool = this.createPool()
