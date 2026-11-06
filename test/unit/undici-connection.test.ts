@@ -1112,7 +1112,8 @@ test('Check server fingerprint (success)', async t => {
   const [{ port, caFingerprint }, server] = await buildServer(handler, { secure: true })
   const connection = new UndiciConnection({
     url: new URL(`https://localhost:${port}`),
-    caFingerprint
+    caFingerprint,
+    tls: { servername: 'www.fastify.org' }
   })
   const res = await connection.request({
     path: '/hello',
@@ -1135,7 +1136,8 @@ test('Check server fingerprint (different formats)', async t => {
 
   const connection = new UndiciConnection({
     url: new URL(`https://localhost:${port}`),
-    caFingerprint: newCaFingerprint
+    caFingerprint: newCaFingerprint,
+    tls: { servername: 'www.fastify.org' }
   })
   const res = await connection.request({
     path: '/hello',
@@ -1186,6 +1188,7 @@ test('Multiple requests to same connection should skip fingerprint check when se
   const connection = new UndiciConnection({
     url: new URL(`https://localhost:${port}`),
     caFingerprint,
+    tls: { servername: 'www.fastify.org' }
   })
 
   for (let i = 0; i < runs; i++) {
