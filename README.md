@@ -14,7 +14,7 @@ npm install @elastic/transport
 
 ### Node.js support
 
-NOTE: The minimum supported version of Node.js is `v18`.
+NOTE: The minimum supported version of Node.js is `v22`.
 
 The client versioning follows the Elastic Stack versioning, this means that
 major, minor, and patch releases are done following a precise schedule that
@@ -38,6 +38,8 @@ of `^7.10.0`).
 | `12.x` | April 2022 | `8.2` (early 2022) |
 | `14.x` | April 2023 | `8.8` (early 2023) | 
 | `16.x` | October 2023 | `8.14` (early 2024) |
+| `18.x` | April 2025 | `8.12` |
+| `20.x` | April 2026 | `8.12` |
 
 ## API
 
