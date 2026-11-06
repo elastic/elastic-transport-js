@@ -71,7 +71,7 @@
   },
   "homepage": "https://github.com/elastic/elastic-transport-js#readme",
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "devDependencies": {
     "@opentelemetry/sdk-trace-base": "1.30.1",

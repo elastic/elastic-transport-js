@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18.x, 20.x, 22.x]
+        node-version: [22.x]
         os: [ubuntu-latest, windows-latest, macOS-latest]
 
     steps:
@@ -37,14 +37,10 @@ jobs:
           npm run lint
 
       - name: Unit test
-        env:
-          NODE_OPTIONS: ${{ matrix.node-version == '18.x' && '--experimental-global-webcrypto' || '' }}
         run: |
           npm run test:unit
 
       - name: Acceptance test
-        env:
-          NODE_OPTIONS: ${{ matrix.node-version == '18.x' && '--experimental-global-webcrypto' || '' }}
         run: |
           npm run test:acceptance
 
@@ -55,7 +51,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18.x, 20.x, 22.x]
+        node-version: [22.x]
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -92,8 +88,6 @@ jobs:
           npm install ../transport --install-links
 
       - name: Unit test
-        env:
-          NODE_OPTIONS: ${{ matrix.node-version == '18.x' && '--experimental-global-webcrypto' || '' }}
         run: |
           cd "$GITHUB_WORKSPACE/client"
           npm run test:unit
