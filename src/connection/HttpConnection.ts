@@ -18,10 +18,9 @@ import BaseConnection, {
   ConnectionRequestOptionsAsStream,
   ConnectionRequestResponse,
   ConnectionRequestResponseAsStream,
-  getIssuerCertificate,
-  isCaFingerprintMatch,
   isBinary
 } from './BaseConnection'
+import { assertCaFingerprintOptions, fetchPinnedCaPem, pinOnce, PinSlot } from './caFingerprint'
 import { kCaFingerprint } from '../symbols'
 import { Readable as ReadableStream, pipeline } from 'node:stream'
 import {
@@ -45,10 +44,16 @@ const noop = (): void => {}
 export default class HttpConnection extends BaseConnection {
   agent?: http.Agent | https.Agent | hpagent.HttpProxyAgent | hpagent.HttpsProxyAgent
   makeRequest: typeof http.request | typeof https.request
+  private readonly httpAgentOptions?: HttpAgentOptions
+  private readonly proxy?: string | URL
+  private readonly bareAgent: boolean
+  private readonly pinSlot: PinSlot = { task: null }
 
   constructor (opts: ConnectionOptions) {
     super(opts)
+    assertCaFingerprintOptions(opts)
 
+    this.bareAgent = typeof opts.agent === 'boolean'
     if (typeof opts.agent === 'function') {
       this.agent = opts.agent(opts)
     } else if (typeof opts.agent === 'boolean') {
@@ -57,26 +62,9 @@ export default class HttpConnection extends BaseConnection {
       if (opts.agent != null && !isHttpAgentOptions(opts.agent)) {
         throw new ConfigurationError('Bad agent configuration for Http agent')
       }
-      const agentOptions = Object.assign({}, {
-        keepAlive: true,
-        keepAliveMsecs: 1000,
-        maxSockets: 256,
-        maxFreeSockets: 256,
-        scheduling: 'lifo'
-      }, opts.agent)
-      if (opts.proxy != null) {
-        const proxyAgentOptions = {
-          ...agentOptions,
-          proxy: opts.proxy
-        }
-        this.agent = this.url.protocol === 'http:'
-          ? new hpagent.HttpProxyAgent(proxyAgentOptions)
-          : new hpagent.HttpsProxyAgent(Object.assign({}, proxyAgentOptions, this.tls))
-      } else {
-        this.agent = this.url.protocol === 'http:'
-          ? new http.Agent(agentOptions)
-          : new https.Agent(Object.assign({}, agentOptions, this.tls))
-      }
+      this.httpAgentOptions = opts.agent
+      this.proxy = opts.proxy
+      this.installAgent()
     }
 
     this.makeRequest = this.url.protocol === 'http:'
@@ -87,6 +75,10 @@ export default class HttpConnection extends BaseConnection {
   async request (params: ConnectionRequestParams, options: ConnectionRequestOptions): Promise<ConnectionRequestResponse>
   async request (params: ConnectionRequestParams, options: ConnectionRequestOptionsAsStream): Promise<ConnectionRequestResponseAsStream>
   async request (params: ConnectionRequestParams, options: any): Promise<any> {
+    if (this[kCaFingerprint] != null && this.url.protocol === 'https:') {
+      await pinOnce(this.pinSlot, async () => await this.pinCa())
+      if (options.signal?.aborted === true) throw new RequestAbortedError('Request aborted')
+    }
     return await new Promise((resolve, reject) => {
       let cleanedListeners = false
 
@@ -263,29 +255,6 @@ export default class HttpConnection extends BaseConnection {
         if (!socket.listeners('error').includes(noop)) {
           socket.on('error', noop)
         }
-
-        if (this[kCaFingerprint] != null && requestParams.protocol === 'https:') {
-          /* istanbul ignore else */
-          if (!socket.isSessionReused()) {
-            socket.once('secureConnect', () => {
-              const issuerCertificate = getIssuerCertificate(socket)
-              /* istanbul ignore next */
-              if (issuerCertificate == null) {
-                onError(new Error('Invalid or malformed certificate'))
-                request.once('error', noop) // we need to catch the request aborted error
-                return request.destroy()
-              }
-
-              // Check if fingerprint matches
-              /* istanbul ignore else */
-              if (!isCaFingerprintMatch(this[kCaFingerprint], issuerCertificate.fingerprint256)) {
-                onError(new Error('Server certificate CA fingerprint does not match the value configured in caFingerprint'))
-                request.once('error', noop) // we need to catch the request aborted error
-                return request.destroy()
-              }
-            })
-          }
-        }
       }
 
       const onFinish = (): void => {
@@ -399,7 +368,46 @@ export default class HttpConnection extends BaseConnection {
 
     request.path = pathname + search
 
+    // one-shot agent reads tls off the request, the pooled agent already has it
+    if (this.bareAgent && this.tls?.ca != null) {
+      Object.assign(request, this.tls, { agent: false })
+    }
+
     return request
+  }
+
+  private installAgent (): void {
+    if (this.agent != null) this.agent.destroy()
+    const agentOptions = Object.assign({}, {
+      keepAlive: true,
+      keepAliveMsecs: 1000,
+      maxSockets: 256,
+      maxFreeSockets: 256,
+      scheduling: 'lifo'
+    }, this.httpAgentOptions)
+    if (this.proxy != null) {
+      const proxyAgentOptions = {
+        ...agentOptions,
+        proxy: this.proxy
+      }
+      this.agent = this.url.protocol === 'http:'
+        ? new hpagent.HttpProxyAgent(proxyAgentOptions)
+        : new hpagent.HttpsProxyAgent(Object.assign({}, proxyAgentOptions, this.tls))
+    } else {
+      this.agent = this.url.protocol === 'http:'
+        ? new http.Agent(agentOptions)
+        : new https.Agent(Object.assign({}, agentOptions, this.tls))
+    }
+  }
+
+  private async pinCa (): Promise<void> {
+    const pem = await fetchPinnedCaPem(this.url, this[kCaFingerprint] as string, this.timeout, {
+      proxy: this.proxy,
+      tls: this.tls
+    })
+    // copy, caller's tls object stays unchanged
+    this.tls = { ...(this.tls ?? {}), ca: pem, rejectUnauthorized: true }
+    if (!this.bareAgent) this.installAgent()
   }
 }
 

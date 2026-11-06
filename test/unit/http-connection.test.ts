@@ -1344,7 +1344,8 @@ test('Check server fingerprint (success)', async t => {
   const [{ port, caFingerprint }, server] = await buildServer(handler, { secure: true })
   const connection = new HttpConnection({
     url: new URL(`https://localhost:${port}`),
-    caFingerprint
+    caFingerprint,
+    tls: { servername: 'www.fastify.org' }
   })
   const res = await connection.request({
     path: '/hello',
@@ -1368,6 +1369,7 @@ test('Check server fingerprint (different formats)', async t => {
   const connection = new HttpConnection({
     url: new URL(`https://localhost:${port}`),
     caFingerprint: newCaFingerprint,
+    tls: { servername: 'www.fastify.org' }
   })
   const res = await connection.request({
     path: '/hello',
