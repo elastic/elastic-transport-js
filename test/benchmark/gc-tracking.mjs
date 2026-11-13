@@ -16,7 +16,12 @@
 import { PerformanceObserver } from 'node:perf_hooks'
 import { writeFileSync } from 'node:fs'
 import os from 'node:os'
-import { Transport, ClusterConnectionPool, BaseConnection } from '../../index.js'
+import { resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
+
+// TRANSPORT_PATH lets the same benchmark code run against another build (e.g. merge-base)
+const { Transport, ClusterConnectionPool, BaseConnection } =
+  await import(process.env.TRANSPORT_PATH ? pathToFileURL(resolve(process.env.TRANSPORT_PATH)).href : '../../index.js')
 
 class MockConnection extends BaseConnection {
   async request() {

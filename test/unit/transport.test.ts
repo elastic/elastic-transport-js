@@ -859,6 +859,59 @@ test('Retry on timeout error if retryOnTimeout is true', async t => {
   }
 })
 
+test('Retry on timeout error if retryOnTimeout is true in request options', async t => {
+  t.plan(2)
+  const clock = FakeTimers.install({ toFake: ['setTimeout'] })
+  t.teardown(() => clock.uninstall())
+
+  const pool = new WeightedConnectionPool({ Connection: MockConnectionTimeout })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool,
+    retryBackoff: () => 0
+  })
+
+  try {
+    const res = transport.request({
+      method: 'GET',
+      path: '/hello'
+    }, { retryOnTimeout: true })
+    clock.tick(4000)
+    await res
+  } catch (err: any) {
+    t.ok(err instanceof TimeoutError)
+    t.equal(err.meta.meta.attempts, 3)
+  }
+})
+
+test('Do not retry on timeout error if retryOnTimeout is false in request options', async t => {
+  t.plan(2)
+  const clock = FakeTimers.install({ toFake: ['setTimeout'] })
+  t.teardown(() => clock.uninstall())
+
+  const pool = new WeightedConnectionPool({ Connection: MockConnectionTimeout })
+  pool.addConnection('http://localhost:9200')
+
+  const transport = new Transport({
+    connectionPool: pool,
+    retryOnTimeout: true,
+    retryBackoff: () => 0
+  })
+
+  try {
+    const res = transport.request({
+      method: 'GET',
+      path: '/hello'
+    }, { retryOnTimeout: false })
+    clock.tick(4000)
+    await res
+  } catch (err: any) {
+    t.ok(err instanceof TimeoutError)
+    t.equal(err.meta.meta.attempts, 0)
+  }
+})
+
 test('Abort a request', async t => {
   const Conn = buildMockConnection({
     onRequest(_opts: ConnectionRequestParams): { body: any, statusCode: number } {
