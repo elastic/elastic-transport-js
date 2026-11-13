@@ -5,8 +5,8 @@
 
 import { promisify } from 'node:util'
 import zlib from 'node:zlib'
-import { Readable } from 'node:stream'
 import { Middleware, MiddlewareContext, MiddlewareName, MiddlewarePriority, MiddlewareRequestUpdate } from './types'
+import { isStream } from '../utils'
 
 const gzip = promisify(zlib.gzip)
 
@@ -25,9 +25,8 @@ export class Compression implements Middleware {
     if (!(ctx.options.compression ?? this.options.compression) || body == null || body === '') return
 
     return {
-      // Duck-typed like Transport's isStream; importing it from Transport would be circular.
-      body: typeof (body as Readable).pipe === 'function'
-        ? (body as Readable).pipe(zlib.createGzip())
+      body: isStream(body)
+        ? body.pipe(zlib.createGzip())
         : await gzip(body as string | Buffer),
       headers: { ...headers, 'content-encoding': 'gzip' }
     }

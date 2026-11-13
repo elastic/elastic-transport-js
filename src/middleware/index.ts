@@ -4,6 +4,7 @@
  */
 
 export { MiddlewareEngine, MiddlewareException } from './MiddlewareEngine'
+export { DefaultHeaders, type DefaultHeadersOptions } from './DefaultHeaders'
 export { Compression, type CompressionOptions } from './Compression'
 export { ProductCheck, type ProductCheckOptions } from './ProductCheck'
 export { OpenTelemetryMiddleware, type OpenTelemetryOptions } from './OpenTelemetry'

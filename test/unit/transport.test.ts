@@ -3406,3 +3406,29 @@ test('onBeforeRequest middleware errors reject and emit a request event', async 
   })
   await t.rejects(transport.request({ method: 'GET', path: '/hello' }), MiddlewareException)
 })
+
+test('Request headers by body type', async t => {
+  const cases = [
+    { name: 'empty string body', params: { body: '' }, contentType: 'application/json', accept: 'application/json, text/plain' },
+    { name: 'empty bulk body', params: { bulkBody: '' }, contentType: 'application/json', accept: 'application/json, text/plain' },
+    { name: 'buffer body', params: { body: Buffer.from('hello') }, contentType: 'text/plain', accept: 'application/json, text/plain' },
+    { name: 'stream body', params: { body: Readable.from(['hello']) }, contentType: 'text/plain', accept: 'application/json, text/plain' }
+  ]
+
+  for (const { name, params, contentType, accept } of cases) {
+    await t.test(name, async t => {
+      t.plan(2)
+      const Conn = buildMockConnection({
+        onRequest (opts: ConnectionRequestParams): { body: any, statusCode: number } {
+          t.equal(opts.headers?.['content-type'], contentType)
+          t.equal(opts.headers?.accept, accept)
+          return { body: { hello: 'world' }, statusCode: 200 }
+        }
+      })
+      const pool = new WeightedConnectionPool({ Connection: Conn })
+      pool.addConnection('http://localhost:9200')
+      const transport = new Transport({ connectionPool: pool })
+      await transport.request({ method: 'POST', path: '/hello', ...params })
+    })
+  }
+})

@@ -24,7 +24,6 @@ import { Connection, ConnectionRequestParams } from './connection'
 import { isBinary } from './connection/BaseConnection'
 import Diagnostic from './Diagnostic'
 import Serializer from './Serializer'
-import { Readable as ReadableStream } from 'node:stream'
 import { BaseConnectionPool } from './pool'
 import {
   nodeFilterFn,
@@ -68,8 +67,9 @@ import {
   kMiddlewareEngine
 } from './symbols'
 import { setTimeout } from 'node:timers/promises'
-import { MiddlewareEngine, Compression, ProductCheck, OpenTelemetryMiddleware, type OpenTelemetryOptions, MiddlewareContext } from './middleware'
+import { MiddlewareEngine, DefaultHeaders, Compression, ProductCheck, OpenTelemetryMiddleware, type OpenTelemetryOptions, MiddlewareContext } from './middleware'
 import { transportVersion } from './version.generated'
+import { shouldSerialize, isStream, lowerCaseHeaders } from './utils'
 
 const nodeVersion = process.versions.node
 const debug = Debug('elasticsearch')
@@ -78,6 +78,7 @@ const unzip = promisify(zlib.unzip)
 const userAgent = `elastic-transport-js/${transportVersion} (${os.platform()} ${os.release()}-${os.arch()}; Node.js ${process.version})` // eslint-disable-line
 
 export type { OpenTelemetryOptions } from './middleware'
+export { lowerCaseHeaders }
 
 export interface TransportOptions {
   diagnostic?: Diagnostic
@@ -312,6 +313,13 @@ export default class Transport {
     // middleware is registered.
     this[kMiddlewareEngine] = new MiddlewareEngine()
     this[kMiddlewareEngine].register(new OpenTelemetryMiddleware(otelOptions))
+    this[kMiddlewareEngine].register(new DefaultHeaders({
+      headers: this[kHeaders],
+      opaqueIdPrefix: this[kOpaqueIdPrefix],
+      jsonContentType: this[kJsonContentType],
+      ndjsonContentType: this[kNdjsonContentType],
+      acceptHeader: this[kAcceptHeader]
+    }))
     this[kMiddlewareEngine].register(new Compression({
       compression: this[kCompression]
     }))
@@ -430,13 +438,6 @@ export default class Transport {
     }
 
     this[kDiagnostic].emit('serialization', null, result)
-    const headers = Object.assign({}, this[kHeaders], lowerCaseHeaders(options.headers))
-
-    if (options.opaqueId !== undefined) {
-      headers['x-opaque-id'] = typeof this[kOpaqueIdPrefix] === 'string'
-        ? this[kOpaqueIdPrefix] + options.opaqueId // eslint-disable-line
-        : options.opaqueId
-    }
 
     // handle json body
     if (params.body != null) {
@@ -447,13 +448,7 @@ export default class Transport {
           this[kDiagnostic].emit('request', err, result)
           throw err
         }
-        headers['content-type'] = headers['content-type'] ?? this[kJsonContentType]
-        headers.accept = headers.accept ?? this[kJsonContentType]
       } else {
-        if (params.body !== '') {
-          headers['content-type'] = headers['content-type'] ?? 'text/plain'
-          headers.accept = headers.accept ?? this[kAcceptHeader]
-        }
         connectionParams.body = params.body
       }
 
@@ -468,11 +463,6 @@ export default class Transport {
         }
       } else {
         connectionParams.body = params.bulkBody
-      }
-
-      if (connectionParams.body !== '') {
-        headers['content-type'] = headers['content-type'] ?? this[kNdjsonContentType]
-        headers.accept = headers.accept ?? this[kJsonContentType]
       }
     }
 
@@ -506,13 +496,6 @@ export default class Transport {
       }
     }
 
-    headers.accept = headers.accept ?? this[kAcceptHeader]
-
-    // Set default content-type header for empty requests
-    if (headers['content-type'] == null && (connectionParams.body == null || connectionParams.body === '')) {
-      headers['content-type'] = this[kJsonContentType]
-    }
-
     // Shared across all phases; `connection` and `attempts` are refreshed each
     // retry attempt before `onResponse` runs.
     const middlewareCtx: MiddlewareContext = {
@@ -521,7 +504,7 @@ export default class Transport {
         path: connectionParams.path,
         body: connectionParams.body,
         querystring: connectionParams.querystring,
-        headers
+        headers: {}
       },
       params,
       options,
@@ -795,16 +778,6 @@ function toMs (time: number | string): number {
   return time
 }
 
-function shouldSerialize (obj: any): obj is Record<string, any> | Array<Record<string, any>> {
-  return typeof obj !== 'string' &&
-         typeof obj.pipe !== 'function' &&
-         !Buffer.isBuffer(obj)
-}
-
-function isStream (obj: any): obj is ReadableStream {
-  return obj != null && typeof obj.pipe === 'function'
-}
-
 function defaultNodeFilter (node: Connection): boolean {
   return true
 }
@@ -825,16 +798,6 @@ export function generateRequestId (): generateRequestIdFn {
   return function genReqId (params, options) {
     return (nextReqId = (nextReqId + 1) & maxInt)
   }
-}
-
-export function lowerCaseHeaders (oldHeaders?: http.IncomingHttpHeaders): http.IncomingHttpHeaders | null {
-  if (oldHeaders == null) return null
-  const newHeaders: Record<string, string> = {}
-  for (const header in oldHeaders) {
-    // @ts-expect-error
-    newHeaders[header.toLowerCase()] = oldHeaders[header]
-  }
-  return newHeaders
 }
 
 /**
