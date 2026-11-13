@@ -14,6 +14,7 @@ import { Connection } from '../connection'
  */
 export enum MiddlewareName {
   OPEN_TELEMETRY = 'opentelemetry',
+  DEFAULT_HEADERS = 'default-headers',
   COMPRESSION = 'compression',
   PRODUCT_CHECK = 'product-check'
 }
@@ -24,6 +25,7 @@ export enum MiddlewareName {
  */
 export const MiddlewarePriority: Record<MiddlewareName, number> = {
   [MiddlewareName.OPEN_TELEMETRY]: 10,
+  [MiddlewareName.DEFAULT_HEADERS]: 15,
   [MiddlewareName.COMPRESSION]: 20,
   [MiddlewareName.PRODUCT_CHECK]: 50
 } as const
