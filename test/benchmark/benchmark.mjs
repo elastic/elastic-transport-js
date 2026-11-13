@@ -3,15 +3,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { writeFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { run, bench, group } from 'mitata'
-import {
+
+// TRANSPORT_PATH lets the same benchmark code run against another build (e.g. merge-base)
+const {
   Transport,
   WeightedConnectionPool,
   ClusterConnectionPool,
   CloudConnectionPool,
   HttpConnection,
   UndiciConnection
-} from '../../index.js'
+} = await import(process.env.TRANSPORT_PATH ? pathToFileURL(resolve(process.env.TRANSPORT_PATH)).href : '../../index.js')
 
 group('Transport#constructor - UndiciConnection', () => {
   bench('WeightedConnectionPool', () => {
