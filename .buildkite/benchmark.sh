@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-mkdir -p benchmark-output/{pr,base}
+rounds=3
 
 git fetch origin "$BUILDKITE_PULL_REQUEST_BASE_BRANCH"
 merge_base=$(git merge-base "origin/$BUILDKITE_PULL_REQUEST_BASE_BRANCH" "$BUILDKITE_COMMIT")
@@ -17,12 +17,20 @@ git worktree add ../base "$merge_base"
 (cd ../base && npm install && npm run build)
 
 run_benchmark() {
+  mkdir -p "benchmark-output/$1/$3"
   TRANSPORT_PATH="$2" npm run benchmark:mitata
   TRANSPORT_PATH="$2" npm run benchmark:gc
-  mv benchmark*.json "benchmark-output/$1"
+  mv benchmark*.json "benchmark-output/$1/$3"
 }
 
-run_benchmark base "$(cd ../base && pwd)/index.js"
-run_benchmark pr "$PWD/index.js"
+# interleave rounds so machine drift affects both sides equally
+for i in $(seq 1 $rounds); do
+  run_benchmark base "$(cd ../base && pwd)/index.js" "$i"
+  run_benchmark pr "$PWD/index.js" "$i"
+done
+
+for side in base pr; do
+  node scripts/median-benchmark-json.mjs "benchmark-output/$side" $(seq -f "benchmark-output/$side/%g" 1 $rounds)
+done
 
 npm run benchmark:pr-comment
