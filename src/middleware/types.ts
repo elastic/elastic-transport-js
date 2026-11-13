@@ -14,6 +14,7 @@ import { Connection } from '../connection'
  */
 export enum MiddlewareName {
   OPEN_TELEMETRY = 'opentelemetry',
+  COMPRESSION = 'compression',
   PRODUCT_CHECK = 'product-check'
 }
 
@@ -23,6 +24,7 @@ export enum MiddlewareName {
  */
 export const MiddlewarePriority: Record<MiddlewareName, number> = {
   [MiddlewareName.OPEN_TELEMETRY]: 10,
+  [MiddlewareName.COMPRESSION]: 20,
   [MiddlewareName.PRODUCT_CHECK]: 50
 } as const
 
@@ -47,6 +49,15 @@ export interface MiddlewareContext {
   }
 }
 
+/**
+ * Replaces the matching `ctx.request` fields for later middleware and the HTTP request.
+ * `headers` fully replaces the existing headers; spread `ctx.request.headers` to keep them.
+ */
+export interface MiddlewareRequestUpdate {
+  body?: RequestBody | null
+  headers?: http.IncomingHttpHeaders
+}
+
 export interface MiddlewareResult {
   continue?: boolean
 }
@@ -57,6 +68,11 @@ export type MiddlewareNext = () => Promise<TransportResult>
 export interface Middleware {
   readonly name: MiddlewareName
   readonly priority?: number
+  /**
+   * Called once before the request is sent (not per retry).
+   * See `MiddlewareRequestUpdate` for how returned fields are applied.
+   */
+  onBeforeRequest?: (ctx: MiddlewareContext) => MiddlewareRequestUpdate | undefined | Promise<MiddlewareRequestUpdate | undefined>
   /**
    * Wraps the whole request (all retries). Call `next()` to run the inner layers
    * and the HTTP request, then return its result. Because the work runs inside the

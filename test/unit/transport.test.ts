@@ -28,6 +28,8 @@ import {
   errors
 } from '../..'
 import { connection, buildServer } from '../utils'
+import { kMiddlewareEngine } from '../../lib/symbols'
+import { MiddlewareException, MiddlewareName } from '../../lib/middleware'
 
 const { version: transportVersion } = require('../../package.json') // eslint-disable-line
 const sleep = promisify(setTimeout)
@@ -3358,4 +3360,49 @@ test('Product check is disabled when productCheck option is not set', async t =>
 
   t.equal(res.statusCode, 200)
   t.same(res.body, { hello: 'world' })
+})
+
+test('Compression sets content-length to the gzipped body size', async t => {
+  t.plan(2)
+  const Conn = buildMockConnection({
+    onRequest (opts: ConnectionRequestParams): { body: any, statusCode: number } {
+      t.ok(opts.body instanceof Buffer)
+      t.equal(opts.headers?.['content-length'], String(Buffer.byteLength(opts.body as Buffer)))
+      return { body: { hello: 'world' }, statusCode: 200 }
+    }
+  })
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+  const transport = new Transport({ connectionPool: pool, compression: true })
+  await transport.request({ method: 'POST', path: '/hello', body: { hello: 'world' } })
+})
+
+test('Compression does not set content-length for stream bodies', async t => {
+  t.plan(2)
+  const Conn = buildMockConnection({
+    onRequest (opts: ConnectionRequestParams): { body: any, statusCode: number } {
+      t.equal(opts.headers?.['content-encoding'], 'gzip')
+      t.equal(opts.headers?.['content-length'], undefined)
+      return { body: { hello: 'world' }, statusCode: 200 }
+    }
+  })
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+  const transport = new Transport({ connectionPool: pool, compression: true })
+  await transport.request({ method: 'POST', path: '/hello', body: intoStream(JSON.stringify({ hello: 'world' })) })
+})
+
+test('onBeforeRequest middleware errors reject and emit a request event', async t => {
+  t.plan(2)
+  const pool = new WeightedConnectionPool({ Connection: MockConnection })
+  pool.addConnection('http://localhost:9200')
+  const transport = new Transport({ connectionPool: pool })
+  transport[kMiddlewareEngine].register({
+    name: MiddlewareName.COMPRESSION,
+    onBeforeRequest: () => { throw new Error('boom') }
+  })
+  transport.diagnostic.on(events.REQUEST, (err) => {
+    t.ok(err instanceof MiddlewareException)
+  })
+  await t.rejects(transport.request({ method: 'GET', path: '/hello' }), MiddlewareException)
 })
