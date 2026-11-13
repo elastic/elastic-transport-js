@@ -448,9 +448,12 @@ function signCert (opts: {
   if (opts.san != null) {
     extensions.push(ext('2.5.29.17', false, seq(tlv(0x82, Buffer.from(opts.san)))))
   }
+  // nonzero, positive leading byte keeps the DER INTEGER minimal; OpenSSL 3 rejects padded ones
+  const serial = randomBytes(8)
+  serial[0] = (serial[0] & 0x7f) | 0x01
   const tbs = seq(
     tlv(0xa0, integer(Buffer.from([2]))),
-    integer(randomBytes(8)),
+    integer(serial),
     sha256Rsa(),
     dn(opts.issuer),
     seq(utc(opts.notBefore), utc(opts.notAfter)),
