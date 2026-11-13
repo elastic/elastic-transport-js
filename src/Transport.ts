@@ -68,14 +68,12 @@ import {
   kMiddlewareEngine
 } from './symbols'
 import { setTimeout } from 'node:timers/promises'
-import { MiddlewareEngine, ProductCheck, OpenTelemetryMiddleware, type OpenTelemetryOptions, MiddlewareContext } from './middleware'
+import { MiddlewareEngine, Compression, ProductCheck, OpenTelemetryMiddleware, type OpenTelemetryOptions, MiddlewareContext } from './middleware'
 import { transportVersion } from './version.generated'
 
 const nodeVersion = process.versions.node
 const debug = Debug('elasticsearch')
-const gzip = promisify(zlib.gzip)
 const unzip = promisify(zlib.unzip)
-const { createGzip } = zlib
 
 const userAgent = `elastic-transport-js/${transportVersion} (${os.platform()} ${os.release()}-${os.arch()}; Node.js ${process.version})` // eslint-disable-line
 
@@ -105,7 +103,7 @@ export interface TransportOptions {
   maxCompressedResponseSize?: number
   /**
    * Maximum allowed byte length of the request path (`path` + optional `?querystring`).
-   * Does not include scheme or hostname — those are not part of the HTTP request-target
+   * Does not include scheme or hostname -- those are not part of the HTTP request-target
    * in origin-form (as used by Kibana/HttpConnection). When exceeded, the request is
    * rejected with a `ConfigurationError` before it is sent.
    * Aligns with Elasticsearch's `http.max_initial_line_length` (default 4kb); leave headroom
@@ -314,6 +312,9 @@ export default class Transport {
     // middleware is registered.
     this[kMiddlewareEngine] = new MiddlewareEngine()
     this[kMiddlewareEngine].register(new OpenTelemetryMiddleware(otelOptions))
+    this[kMiddlewareEngine].register(new Compression({
+      compression: this[kCompression]
+    }))
     this[kMiddlewareEngine].register(new ProductCheck({
       productCheck: this[kProductCheck]
     }))
@@ -420,7 +421,6 @@ export default class Transport {
     // the size of the stream, we risk to take too much memory.
     // Furthermore, copying every time the stream is very a expensive operation.
     const maxRetries = isStream(params.body ?? params.bulkBody) ? 0 : (typeof options.maxRetries === 'number' ? options.maxRetries : this[kMaxRetries])
-    const compression = typeof options.compression === 'boolean' ? options.compression : this[kCompression]
     const signal = options.signal
     const maxResponseSize = options.maxResponseSize ?? this[kMaxResponseSize]
     const maxCompressedResponseSize = options.maxCompressedResponseSize ?? this[kMaxCompressedResponseSize]
@@ -506,37 +506,12 @@ export default class Transport {
       }
     }
 
-    // handle compression
-    if (connectionParams.body !== '' && connectionParams.body != null) {
-      if (isStream(connectionParams.body)) {
-        if (compression) {
-          headers['content-encoding'] = 'gzip'
-          connectionParams.body = connectionParams.body.pipe(createGzip())
-        }
-      } else if (compression) {
-        try {
-          connectionParams.body = await gzip(connectionParams.body)
-        } catch (err: any) {
-          /* istanbul ignore next */
-          this[kDiagnostic].emit('request', err, result)
-          /* istanbul ignore next */
-          throw err
-        }
-        headers['content-encoding'] = 'gzip'
-        headers['content-length'] = '' + Buffer.byteLength(connectionParams.body) // eslint-disable-line
-      } else {
-        headers['content-length'] = '' + Buffer.byteLength(connectionParams.body) // eslint-disable-line
-      }
-    }
-
     headers.accept = headers.accept ?? this[kAcceptHeader]
 
     // Set default content-type header for empty requests
     if (headers['content-type'] == null && (connectionParams.body == null || connectionParams.body === '')) {
       headers['content-type'] = this[kJsonContentType]
     }
-
-    connectionParams.headers = headers
 
     // Shared across all phases; `connection` and `attempts` are refreshed each
     // retry attempt before `onResponse` runs.
@@ -546,7 +521,7 @@ export default class Transport {
         path: connectionParams.path,
         body: connectionParams.body,
         querystring: connectionParams.querystring,
-        headers: connectionParams.headers ?? {}
+        headers
       },
       params,
       options,
@@ -557,6 +532,18 @@ export default class Transport {
         connection: null,
         attempts: 0
       }
+    }
+
+    try {
+      await this[kMiddlewareEngine].executeOnBeforeRequest(middlewareCtx)
+    } catch (err: any) {
+      this[kDiagnostic].emit('request', err, result)
+      throw err
+    }
+    connectionParams.body = middlewareCtx.request.body as ConnectionRequestParams['body']
+    connectionParams.headers = { ...middlewareCtx.request.headers }
+    if (connectionParams.body != null && connectionParams.body !== '' && !isStream(connectionParams.body)) {
+      connectionParams.headers['content-length'] = '' + Buffer.byteLength(connectionParams.body) // eslint-disable-line
     }
 
     // Wrapped by the `around` chain (e.g. OpenTelemetry); `onResponse` still runs

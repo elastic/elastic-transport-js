@@ -176,6 +176,40 @@ test('MiddlewareEngine', async t => {
   })
 })
 
+test('MiddlewareEngine.executeOnBeforeRequest', async t => {
+  await t.test('applies request updates in priority order', async t => {
+    const engine = new MiddlewareEngine()
+    const ctx = createMockContext()
+    engine.register({
+      name: MiddlewareName.COMPRESSION,
+      priority: 20,
+      onBeforeRequest: async (ctx) => ({ body: `${ctx.request.body as string}-second` })
+    })
+    engine.register({
+      name: MiddlewareName.OPEN_TELEMETRY,
+      priority: 10,
+      onBeforeRequest: () => ({ body: 'first', headers: { a: 'b' } })
+    })
+    engine.register({ name: MiddlewareName.PRODUCT_CHECK, onBeforeRequest: () => undefined })
+
+    await engine.executeOnBeforeRequest(ctx)
+    t.equal(ctx.request.body, 'first-second')
+    t.same(ctx.request.headers, { a: 'b' })
+    t.equal(ctx.request.path, '/test', 'keeps other request fields')
+  })
+
+  await t.test('wraps non-client errors in MiddlewareException', async t => {
+    const engine = new MiddlewareEngine()
+    engine.register({
+      name: MiddlewareName.COMPRESSION,
+      onBeforeRequest: async () => { throw new Error('boom') }
+    })
+    const err: any = await t.rejects(engine.executeOnBeforeRequest(createMockContext()), MiddlewareException)
+    t.ok(err.message.includes('compression'))
+    t.ok(err.message.includes('onBeforeRequest'))
+  })
+})
+
 test('MiddlewareEngine.run (around chain)', async t => {
   await t.test('wraps the request as an onion in priority order', async t => {
     const engine = new MiddlewareEngine()

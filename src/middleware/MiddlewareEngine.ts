@@ -23,6 +23,27 @@ export class MiddlewareEngine {
   }
 
   /**
+   * Runs every `onBeforeRequest` handler in priority order, applying each
+   * returned update to `context.request` before the next handler runs.
+   */
+  async executeOnBeforeRequest (context: MiddlewareContext): Promise<void> {
+    for (const middleware of this.middleware) {
+      if (middleware.onBeforeRequest == null) continue
+
+      try {
+        const update = await middleware.onBeforeRequest(context)
+        if (update != null) {
+          // The engine is the only writer of ctx.request; middleware see it as readonly.
+          (context as { request: MiddlewareContext['request'] }).request = { ...context.request, ...update }
+        }
+      } catch (error) {
+        if (error instanceof ElasticsearchClientError) throw error
+        throw new MiddlewareException(`Middleware ${middleware.name} failed in onBeforeRequest`, { cause: error })
+      }
+    }
+  }
+
+  /**
    * Wraps `run` (the request, including all retries) in the `around` handlers as
    * an onion: highest priority (lowest number) is outermost. Errors propagate as-is.
    */
