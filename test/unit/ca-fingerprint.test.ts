@@ -4,15 +4,11 @@
  */
 
 import { createPublicKey, createSign, generateKeyPairSync, randomBytes, X509Certificate, KeyObject } from 'node:crypto'
-import dns from 'node:dns'
 import http from 'node:http'
 import https from 'node:https'
 import net from 'node:net'
 import { URL } from 'node:url'
 import { test } from 'tap'
-
-// Node 18 resolves localhost to ::1. These servers listen on 127.0.0.1.
-dns.setDefaultResultOrder('ipv4first')
 import { HttpConnection, UndiciConnection, errors } from '../../'
 
 const { ConfigurationError, ConnectionError, RequestAbortedError } = errors
