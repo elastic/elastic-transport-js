@@ -14,6 +14,7 @@ jobs:
   property:
     name: Property tests
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -43,5 +44,6 @@ jobs:
       - name: Run property tests and file issues
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           node scripts/property-test-issues.mjs

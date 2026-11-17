@@ -21,7 +21,12 @@ import { pathToFileURL } from 'node:url'
 
 const LABEL = 'property-test'
 const MAX_NEW_ISSUES = 5
-const marker = key => `<!-- property-test-key: ${key} -->`
+// keys are URI-encoded so a `-->` in a test name cannot end the comment
+export const marker = key => `<!-- property-test-key: ${encodeURIComponent(key)} -->`
+export function readMarker (body) {
+  const m = body.match(/<!-- property-test-key: (\S*) -->/)
+  return m != null ? decodeURIComponent(m[1]) : null
+}
 
 /**
  * Pairs top-level `not ok` lines from a directly-run tap file with the Hegel failure
@@ -47,20 +52,23 @@ export function parseFailures (file, tapOutput, stderr) {
   }
   const paired = examples.length === names.length
   return names.map((name, i) => ({
+    file,
     key: `${file} › ${name}`,
     example: paired ? examples[i].example : null,
     blob: paired ? examples[i].blob : null
   }))
 }
 
-/** Decides what to do per failure given existing issues ({ number, state, key, text }). */
+/** Decides what to do per failure given existing issues ({ number, state, stateReason, key, text }). */
 export function planActions (failures, issues, maxNew) {
   const actions = []
   let created = 0
   for (const failure of failures) {
     const issue = issues.find(i => i.key === failure.key)
     if (issue == null) {
-      if (created++ < maxNew) actions.push({ type: 'create', failure })
+      actions.push({ type: created++ < maxNew ? 'create' : 'skip-cap', failure })
+    } else if (issue.state === 'CLOSED' && issue.stateReason === 'NOT_PLANNED') {
+      continue
     } else if (issue.state === 'CLOSED') {
       actions.push({ type: 'reopen', failure, issue })
     } else if (failure.blob != null && !issue.text.includes(failure.blob)) {
@@ -82,7 +90,7 @@ function report (failure) {
     '',
     failure.example != null ? '```\n' + failure.example + '\n```' : 'No minimal example could be attributed; see the run log.',
     '',
-    'Reproduce locally: `npm run build && HEGEL_SEED=<seed> node test/property/<file>`.'
+    `Reproduce locally (POSIX shell): \`npm run build && HEGEL_SEED=${process.env.HEGEL_SEED ?? '<seed>'} node test/property/${failure.file}\`.`
   ].join('\n')
 }
 
@@ -101,12 +109,11 @@ function runSuite (dir) {
 }
 
 function existingIssues () {
-  const list = JSON.parse(gh('issue', 'list', '--label', LABEL, '--state', 'all', '--limit', '1000', '--json', 'number,state,body'))
+  const list = JSON.parse(gh('issue', 'list', '--label', LABEL, '--state', 'all', '--limit', '1000', '--json', 'number,state,stateReason,body,comments'))
   return list.flatMap(issue => {
-    const m = issue.body.match(/<!-- property-test-key: (.*?) -->/)
-    if (m == null) return []
-    const comments = JSON.parse(gh('issue', 'view', String(issue.number), '--json', 'comments')).comments
-    return [{ number: issue.number, state: issue.state, key: m[1], text: issue.body + comments.map(c => c.body).join('\n') }]
+    const key = readMarker(issue.body)
+    if (key == null) return []
+    return [{ number: issue.number, state: issue.state, stateReason: issue.stateReason, key, text: issue.body + issue.comments.map(c => c.body).join('\n') }]
   })
 }
 
@@ -118,8 +125,10 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   if (failures.length > 0) {
     if (!dryRun) gh('label', 'create', LABEL, '--force', '--description', 'Found by the weekly Hegel property test run')
     for (const { type, failure, issue } of planActions(failures, existingIssues(), MAX_NEW_ISSUES)) {
-      console.log(`${dryRun ? '[dry-run] ' : ''}${type}: ${issue != null ? `#${issue.number}` : failure.key}`)
-      if (dryRun) continue
+      console.log(type === 'skip-cap'
+        ? `skipped (cap): ${failure.key}`
+        : `${dryRun ? '[dry-run] ' : ''}${type}: ${issue != null ? `#${issue.number}` : failure.key}`)
+      if (dryRun || type === 'skip-cap') continue
       if (type === 'create') {
         gh('issue', 'create', '--label', LABEL, '--title', `Property test failure: ${failure.key}`, '--body', `${marker(failure.key)}\n${report(failure)}`)
       } else {

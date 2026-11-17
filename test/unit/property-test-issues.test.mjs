@@ -4,7 +4,7 @@
  */
 
 import { test } from 'tap'
-import { parseFailures, planActions } from '../../scripts/property-test-issues.mjs'
+import { parseFailures, planActions, marker, readMarker } from '../../scripts/property-test-issues.mjs'
 
 const tap = [
   'TAP version 14',
@@ -31,8 +31,8 @@ const stderr = [
 
 test('parseFailures pairs top-level failures with Hegel examples, skipping TODOs', t => {
   t.same(parseFailures('x.test.mjs', tap, stderr), [
-    { key: 'x.test.mjs › first bug', example: stderr.split('\n').slice(0, 4).join('\n'), blob: 'AAA' },
-    { key: 'x.test.mjs › second bug', example: stderr.split('\n').slice(4).join('\n'), blob: 'BBB' }
+    { file: 'x.test.mjs', key: 'x.test.mjs › first bug', example: stderr.split('\n').slice(0, 4).join('\n'), blob: 'AAA' },
+    { file: 'x.test.mjs', key: 'x.test.mjs › second bug', example: stderr.split('\n').slice(4).join('\n'), blob: 'BBB' }
   ])
   t.end()
 })
@@ -58,6 +58,21 @@ test('planActions dedupes against existing issues and caps new ones', t => {
     ['reopen', 3],
     ['create', 'd']
   ])
-  t.same(planActions(failures, [], 2).map(a => a.type), ['create', 'create'])
+  t.same(planActions(failures, [], 2).map(a => a.type), ['create', 'create', 'skip-cap', 'skip-cap'])
+  t.end()
+})
+
+test('planActions ignores issues closed as not planned', t => {
+  const failures = [{ key: 'a', example: null, blob: 'x' }]
+  t.same(planActions(failures, [{ number: 1, state: 'CLOSED', stateReason: 'NOT_PLANNED', key: 'a', text: '' }], 5), [])
+  t.end()
+})
+
+test('marker keys cannot end the HTML comment and round-trip', t => {
+  const key = 'x.test.mjs › a --> b -- c'
+  const m = marker(key)
+  t.equal(m.indexOf('-->'), m.length - 3)
+  t.equal(readMarker(`body\n${m}\nmore`), key)
+  t.equal(readMarker('no marker'), null)
   t.end()
 })

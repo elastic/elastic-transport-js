@@ -49,7 +49,7 @@
     "benchmark:mitata": "node --expose-gc test/benchmark/benchmark.mjs",
     "benchmark:gc": "node --expose-gc test/benchmark/gc-tracking.mjs",
     "benchmark:pr-comment": "node scripts/generate-pr-comment.mjs",
-    "test:property": "npm run build && tap --no-disable-coverage --coverage-report=text-summary test/property/"
+    "test:property": "npm run build && tap --no-disable-coverage --coverage-report=text-summary test/property/*.test.mjs"
   },
   "repository": {
     "type": "git",
