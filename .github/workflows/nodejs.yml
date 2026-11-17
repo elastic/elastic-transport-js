@@ -45,6 +45,29 @@ jobs:
         run: |
           npm run test:acceptance
 
+  property:
+    name: Property tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Use Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.x
+
+      - name: Install
+        run: |
+          npm install
+
+      # CI=true makes Hegel derandomize, so results are stable per commit
+      - name: Property test
+        run: |
+          npm run test:property
+
   test-client:
     name: Test against client
     runs-on: ubuntu-latest

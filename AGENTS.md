@@ -10,6 +10,7 @@ Always use `npm` commands, not `yarn`, `pnpm` or any other third-party packaging
 - Run just the linter: `npm run lint`
 - Fix linter issues: `npm run lint:fix`
 - Build TypeScript (outputs both ESM and CommonJS): `npm run build`
+- Run property-based tests (Hegel; known bugs are marked `todo`): `npm run test:property`. Must pass when changing `src/`.
 
 ## Testing
 
@@ -22,6 +23,7 @@ Always use `npm` commands, not `yarn`, `pnpm` or any other third-party packaging
 - **esm/** - Compiled ES Module output
 - **test/unit/** - Unit tests
 - **test/acceptance/** - Integration/acceptance tests
+- **test/property/** - Hegel property-based tests (not part of `npm test`; run on PRs and weekly in CI)
 
 ## Development Workflow
 

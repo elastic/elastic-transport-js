@@ -115,3 +115,6 @@ src/version.generated.ts
 # benchmark artifacts
 benchmark.json
 benchmark-gc.json
+
+# Hegel property-test example database
+.hegel
