@@ -186,8 +186,7 @@ const validStatuses = Object.keys(BaseConnection.statuses)
   .map(k => BaseConnection.statuses[k])
 
 export function stripAuth (url: string): string {
-  if (!url.includes('@')) return url
-  return url.slice(0, url.indexOf('//') + 2) + url.slice(url.indexOf('@') + 1)
+  return url.replace(/\/\/[^/?#]*@/, '//')
 }
 
 export function prepareHeaders (headers: http.IncomingHttpHeaders = {}, auth?: BasicAuth | ApiKeyAuth | BearerAuth): http.IncomingHttpHeaders {

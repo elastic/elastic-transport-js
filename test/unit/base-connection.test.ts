@@ -8,7 +8,7 @@ import { inspect } from 'util'
 import { TLSSocket, DetailedPeerCertificate } from 'tls'
 import { URL } from 'url'
 import { BaseConnection, Diagnostic, errors } from '../../'
-import { getIssuerCertificate } from '../../src/connection/BaseConnection'
+import { getIssuerCertificate, stripAuth } from '../../src/connection/BaseConnection'
 const { ConfigurationError } = errors
 
 test('get diagnostic instance', t => {
@@ -293,4 +293,11 @@ test('getIssuerCertificate detects invalid/malformed certificates', t => {
     }
   }
   t.equal(getIssuerCertificate(socket as TLSSocket), null)
+})
+
+test('stripAuth only strips credentials from the authority', t => {
+  t.equal(stripAuth('http://a:1/?@'), 'http://a:1/?@')
+  t.equal(stripAuth('http://a:1/x@y#z@'), 'http://a:1/x@y#z@')
+  t.equal(stripAuth('http://u:p@a:1/x@y'), 'http://a:1/x@y')
+  t.end()
 })
