@@ -64,7 +64,8 @@ test('planActions dedupes against existing issues and caps new ones', t => {
 
 test('planActions ignores issues closed as not planned', t => {
   const failures = [{ key: 'a', example: null, blob: 'x' }]
-  t.same(planActions(failures, [{ number: 1, state: 'CLOSED', stateReason: 'NOT_PLANNED', key: 'a', text: '' }], 5), [])
+  const issue = { number: 1, state: 'CLOSED', stateReason: 'NOT_PLANNED', key: 'a', text: '' }
+  t.same(planActions(failures, [issue], 5), [{ type: 'ignore', failure: failures[0], issue }])
   t.end()
 })
 
@@ -74,5 +75,6 @@ test('marker keys cannot end the HTML comment and round-trip', t => {
   t.equal(m.indexOf('-->'), m.length - 3)
   t.equal(readMarker(`body\n${m}\nmore`), key)
   t.equal(readMarker('no marker'), null)
+  t.equal(readMarker('<!-- property-test-key: %E0 -->'), null)
   t.end()
 })

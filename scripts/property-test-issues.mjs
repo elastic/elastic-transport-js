@@ -25,7 +25,12 @@ const MAX_NEW_ISSUES = 5
 export const marker = key => `<!-- property-test-key: ${encodeURIComponent(key)} -->`
 export function readMarker (body) {
   const m = body.match(/<!-- property-test-key: (\S*) -->/)
-  return m != null ? decodeURIComponent(m[1]) : null
+  if (m == null) return null
+  try {
+    return decodeURIComponent(m[1])
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -68,7 +73,7 @@ export function planActions (failures, issues, maxNew) {
     if (issue == null) {
       actions.push({ type: created++ < maxNew ? 'create' : 'skip-cap', failure })
     } else if (issue.state === 'CLOSED' && issue.stateReason === 'NOT_PLANNED') {
-      continue
+      actions.push({ type: 'ignore', failure, issue })
     } else if (issue.state === 'CLOSED') {
       actions.push({ type: 'reopen', failure, issue })
     } else if (failure.blob != null && !issue.text.includes(failure.blob)) {
@@ -125,10 +130,11 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   if (failures.length > 0) {
     if (!dryRun) gh('label', 'create', LABEL, '--force', '--description', 'Found by the weekly Hegel property test run')
     for (const { type, failure, issue } of planActions(failures, existingIssues(), MAX_NEW_ISSUES)) {
-      console.log(type === 'skip-cap'
-        ? `skipped (cap): ${failure.key}`
-        : `${dryRun ? '[dry-run] ' : ''}${type}: ${issue != null ? `#${issue.number}` : failure.key}`)
-      if (dryRun || type === 'skip-cap') continue
+      const prefix = dryRun ? '[dry-run] ' : ''
+      if (type === 'skip-cap') console.log(`${prefix}skipped (cap): ${failure.key}`)
+      else if (type === 'ignore') console.log(`${prefix}ignored (closed as not planned): #${issue.number}`)
+      else console.log(`${prefix}${type}: ${issue != null ? `#${issue.number}` : failure.key}`)
+      if (dryRun || type === 'skip-cap' || type === 'ignore') continue
       if (type === 'create') {
         gh('issue', 'create', '--label', LABEL, '--title', `Property test failure: ${failure.key}`, '--body', `${marker(failure.key)}\n${report(failure)}`)
       } else {
