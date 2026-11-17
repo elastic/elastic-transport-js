@@ -20,7 +20,7 @@ const secretKeys = [
  */
 export function redactObject (obj: Record<string, any>, additionalKeys: string[] = []): Record<string, any> {
   const toRedact = [...secretKeys, ...additionalKeys].map(key => key.toLowerCase())
-  // `seen` maps each Object to its redacted copy (null while in progress), so shared references are redacted once
+  // `seen` maps each object or array to its redacted copy (null while in progress), so shared references are redacted once
   // and circular references become null
   const seen = new Map()
   return doRedact(obj)
@@ -29,12 +29,13 @@ export function redactObject (obj: Record<string, any>, additionalKeys: string[]
     // pull auth info out of URL objects
     if (value instanceof URL) return `${value.origin}${value.pathname}${value.search}`
     if (typeof value !== 'object' || value == null) return value
-    if (Array.isArray(value)) return value.map(v => doRedact(v))
     if (seen.has(value)) return seen.get(value)
     seen.set(value, null)
     // Object.fromEntries defines own keys, so a `__proto__` key can't replace the prototype
-    const result = Object.fromEntries(Object.entries(value).map(([key, v]) =>
-      [key, toRedact.includes(key.toLowerCase()) ? '[redacted]' : doRedact(v)]))
+    const result = Array.isArray(value)
+      ? value.map(v => doRedact(v))
+      : Object.fromEntries(Object.entries(value).map(([key, v]) =>
+        [key, toRedact.includes(key.toLowerCase()) ? '[redacted]' : doRedact(v)]))
     seen.set(value, result)
     return result
   }

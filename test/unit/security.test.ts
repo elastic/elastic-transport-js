@@ -209,6 +209,9 @@ test('redactObject', t => {
     const obj: Record<string, any> = {}
     obj.arr = [obj]
     t.same(redactObject(obj), { arr: [null] })
+    const arr: any[] = []
+    arr.push(arr)
+    t.same(redactObject({ arr }), { arr: [null] })
     t.end()
   })
 
