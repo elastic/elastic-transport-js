@@ -10,6 +10,11 @@ permissions:
   contents: read
   issues: write
 
+# runs read then create issues, so overlapping runs could file duplicates
+concurrency:
+  group: property-test-issues
+  cancel-in-progress: false
+
 jobs:
   property:
     name: Property tests
