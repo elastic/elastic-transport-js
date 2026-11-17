@@ -16,6 +16,8 @@ Always use `npm` commands, not `yarn`, `pnpm` or any other third-party packaging
 
 **The entire test suite (`npm test`) must pass and exit cleanly before you commit code.**
 
+Never defer a fix for anything that can cause unbounded memory or CPU use (infinite recursion, exponential traversal, etc.), even if the bug predates your change.
+
 ## Project Structure
 
 - **src/** - TypeScript source files
