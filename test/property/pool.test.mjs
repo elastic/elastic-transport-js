@@ -26,7 +26,9 @@ function poolRules () {
     markAlive: (tc, s) => { s.pool.markAlive(pick(tc, s.pool)) },
     addConnection: (tc, s) => {
       const url = tc.draw(hostUrl)
-      tc.assume(!s.pool.connections.some(c => c.id === url))
+      // ids are normalized (e.g. `:80` is dropped), so compare against the canonical form
+      const id = new URL(url).href
+      tc.assume(!s.pool.connections.some(c => c.id === id))
       s.pool.addConnection(url)
     },
     removeConnection: (tc, s) => { s.pool.removeConnection(pick(tc, s.pool)) },
