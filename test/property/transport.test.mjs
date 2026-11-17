@@ -13,6 +13,7 @@ import { BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from '
 import { json, jsonObject } from './gen.mjs'
 
 // one scripted outcome per connection attempt: an HTTP response or a thrown error
+// String() throws on bodies like { toString: 0 }, so non-JSON bodies are sent as JSON text
 const outcome = gs.oneOf(
   gs.record({
     kind: gs.just('response'),
@@ -20,7 +21,7 @@ const outcome = gs.oneOf(
     body: json,
     gzip: gs.booleans(),
     contentType: gs.sampledFrom(['application/json', 'application/vnd.elasticsearch+json;compatible-with=9', 'text/plain', undefined])
-  }),
+  }).map(o => o.contentType?.includes('json') ? o : { ...o, body: JSON.stringify(o.body) }),
   gs.record({ kind: gs.just('error'), error: gs.sampledFrom(['ConnectionError', 'TimeoutError']) })
 )
 
