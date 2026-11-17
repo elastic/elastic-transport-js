@@ -7,7 +7,7 @@ import { test } from 'tap'
 import assert from 'node:assert/strict'
 import * as hegel from '@hegeldev/hegel'
 import * as gs from '@hegeldev/hegel/generators'
-import { BaseConnection, BaseConnectionPool, ClusterConnectionPool, WeightedConnectionPool } from '../../index.js'
+import { BaseConnection, BaseConnectionPool, ClusterConnectionPool, CloudConnectionPool, WeightedConnectionPool } from '../../index.js'
 import { hostname, port, ipv4 } from './gen.mjs'
 
 const all = () => true
@@ -16,7 +16,7 @@ const hostUrl = gs.tuples(hostname, port).map(([h, p]) => `http://${h}:${p}/`)
 const hostUrls = gs.arrays(hostUrl, { minSize: 1, maxSize: 8, unique: true })
 
 // state machine rules shared by every pool flavor
-function poolRules (extra = {}) {
+function poolRules () {
   const pick = (tc, pool) => {
     tc.assume(pool.size > 0)
     return tc.draw(gs.sampledFrom(pool.connections))
@@ -34,8 +34,7 @@ function poolRules (extra = {}) {
       const conn = s.pool.getConnection(getOpts)
       if (s.pool.size > 0) assert.ok(s.pool.connections.includes(conn), 'getConnection returned a foreign or null connection')
       else assert.equal(conn, null)
-    },
-    ...extra
+    }
   }
 }
 
@@ -215,4 +214,11 @@ test('defaultNodeFilter excludes only master-only nodes', async () => await hege
   const masterOnly = roles.master && !roles.data && !roles.ingest && !roles.ml
   const conn = pool.getConnection({ ...getOpts, filter: undefined })
   assert.equal(conn === null, masterOnly)
+}))
+
+test('CloudConnectionPool always returns its single connection', async () => await hegel.test(tc => {
+  const pool = new CloudConnectionPool({ Connection: BaseConnection })
+  const host = tc.draw(gs.text({ alphabet: 'abc', minSize: 1, maxSize: 6 }))
+  pool.addConnection(`http://${host}:9200`)
+  assert.equal(pool.getConnection(getOpts), pool.connections[0])
 }))

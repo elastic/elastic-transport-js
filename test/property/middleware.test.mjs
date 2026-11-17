@@ -12,7 +12,7 @@ import { errors } from '../../index.js'
 
 const { MiddlewareEngine, MiddlewareException } = engineModule
 
-// A list of middleware with random priorities; each records its hook calls into `log`
+// middleware with random priorities; each records its hook calls into `log`
 function drawMiddleware (tc, log) {
   const specs = tc.draw(gs.arrays(gs.record({
     priority: gs.optional(gs.integers({ minValue: 0, maxValue: 200 })),

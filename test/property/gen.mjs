@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// Shared Hegel generators for the property-based test suite.
-
 import * as gs from '@hegeldev/hegel/generators'
 
 const finite = gs.floats({ allowNan: false, allowInfinity: false })
@@ -17,7 +15,7 @@ export const scalar = gs.oneOf(
   gs.text()
 )
 
-// Arbitrary JSON-compatible values (what Elasticsearch could plausibly send or receive)
+// arbitrary JSON-compatible values
 export const json = gs.recursive(scalar, children => gs.oneOf(
   gs.arrays(children, { maxSize: 5 }),
   gs.arrays(gs.tuples(gs.text({ maxSize: 10 }), children), { maxSize: 5 })

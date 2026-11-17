@@ -6,9 +6,9 @@
 /**
  * Runs the Hegel property suite and files one GitHub issue per failing property.
  *
- * Each failure is keyed by `<file> › <test name>`, stored as a hidden marker in the
+ * Each failure is keyed by `<file> > <test name>`, stored as a hidden marker in the
  * issue body. Existing issues are never duplicated: open ones get a comment only when
- * the minimal example is new, closed ones are reopened.
+ * the minimal example is new, closed ones are reopened unless closed as not planned.
  *
  * Usage (after `npm run build`, with `gh` authenticated):
  *   node scripts/property-test-issues.mjs [--dry-run]
@@ -58,7 +58,7 @@ export function parseFailures (file, tapOutput, stderr) {
   const paired = examples.length === names.length
   return names.map((name, i) => ({
     file,
-    key: `${file} › ${name}`,
+    key: `${file} > ${name}`,
     example: paired ? examples[i].example : null,
     blob: paired ? examples[i].blob : null
   }))
@@ -88,14 +88,15 @@ function gh (...args) {
 }
 
 function report (failure) {
+  const seed = process.env.HEGEL_SEED ?? '<seed>'
   const server = process.env.GITHUB_SERVER_URL
   const run = server != null ? `${server}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}` : 'local run'
   return [
-    `Property \`${failure.key}\` failed with \`HEGEL_SEED=${process.env.HEGEL_SEED ?? 'unset'}\` (${run}).`,
+    `Property \`${failure.key}\` failed with \`HEGEL_SEED=${seed}\` (${run}).`,
     '',
     failure.example != null ? '```\n' + failure.example + '\n```' : 'No minimal example could be attributed; see the run log.',
     '',
-    `Reproduce locally (POSIX shell): \`npm run build && HEGEL_SEED=${process.env.HEGEL_SEED ?? '<seed>'} node test/property/${failure.file}\`.`
+    `Reproduce locally (POSIX shell): \`npm run build && HEGEL_SEED=${seed} node test/property/${failure.file}\`.`
   ].join('\n')
 }
 

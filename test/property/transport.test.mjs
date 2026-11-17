@@ -12,7 +12,7 @@ import { Transport, BaseConnection, ClusterConnectionPool, WeightedConnectionPoo
 import { BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base'
 import { json, jsonObject } from './gen.mjs'
 
-// One scripted outcome per connection attempt: either an HTTP response or a thrown error
+// one scripted outcome per connection attempt: an HTTP response or a thrown error
 const outcome = gs.oneOf(
   gs.record({
     kind: gs.just('response'),

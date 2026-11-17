@@ -31,8 +31,8 @@ const stderr = [
 
 test('parseFailures pairs top-level failures with Hegel examples, skipping TODOs', t => {
   t.same(parseFailures('x.test.mjs', tap, stderr), [
-    { file: 'x.test.mjs', key: 'x.test.mjs › first bug', example: stderr.split('\n').slice(0, 4).join('\n'), blob: 'AAA' },
-    { file: 'x.test.mjs', key: 'x.test.mjs › second bug', example: stderr.split('\n').slice(4).join('\n'), blob: 'BBB' }
+    { file: 'x.test.mjs', key: 'x.test.mjs > first bug', example: stderr.split('\n').slice(0, 4).join('\n'), blob: 'AAA' },
+    { file: 'x.test.mjs', key: 'x.test.mjs > second bug', example: stderr.split('\n').slice(4).join('\n'), blob: 'BBB' }
   ])
   t.end()
 })
@@ -40,8 +40,8 @@ test('parseFailures pairs top-level failures with Hegel examples, skipping TODOs
 test('parseFailures omits examples when they cannot be paired reliably', t => {
   const failures = parseFailures('x.test.mjs', tap, 'const draw_1 = 1;\n    .reproduceFailure("AAA")')
   t.same(failures.map(f => [f.key, f.example, f.blob]), [
-    ['x.test.mjs › first bug', null, null],
-    ['x.test.mjs › second bug', null, null]
+    ['x.test.mjs > first bug', null, null],
+    ['x.test.mjs > second bug', null, null]
   ])
   t.end()
 })
@@ -70,7 +70,7 @@ test('planActions ignores issues closed as not planned', t => {
 })
 
 test('marker keys cannot end the HTML comment and round-trip', t => {
-  const key = 'x.test.mjs › a --> b -- c'
+  const key = 'x.test.mjs > a --> b -- c'
   const m = marker(key)
   t.equal(m.indexOf('-->'), m.length - 3)
   t.equal(readMarker(`body\n${m}\nmore`), key)

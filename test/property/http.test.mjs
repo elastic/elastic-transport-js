@@ -12,7 +12,7 @@ import http from 'node:http'
 import { gzipSync } from 'node:zlib'
 import * as hegel from '@hegeldev/hegel'
 import * as gs from '@hegeldev/hegel/generators'
-import { HttpConnection, UndiciConnection, CloudConnectionPool, BaseConnection, errors } from '../../index.js'
+import { HttpConnection, UndiciConnection, errors } from '../../index.js'
 
 // the server replies with whatever the current test case put in `reply`, echoing the request back
 let reply = null
@@ -96,12 +96,3 @@ test('pre-aborted signals reject with RequestAbortedError', { todo: 'known bug: 
     await conn.close()
   }
 }))
-
-test('CloudConnectionPool always returns its single connection', async () => {
-  hegel.test(tc => {
-    const pool = new CloudConnectionPool({ Connection: BaseConnection })
-    const host = tc.draw(gs.text({ alphabet: 'abc', minSize: 1, maxSize: 6 }))
-    pool.addConnection(`http://${host}:9200`)
-    assert.equal(pool.getConnection({ now: 0, requestId: 1, name: 'x', context: null }), pool.connections[0])
-  })
-})
