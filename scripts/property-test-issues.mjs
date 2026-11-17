@@ -39,10 +39,11 @@ export function readMarker (body) {
  * If the counts disagree (e.g. a non-Hegel crash), examples are dropped rather than misattributed.
  */
 export function parseFailures (file, tapOutput, stderr) {
-  const names = []
+  // TODO failures still emit Hegel reports, so keep them until after pairing
+  const tests = []
   for (const line of tapOutput.split('\n')) {
     const m = line.match(/^not ok \d+ - (.*?)(?: # (.*))?$/)
-    if (m != null && !/^TODO\b/i.test(m[2] ?? '')) names.push(m[1])
+    if (m != null) tests.push({ name: m[1], todo: /^TODO\b/i.test(m[2] ?? '') })
   }
   // every Hegel report ends with its `.reproduceFailure("<blob>")` line
   const examples = []
@@ -55,13 +56,15 @@ export function parseFailures (file, tapOutput, stderr) {
       current = []
     }
   }
-  const paired = examples.length === names.length
-  return names.map((name, i) => ({
-    file,
-    key: `${file} > ${name}`,
-    example: paired ? examples[i].example : null,
-    blob: paired ? examples[i].blob : null
-  }))
+  const paired = examples.length === tests.length
+  return tests.map(({ name, todo }, i) => todo
+    ? null
+    : {
+        file,
+        key: `${file} > ${name}`,
+        example: paired ? examples[i].example : null,
+        blob: paired ? examples[i].blob : null
+      }).filter(f => f != null)
 }
 
 /** Decides what to do per failure given existing issues ({ number, state, stateReason, key, text }). */

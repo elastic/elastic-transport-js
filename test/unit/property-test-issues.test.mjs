@@ -24,6 +24,8 @@ const stderr = [
   '',
   'To reproduce this failure, replay it with the Hegel builder:',
   '    .reproduceFailure("AAA")',
+  'const draw_1 = "todo";',
+  '    .reproduceFailure("TTT")',
   'const draw_1 = 2;',
   'To reproduce this failure, replay it with the Hegel builder:',
   '    .reproduceFailure("BBB")'
@@ -32,7 +34,7 @@ const stderr = [
 test('parseFailures pairs top-level failures with Hegel examples, skipping TODOs', t => {
   t.same(parseFailures('x.test.mjs', tap, stderr), [
     { file: 'x.test.mjs', key: 'x.test.mjs > first bug', example: stderr.split('\n').slice(0, 4).join('\n'), blob: 'AAA' },
-    { file: 'x.test.mjs', key: 'x.test.mjs > second bug', example: stderr.split('\n').slice(4).join('\n'), blob: 'BBB' }
+    { file: 'x.test.mjs', key: 'x.test.mjs > second bug', example: stderr.split('\n').slice(6).join('\n'), blob: 'BBB' }
   ])
   t.end()
 })
