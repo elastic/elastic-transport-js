@@ -1949,6 +1949,14 @@ test('Empty request body with vendored headers should use vendored content-type'
   t.equal(res.statusCode, 200)
 })
 
+test('__proto__ header is rejected', async t => {
+  const pool = new WeightedConnectionPool({ Connection: MockConnection })
+  pool.addConnection('http://localhost:9200')
+  t.throws(() => new Transport({ connectionPool: pool, headers: JSON.parse('{"__PROTO__": "bar"}') }), ConfigurationError)
+  const transport = new Transport({ connectionPool: pool })
+  await t.rejects(transport.request({ method: 'GET', path: '/hello' }, { headers: JSON.parse('{"__proto__": "bar"}') }), ConfigurationError)
+})
+
 test('No connection pool', t => {
   t.plan(1)
   try {

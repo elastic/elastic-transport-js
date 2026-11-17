@@ -5,6 +5,7 @@
 
 import * as http from 'node:http'
 import { Readable as ReadableStream } from 'node:stream'
+import { ConfigurationError } from './errors'
 
 export function shouldSerialize (obj: any): obj is Record<string, any> | Array<Record<string, any>> {
   return typeof obj !== 'string' &&
@@ -20,6 +21,7 @@ export function lowerCaseHeaders (oldHeaders?: http.IncomingHttpHeaders): http.I
   if (oldHeaders == null) return null
   const newHeaders: Record<string, string> = {}
   for (const header in oldHeaders) {
+    if (header.toLowerCase() === '__proto__') throw new ConfigurationError('The __proto__ header name is not allowed')
     // @ts-expect-error
     newHeaders[header.toLowerCase()] = oldHeaders[header]
   }

@@ -99,10 +99,14 @@ test('isBinary is false for json/text content types', async () => await hegel.te
   assert.equal(isBinary(type + tc.draw(gs.sampledFrom(['', '; charset=utf-8']))), false)
 }))
 
-test('lowerCaseHeaders lowercases keys and preserves values', { todo: 'known bug: __PROTO__ header key sets the prototype' }, async () => await hegel.test(tc => {
+test('lowerCaseHeaders lowercases keys and preserves values', async () => await hegel.test(tc => {
   const headers = Object.fromEntries(tc.draw(gs.arrays(gs.tuples(gs.text({ minSize: 1, maxSize: 10 }), gs.text()), { maxSize: 6 })))
   // headers differing only by case legitimately collapse into one
   tc.assume(new Set(Object.keys(headers).map(k => k.toLowerCase())).size === Object.keys(headers).length)
+  if (Object.keys(headers).some(k => k.toLowerCase() === '__proto__')) {
+    assert.throws(() => lowerCaseHeaders(headers), errors.ConfigurationError)
+    return
+  }
   const out = lowerCaseHeaders(headers)
   for (const k of Object.keys(out)) assert.equal(k, k.toLowerCase())
   for (const [k, v] of Object.entries(headers)) assert.ok(Object.values(out).includes(v), `value for ${k} lost`)
