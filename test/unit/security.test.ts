@@ -191,6 +191,53 @@ test('redactObject', t => {
     t.notMatch(result.foo[1].password, 'bar')
   })
 
+  t.test('preserves arrays nested in arrays', t => {
+    const result = redactObject({ foo: [[1, { password: 'bar' }]] })
+    t.same(result.foo, [[1, { password: '[redacted]' }]])
+    t.ok(Array.isArray(result.foo[0]))
+    t.end()
+  })
+
+  t.test('strips credentials from URLs in arrays', t => {
+    const url = new URL('http://user:pass@foo.com/path')
+    const result = redactObject({ foo: [url], bar: [[url]] })
+    t.same(result, { foo: ['http://foo.com/path'], bar: [['http://foo.com/path']] })
+    t.end()
+  })
+
+  t.test('avoids infinite loops on circular references through arrays', t => {
+    const obj: Record<string, any> = {}
+    obj.arr = [obj]
+    t.same(redactObject(obj), { arr: [null] })
+    const arr: any[] = []
+    arr.push(arr)
+    t.same(redactObject({ arr }), { arr: [null] })
+    t.end()
+  })
+
+  t.test('keeps non-circular shared references', t => {
+    const x = { id: 1 }
+    const result = redactObject({ a: x, b: x, items: [x, x] })
+    t.same(result, { a: { id: 1 }, b: { id: 1 }, items: [{ id: 1 }, { id: 1 }] })
+    t.end()
+  })
+
+  t.test('redacts shared references in linear time', t => {
+    let obj: Record<string, any> = { password: 'bar' }
+    for (let i = 0; i < 40; i++) obj = { a: obj, b: obj }
+    let result = redactObject(obj)
+    for (let i = 0; i < 40; i++) result = result.b
+    t.equal(result.password, '[redacted]')
+    t.end()
+  })
+
+  t.test('copies __proto__ keys as own keys', t => {
+    const result = redactObject(JSON.parse('{"__proto__":{"password":"bar"}}'))
+    t.equal(Object.getPrototypeOf(result), Object.prototype)
+    t.same(Object.getOwnPropertyDescriptor(result, '__proto__')?.value, { password: '[redacted]' })
+    t.end()
+  })
+
   t.test('does not fail on undefined or null', t => {
     // @ts-expect-error
     t.doesNotThrow(() => redactObject(null))
