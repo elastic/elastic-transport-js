@@ -20,43 +20,23 @@ const secretKeys = [
  */
 export function redactObject (obj: Record<string, any>, additionalKeys: string[] = []): Record<string, any> {
   const toRedact = [...secretKeys, ...additionalKeys].map(key => key.toLowerCase())
-  // `seen` stores each Object it sees, so we can prevent infinite recursion due to circular references
+  // `seen` maps each Object to its redacted copy (null while in progress), so shared references are redacted once
+  // and circular references become null
   const seen = new Map()
   return doRedact(obj)
 
-  function doRedact (obj: Record<string, any>): Record<string, any> {
-    if (typeof obj !== 'object' || obj == null) return obj
-
-    const newObj: Record<string, any> = {}
-    Object.entries(obj).forEach(([key, value]) => {
-      // pull auth info out of URL objects
-      if (value instanceof URL) {
-        value = `${value.origin}${value.pathname}${value.search}`
-      } else if (typeof value === 'object' && value !== null) {
-        if (Array.isArray(value)) {
-          // if it's an array, redact each item
-          value = value.map(v => doRedact(v))
-        } else {
-          if (seen.get(value) !== true) {
-            // if this Object hasn't been seen, recursively redact it
-            seen.set(value, true)
-            value = doRedact(value)
-          } else {
-            // if it has been seen, set the value that goes in newObj to null
-            // this is what prevents the circular references
-            value = null
-          }
-        }
-      }
-
-      // check if redaction is needed for this key
-      if (toRedact.includes(key.toLowerCase())) {
-        newObj[key] = '[redacted]'
-      } else {
-        newObj[key] = value
-      }
-    })
-    return newObj
+  function doRedact (value: any): any {
+    // pull auth info out of URL objects
+    if (value instanceof URL) return `${value.origin}${value.pathname}${value.search}`
+    if (typeof value !== 'object' || value == null) return value
+    if (Array.isArray(value)) return value.map(v => doRedact(v))
+    if (seen.has(value)) return seen.get(value)
+    seen.set(value, null)
+    // Object.fromEntries defines own keys, so a `__proto__` key can't replace the prototype
+    const result = Object.fromEntries(Object.entries(value).map(([key, v]) =>
+      [key, toRedact.includes(key.toLowerCase()) ? '[redacted]' : doRedact(v)]))
+    seen.set(value, result)
+    return result
   }
 }
 

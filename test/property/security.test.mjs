@@ -46,7 +46,7 @@ test('redactObject does not mutate its input', async () => await hegel.test(tc =
   assert.deepEqual(obj, before)
 }))
 
-test('redactObject preserves objects without secret keys', { todo: 'known bug: nested arrays become objects' }, async () => await hegel.test(tc => {
+test('redactObject preserves objects without secret keys', async () => await hegel.test(tc => {
   const obj = tc.draw(jsonObject)
   tc.assume(!JSON.stringify(obj).toLowerCase().match(/"(authorization|password|apikey|x-elastic-app-auth)"/))
   assert.deepEqual(redactObject(obj), obj)
