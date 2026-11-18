@@ -1329,6 +1329,58 @@ test('Warning header (multiple as array)', async t => {
   t.same(res.warnings, [warn3])
 })
 
+test('Warning header (messages with spaces, commas and escaped quotes)', async t => {
+  const warns = [
+    '299 Elasticsearch-9.0.0 "a "',
+    '299 Elasticsearch-9.0.0 " b"',
+    '299 Elasticsearch-9.0.0 "c, d"',
+    '299 Elasticsearch-9.0.0 "say \\"hi\\", ok"'
+  ]
+
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
+      return { body: {}, statusCode: 200, headers: { warning: warns.join(',') } }
+    }
+  })
+
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+  const transport = new Transport({ connectionPool: pool })
+
+  const res = await transport.request({ method: 'GET', path: '/hello' }, { meta: true })
+  t.same(res.warnings, warns)
+})
+
+test('Warning header (unterminated quote)', async t => {
+  const warn = '299 Elasticsearch-9.0.0 "a, b'
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
+      return { body: {}, statusCode: 200, headers: { warning: warn } }
+    }
+  })
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+  const transport = new Transport({ connectionPool: pool })
+  const res = await transport.request({ method: 'GET', path: '/hello' }, { meta: true })
+  t.same(res.warnings, [warn])
+})
+
+test('Warning header parsing is linear on malformed quoted strings', async t => {
+  const warn = '299 Elasticsearch-9.0.0 "' + '\\"'.repeat(50000) + '\\'
+  const Conn = buildMockConnection({
+    onRequest(opts: ConnectionRequestParams): { body: any, statusCode: number, headers: http.IncomingHttpHeaders } {
+      return { body: {}, statusCode: 200, headers: { warning: warn } }
+    }
+  })
+  const pool = new WeightedConnectionPool({ Connection: Conn })
+  pool.addConnection('http://localhost:9200')
+  const transport = new Transport({ connectionPool: pool })
+  const res = await transport.request({ method: 'GET', path: '/hello' }, { meta: true })
+  const start = performance.now()
+  t.same(res.warnings, [warn])
+  t.ok(performance.now() - start < 500)
+})
+
 test('No warnings', async t => {
   const pool = new WeightedConnectionPool({ Connection: MockConnection })
   pool.addConnection('http://localhost:9200')

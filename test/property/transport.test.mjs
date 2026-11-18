@@ -133,7 +133,7 @@ test('maxPathLength rejects exactly the over-long request lines', async () => aw
   else await req
 }))
 
-test('warnings parse only Elasticsearch warning headers', { todo: 'known bug: warning split regex drops some messages' }, async () => await hegel.testAsync(async tc => {
+test('warnings parse only Elasticsearch warning headers', async () => await hegel.testAsync(async tc => {
   const messages = tc.draw(gs.arrays(gs.text({ alphabet: 'abc xyz', minSize: 1, maxSize: 10 }), { minSize: 1, maxSize: 4 }))
   const warning = messages.map(m => `299 Elasticsearch-9.0.0 "${m}"`).join(',')
   const { transport } = scriptedTransport(tc, [])
@@ -142,6 +142,17 @@ test('warnings parse only Elasticsearch warning headers', { todo: 'known bug: wa
   transport.connectionPool.getConnection = () => conn
   const res = await transport.request({ method: 'GET', path: '/' }, { meta: true })
   assert.equal(res.warnings.length, messages.length)
+}))
+
+test('warnings keep quoted messages containing commas and escaped quotes intact', async () => await hegel.testAsync(async tc => {
+  const raw = tc.draw(gs.arrays(gs.text({ alphabet: 'a ,"\\', minSize: 1, maxSize: 10 }), { minSize: 1, maxSize: 4 }))
+  const expected = raw.map(m => `299 Elasticsearch-9.0.0 "${m.replace(/[\\"]/g, '\\$&')}"`)
+  const { transport } = scriptedTransport(tc, [])
+  const conn = transport.connectionPool.connections[0]
+  conn.request = async () => ({ statusCode: 200, headers: { warning: expected.join(',') }, body: '' })
+  transport.connectionPool.getConnection = () => conn
+  const res = await transport.request({ method: 'GET', path: '/' }, { meta: true })
+  assert.deepEqual(res.warnings, expected)
 }))
 
 test('diagnostic events fire in order for every request', async () => await hegel.testAsync(async tc => {
