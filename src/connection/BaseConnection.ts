@@ -186,7 +186,11 @@ const validStatuses = Object.keys(BaseConnection.statuses)
   .map(k => BaseConnection.statuses[k])
 
 export function stripAuth (url: string): string {
-  return url.replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/?#]*@/i, '$1')
+  const parsed = new URL(url)
+  if (parsed.username === '' && parsed.password === '') return url
+  parsed.username = ''
+  parsed.password = ''
+  return parsed.href
 }
 
 export function prepareHeaders (headers: http.IncomingHttpHeaders = {}, auth?: BasicAuth | ApiKeyAuth | BearerAuth): http.IncomingHttpHeaders {
