@@ -100,6 +100,8 @@ export default class WeightedConnectionPool extends BaseConnectionPool {
 
     this.maxWeight = Math.max(...(this.connections.map(c => c.weight)))
     this.greatestCommonDivisor = this.connections.map(c => c.weight).reduce(getGreatestCommonDivisor, 0)
+    // a stale currentWeight above maxWeight would skip every node until the next wrap
+    this.currentWeight = Math.min(this.currentWeight, this.maxWeight)
 
     return this
   }

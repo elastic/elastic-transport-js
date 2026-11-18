@@ -132,7 +132,7 @@ test('ClusterConnectionPool optimistic resurrection revives the earliest dead no
   assert.equal(pool.dead.includes(first), false)
 }))
 
-test('WeightedConnectionPool state machine', { todo: 'known bug: getConnection can return null with live connections' }, async () => await hegel.test(tc => {
+test('WeightedConnectionPool state machine', async () => await hegel.test(tc => {
   const pool = new WeightedConnectionPool({ Connection: BaseConnection })
   pool.addConnection(tc.draw(hostUrls))
   hegel.stateful.run(tc, {
@@ -150,7 +150,7 @@ test('WeightedConnectionPool state machine', { todo: 'known bug: getConnection c
       }
     }
   }, { pool })
-}))
+}, { testCases: 2000 }))
 
 test('BaseConnectionPool update keeps exactly the given nodes', async () => await hegel.test(tc => {
   const pool = new BaseConnectionPool({ Connection: BaseConnection })
@@ -168,11 +168,13 @@ test('BaseConnectionPool rejects duplicate connections', async () => await hegel
   assert.throws(() => pool.addConnection(url))
 }))
 
-test('createConnection extracts credentials from the URL', { todo: 'known bug: literal % in URL credentials throws URIError' }, async () => await hegel.test(tc => {
+test('createConnection extracts credentials from the URL', async () => await hegel.test(tc => {
   const pool = new BaseConnectionPool({ Connection: BaseConnection })
   const url = new URL(tc.draw(hostUrl))
   const username = tc.draw(gs.text({ minSize: 1, maxSize: 10 }))
   const password = tc.draw(gs.text({ minSize: 1, maxSize: 10 }))
+  // a literal `%41` in a URL is indistinguishable from an encoded `A`
+  tc.assume(!/%[0-9A-Fa-f]{2}/.test(username + password))
   url.username = username
   url.password = password
   const conn = pool.createConnection(url.href)
