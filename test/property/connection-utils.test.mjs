@@ -20,20 +20,20 @@ const urlPath = gs.text({ maxSize: 15 }).map(p => '/' + encodeURI(p))
 
 test('stripAuth removes credentials and keeps host and path', async () => await hegel.test(tc => {
   const url = new URL(`${tc.draw(gs.sampledFrom(['http', 'https']))}://${tc.draw(hostname)}:${tc.draw(port)}`)
+  url.pathname = tc.draw(urlPath)
+  url.search = tc.draw(gs.text({ maxSize: 10 }))
+  url.hash = tc.draw(gs.text({ maxSize: 10 }))
+  const expected = url.href
   url.username = tc.draw(userinfo)
   url.password = tc.draw(userinfo)
-  url.pathname = tc.draw(urlPath)
-  const stripped = new URL(stripAuth(url.href))
-  assert.equal(stripped.username, '')
-  assert.equal(stripped.password, '')
-  assert.equal(stripped.host, url.host)
-  assert.equal(stripped.pathname, url.pathname)
+  assert.equal(stripAuth(url.href), expected)
 }))
 
 test('stripAuth is the identity on URLs without credentials', async () => await hegel.test(tc => {
   const url = new URL(`http://${tc.draw(hostname)}:${tc.draw(port)}`)
   url.pathname = tc.draw(urlPath)
   url.search = tc.draw(gs.text({ maxSize: 10 }))
+  url.hash = tc.draw(gs.text({ maxSize: 10 }))
   assert.equal(stripAuth(url.href), url.href)
 }))
 

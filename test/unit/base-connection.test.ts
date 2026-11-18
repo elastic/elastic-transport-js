@@ -303,3 +303,15 @@ test('stripAuth only strips credentials from the authority', t => {
   t.equal(stripAuth('http://a:1/?next=http://b@c'), 'http://a:1/?next=http://b@c')
   t.end()
 })
+
+test('stripAuth', t => {
+  t.equal(stripAuth('http://localhost:9200/a@b'), 'http://localhost:9200/a@b', '@ in path is kept')
+  t.equal(stripAuth('http://localhost:9200/?q=a@b'), 'http://localhost:9200/?q=a@b', '@ in query is kept')
+  t.equal(stripAuth('http://localhost:9200/#a@b'), 'http://localhost:9200/#a@b', '@ in fragment is kept')
+  t.equal(stripAuth('http://user:pass@localhost:9200/a@b'), 'http://localhost:9200/a@b', 'credentials removed, path kept')
+  t.equal(stripAuth('http://us%40er:p%40ss@localhost:9200/'), 'http://localhost:9200/', 'encoded @ in credentials removed')
+  t.equal(stripAuth('http:////user:secret@localhost:9200/'), 'http://localhost:9200/', 'extra slashes before credentials')
+  t.equal(stripAuth('foo://user:pa\\ss@localhost:9200/'), 'foo://localhost:9200/', 'backslash in credentials of non-special scheme')
+  t.throws(() => stripAuth('http:u:secret@host:invalid/path//'), 'unparseable input is not returned with credentials')
+  t.end()
+})
