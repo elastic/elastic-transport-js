@@ -636,6 +636,28 @@ test('Abort request', t => {
     await connection.close()
   })
 
+  t.test('Reject an already-aborted signal without contacting the server', async t => {
+    t.plan(1)
+
+    function handler (_req: http.IncomingMessage, _res: http.ServerResponse) {
+      t.fail('The server should not be contacted')
+    }
+
+    const [{ port }, server] = await buildServer(handler)
+    const connection = new HttpConnection({
+      url: new URL(`http://localhost:${port}`)
+    })
+
+    const controller = new AbortController()
+    controller.abort()
+    await t.rejects(
+      connection.request({ path: '/hello', method: 'GET' }, { signal: controller.signal, ...options }),
+      RequestAbortedError
+    )
+    await connection.close()
+    server.stop()
+  })
+
   t.test('Abort a request asyncronously', async t => {
     t.plan(1)
 
