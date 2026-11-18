@@ -299,5 +299,7 @@ test('stripAuth only strips credentials from the authority', t => {
   t.equal(stripAuth('http://a:1/?@'), 'http://a:1/?@')
   t.equal(stripAuth('http://a:1/x@y#z@'), 'http://a:1/x@y#z@')
   t.equal(stripAuth('http://u:p@a:1/x@y'), 'http://a:1/x@y')
+  t.equal(stripAuth('http://a:1//x@y'), 'http://a:1//x@y')
+  t.equal(stripAuth('http://a:1/?next=http://b@c'), 'http://a:1/?next=http://b@c')
   t.end()
 })
