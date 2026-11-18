@@ -119,8 +119,8 @@ export default class BaseConnectionPool {
       opts.auth = this.auth
     } else if (opts.url.username !== '' && opts.url.password !== '') {
       opts.auth = {
-        username: decodeURIComponent(opts.url.username),
-        password: decodeURIComponent(opts.url.password)
+        username: decodeCredential(opts.url.username),
+        password: decodeCredential(opts.url.password)
       }
     }
 
@@ -303,4 +303,18 @@ export default class BaseConnectionPool {
       url: new URL(url)
     }
   }
+}
+
+// URL leaves a literal `%` unescaped in userinfo, so decode only escapes that
+// form valid UTF-8 and keep anything else (e.g. `%`, `%ZZ`, `%FF`) as-is.
+const utf8Escape = /%[0-7][0-9A-F]|%[C-D][0-9A-F]%[89AB][0-9A-F]|%E[0-9A-F](?:%[89AB][0-9A-F]){2}|%F[0-4](?:%[89AB][0-9A-F]){3}/gi
+
+function decodeCredential (value: string): string {
+  return value.replace(utf8Escape, match => {
+    try {
+      return decodeURIComponent(match)
+    } catch {
+      return match
+    }
+  })
 }
