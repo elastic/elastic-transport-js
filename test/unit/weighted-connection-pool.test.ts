@@ -257,6 +257,18 @@ test('API', t => {
       pool.getConnection({ ...opts, filter })
     })
 
+    t.test('should return a connection after markDead lowers the max weight', t => {
+      const pool = new WeightedConnectionPool({ Connection: HttpConnection })
+      pool.addConnection(['http://localhost:9200/', 'http://localhost:9201/'])
+      const [a, b] = pool.connections
+      t.equal(pool.getConnection(opts), a)
+      pool.markDead(a)
+      pool.markDead(a)
+      pool.markDead(b)
+      t.equal(pool.getConnection(opts), b)
+      t.end()
+    })
+
     t.end()
   })
 

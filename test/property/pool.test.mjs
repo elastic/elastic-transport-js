@@ -132,7 +132,7 @@ test('ClusterConnectionPool optimistic resurrection revives the earliest dead no
   assert.equal(pool.dead.includes(first), false)
 }))
 
-test('WeightedConnectionPool state machine', { todo: 'known bug: getConnection can return null with live connections' }, async () => await hegel.test(tc => {
+test('WeightedConnectionPool state machine', async () => await hegel.test(tc => {
   const pool = new WeightedConnectionPool({ Connection: BaseConnection })
   pool.addConnection(tc.draw(hostUrls))
   hegel.stateful.run(tc, {
@@ -150,7 +150,7 @@ test('WeightedConnectionPool state machine', { todo: 'known bug: getConnection c
       }
     }
   }, { pool })
-}))
+}, { testCases: 2000 }))
 
 test('BaseConnectionPool update keeps exactly the given nodes', async () => await hegel.test(tc => {
   const pool = new BaseConnectionPool({ Connection: BaseConnection })
