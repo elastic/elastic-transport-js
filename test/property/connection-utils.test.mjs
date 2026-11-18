@@ -30,7 +30,7 @@ test('stripAuth removes credentials and keeps host and path', async () => await 
   assert.equal(stripped.pathname, url.pathname)
 }))
 
-test('stripAuth is the identity on URLs without credentials', { todo: 'known bug: stripAuth mangles URLs with @ after the host' }, async () => await hegel.test(tc => {
+test('stripAuth is the identity on URLs without credentials', async () => await hegel.test(tc => {
   const url = new URL(`http://${tc.draw(hostname)}:${tc.draw(port)}`)
   url.pathname = tc.draw(urlPath)
   url.search = tc.draw(gs.text({ maxSize: 10 }))
