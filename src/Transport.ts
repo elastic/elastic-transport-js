@@ -419,7 +419,8 @@ export default class Transport {
         // if multiple HTTP headers have the same name, Undici represents them as an array
         const warnings: string[] = Array.isArray(warning) ? warning : [warning]
         return warnings
-          .flatMap(w => w.split(/(?!\B"[^"]*),(?![^"]*"\B)/))
+          // split on commas outside quoted strings; an unterminated quote runs to the end
+          .flatMap(w => w.match(/(?:[^,"]|"(?:[^"\\]|\\[^]?)*(?:"|$))+/g) ?? [])
           .filter((warning) => warning.match(/^\d\d\d Elasticsearch-/))
       }
     }
