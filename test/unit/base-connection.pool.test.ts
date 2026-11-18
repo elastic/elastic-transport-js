@@ -67,6 +67,14 @@ test('API', t => {
     t.end()
   })
 
+  t.test('addConnection keeps literal % in URL credentials that are not valid escapes', t => {
+    const pool = new BaseConnectionPool({ Connection: HttpConnection })
+    pool.addConnection('http://us%er:p%ZZ%40ss%FF%40%C3%A9@localhost:9200/')
+    const conn = pool.connections[0]
+    t.equal(conn.headers.authorization, 'Basic ' + Buffer.from('us%er:p%ZZ@ss%FF@é').toString('base64'))
+    t.end()
+  })
+
   t.test('getConnection should throw', t => {
     const pool = new BaseConnectionPool({ Connection: HttpConnection })
     const href = 'http://localhost:9200/'
