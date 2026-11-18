@@ -77,8 +77,9 @@ export default class HttpConnection extends BaseConnection {
   async request (params: ConnectionRequestParams, options: any): Promise<any> {
     if (this[kCaFingerprint] != null && this.url.protocol === 'https:') {
       await pinOnce(this.pinSlot, async () => await this.pinCa())
-      if (options.signal?.aborted === true) throw new RequestAbortedError('Request aborted')
     }
+    // an already-aborted signal never emits 'abort', so the listener below would not fire
+    if (options.signal?.aborted === true) throw new RequestAbortedError('Request aborted')
     return await new Promise((resolve, reject) => {
       let cleanedListeners = false
 
