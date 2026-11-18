@@ -113,7 +113,7 @@ export class ResponseError extends ElasticsearchClientError {
     this.name = 'ResponseError'
 
     if (isObject(meta.body) && meta.body.error != null && meta.body.error.type != null) {
-      this.message = meta.body.error.type
+      this.message = String(meta.body.error.type)
 
       if (isObject(meta.body.error.caused_by)) {
         const { type, reason } = meta.body.error.caused_by
@@ -138,7 +138,7 @@ export class ResponseError extends ElasticsearchClientError {
     } else if (typeof meta.body === 'object' && meta.body != null) {
       this.message = JSON.stringify(meta.body)
     } else {
-      this.message = meta.body as string ?? 'Response Error'
+      this.message = meta.body != null ? String(meta.body) : 'Response Error'
     }
 
     this.meta = redactDiagnostic(meta, this.options.redaction)

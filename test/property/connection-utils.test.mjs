@@ -151,7 +151,7 @@ test('BaseConnection status setter validates', async () => await hegel.test(tc =
   }
 }))
 
-test('ResponseError never throws and derives statusCode consistently', { todo: 'known bug: non-string body yields a non-string message' }, async () => await hegel.test(tc => {
+test('ResponseError never throws and derives statusCode consistently', async () => await hegel.test(tc => {
   const errorBody = gs.record({
     type: gs.text(),
     reason: gs.optional(gs.text()),
@@ -163,7 +163,7 @@ test('ResponseError never throws and derives statusCode consistently', { todo: '
     gs.record({ error: errorBody, status: gs.optional(gs.integers({ minValue: 100, maxValue: 599 })) })
   ))
   const statusCode = tc.draw(gs.integers({ minValue: 100, maxValue: 599 }))
-  const err = new errors.ResponseError({ body, statusCode, headers: {}, warnings: null, meta: {} })
+  const err = new errors.ResponseError({ body, statusCode, headers: {}, warnings: null, meta: {} }, { redaction: { type: 'off' } })
   assert.equal(typeof err.message, 'string')
   const expected = body !== null && typeof body === 'object' && !Array.isArray(body) && typeof body.status === 'number' ? body.status : statusCode
   assert.equal(err.statusCode, expected)

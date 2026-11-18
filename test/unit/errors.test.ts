@@ -196,3 +196,17 @@ test('Error.cause is propagated through ElasticsearchClientError subclasses', t 
 
   t.end()
 })
+
+test('ResponseError message is a string for non-string primitive bodies', t => {
+  for (const [body, expected] of [[false, 'false'], [true, 'true'], [0, '0'], [42, '42']]) {
+    const err = new errors.ResponseError({ body, statusCode: 500, headers: {}, warnings: null, meta: {} as any })
+    t.equal(err.message, expected)
+  }
+  t.end()
+})
+
+test('ResponseError message is a string for a non-string error.type', t => {
+  const err = new errors.ResponseError({ body: { error: { type: 0 } }, statusCode: 500, headers: {}, warnings: null, meta: {} as any })
+  t.equal(err.message, '0')
+  t.end()
+})
