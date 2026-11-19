@@ -279,9 +279,9 @@ export default class ClusterConnectionPool extends BaseConnectionPool {
    * @returns {ConnectionPool}
    */
   async empty (): Promise<void> {
-    await super.empty()
     this.dead = []
     this.roundRobinIndex = 0
+    await super.empty()
   }
 
   /**

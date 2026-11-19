@@ -624,3 +624,37 @@ test('custom selector overrides default round-robin', t => {
   t.end()
 })
 
+
+test('empty() race conditions', t => {
+  t.test('getConnection during pending close does not throw', async t => {
+    const pool = new ClusterConnectionPool({ Connection: HttpConnection })
+    pool.addConnection(['http://localhost:9200/', 'http://localhost:9201/'])
+    pool.markDead(pool.connections[0])
+    const emptying = pool.empty()
+    t.doesNotThrow(() => pool.getConnection({ now: Date.now(), requestId: 1, name: 'test', context: null }))
+    await emptying
+  })
+
+  t.test('dead list is reset even if close rejects', async t => {
+    class FailingConnection extends HttpConnection {
+      async close (): Promise<void> { throw new Error('boom') }
+    }
+    const pool = new ClusterConnectionPool({ Connection: FailingConnection })
+    pool.addConnection('http://localhost:9200/')
+    pool.markDead(pool.connections[0])
+    await t.rejects(pool.empty())
+    t.same(pool.dead, [])
+  })
+
+  t.test('stale empty does not erase state of nodes added afterward', async t => {
+    const pool = new ClusterConnectionPool({ Connection: HttpConnection })
+    pool.addConnection('http://localhost:9200/')
+    const emptying = pool.empty()
+    pool.addConnection('http://localhost:9201/')
+    pool.markDead(pool.connections[0])
+    await emptying
+    t.same(pool.dead, ['http://localhost:9201/'])
+  })
+
+  t.end()
+})
